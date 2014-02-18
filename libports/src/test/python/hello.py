@@ -1,3 +1,7 @@
+import sys
+sys.path = ["python26.zip"]
+import os
+
 print " \r\n\r";
 print "        -============================-";
 print "        ||                          ||";

@@ -32,6 +32,8 @@ extern void init_codecs(void);
 extern void initzipimport(void);
 extern void init_symtable(void);
 extern void initxxsubtype(void);
+extern void initmath(void);
+extern void initzlib(void);
 
 /* -- ADDMODULE MARKER 1 -- */
 
@@ -52,6 +54,8 @@ struct _inittab _PyImport_Inittab[] = {
 	{"zipimport", initzipimport},
 	{"_symtable", init_symtable},
 	{"xxsubtype", initxxsubtype},
+	{"math", initmath},
+	{"zlib", initzlib},
 
 /* -- ADDMODULE MARKER 2 -- */
 

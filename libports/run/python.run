@@ -69,12 +69,19 @@ set file_size [exec du -b bin/hello.py]
 set file_size [regexp -inline {[0-9]+} $file_size]
 if {$file_size != 4096 } { puts "hello.py could not be prepared properly"; exit 1 }
 
+set python_libs "[genode_dir]/libports/contrib/python-2.6.4/Lib/"
+set workdir [exec pwd]
+cd $python_libs
+exec zip -r $workdir/bin/python26.zip .
+cd $workdir
+
 # generic modules
 set boot_modules {
 	core init
 	ld.lib.so libc.lib.so libc_log.lib.so libc_rom.lib.so libm.lib.so python.lib.so
 	test-python
 	hello.py
+	python26.zip
 }
 
 build_boot_image $boot_modules

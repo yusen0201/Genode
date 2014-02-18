@@ -9,6 +9,9 @@ INC_DIR += $(REP_DIR)/include/python
 # Python headres
 INC_DIR += $(PYTHON_DIR)/Include
 
+# zlib headers
+INC_DIR += $(PYTHON_DIR)/Modules/zlib
+
 D_OPTS  = Py_BUILD_CORE NDBEUG PREFIX='""' EXEC_PREFIX='"lib"' VERSION='"2.6"'
 F_OPTS  = no-strict-aliasing wrapv
 D_OPTS := $(addprefix -D,$(D_OPTS))
@@ -122,6 +125,21 @@ SRC_C = \
         _sre.c \
         _codecsmodule.c \
         zipimport.c \
+        zlibmodule.c \
+        zlib/adler32.c \
+        zlib/compress.c \
+        zlib/crc32.c \
+        zlib/deflate.c \
+        zlib/gzio.c \
+        zlib/infback.c \
+        zlib/inffast.c \
+        zlib/inflate.c \
+        zlib/inftrees.c \
+        zlib/minigzip.c \
+        zlib/trees.c \
+        zlib/uncompr.c \
+        zlib/zutil.c \
+        mathmodule.c \
         symtablemodule.c \
         xxsubtype.c
 
