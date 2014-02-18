@@ -165,7 +165,7 @@ namespace {
 
 				case SEEK_END:
 
-					rom->read_offset = rom->size();
+					rom->read_offset = rom->size() + offset;
 					break;
 
 				default:
