@@ -6,6 +6,8 @@
 # This test case executes a small HTTP server, it has been used on PandaBoard
 # hardware only, though it should execute but not do anything on other hardware
 #
+# Remark: It has successfully been tested on Raspberry Pi. (Johannes Schlatow, 2014-02-20)
+#
 
 #
 # Build
@@ -20,6 +22,7 @@ build {
 lappend_if [have_spec acpi]             build_components drivers/acpi
 lappend_if [have_spec pci]              build_components drivers/pci/device_pd
 lappend_if [have_spec platform_arndale] build_components drivers/platform
+lappend_if [have_spec platform_rpi]     build_components drivers/platform
 lappend_if [have_spec gpio]             build_components drivers/gpio
 
 
@@ -84,6 +87,12 @@ append_if [have_spec platform_arndale] config {
 			<provides><service name="Regulator"/></provides>
 		</start>}
 
+append_if [have_spec platform_rpi] config {
+		<start name="platform_drv">
+			<resource name="RAM" quantum="1M"/>
+			<provides><service name="Platform"/></provides>
+		</start>}
+
 append_if [have_spec gpio] config {
 	<start name="gpio_drv">
 		<resource name="RAM" quantum="4M"/>
@@ -118,6 +127,7 @@ lappend_if [have_spec acpi]             boot_modules acpi_drv
 lappend_if [have_spec pci]              boot_modules pci_drv
 lappend_if [have_spec nova]             boot_modules pci_device_pd
 lappend_if [have_spec platform_arndale] boot_modules platform_drv
+lappend_if [have_spec platform_rpi]     boot_modules platform_drv
 lappend_if [have_spec gpio]             boot_modules gpio_drv
 
 build_boot_image $boot_modules
