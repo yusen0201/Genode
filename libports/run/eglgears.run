@@ -1,4 +1,4 @@
-build {
+set build_components {
 	core init
 	drivers/timer
 	server/nitpicker server/nit_fb
@@ -7,6 +7,11 @@ build {
 	drivers/framebuffer drivers/pci drivers/input
 	lib/gallium
 }
+
+lappend_if [have_spec usb]          build_components drivers/usb
+lappend_if [have_spec platform_rpi] build_components drivers/platform
+
+build $build_components
 
 create_boot_directory
 
@@ -51,10 +56,24 @@ append_if [have_spec framebuffer] config {
 		<provides><service name="Framebuffer"/></provides>
 	</start>}
 
+append_if [have_spec platform_rpi] config {
+	<start name="platform_drv">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Platform"/></provides>
+		<config/>
+	</start>}
+
 append_if [have_spec ps2] config {
 	<start name="ps2_drv">
 		<resource name="RAM" quantum="1M"/>
 		<provides><service name="Input"/></provides>
+	</start> }
+
+append_if [expr ![have_spec ps2] && [have_spec usb]] config {
+	<start name="usb_drv">
+		<resource name="RAM" quantum="12M"/>
+		<provides><service name="Input"/></provides>
+		<config ehci="yes" uhci="yes" xhci="no"> <hid/> </config>
 	</start> }
 
 append config {
@@ -118,6 +137,8 @@ lappend_if [have_spec         pci] boot_modules pci_drv
 lappend_if [have_spec framebuffer] boot_modules fb_drv
 lappend_if [have_spec         ps2] boot_modules ps2_drv
 lappend_if [have_spec        i915] boot_modules gallium-i915.lib.so
+lappend_if [have_spec platform_rpi] boot_modules platform_drv
+lappend_if [have_spec usb]          boot_modules usb_drv
 
 build_boot_image $boot_modules
 
