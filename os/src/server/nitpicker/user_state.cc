@@ -35,15 +35,15 @@ static inline bool _mouse_button(Keycode keycode) {
  ** User state interface **
  **************************/
 
-User_state::User_state(Global_keys &global_keys, Canvas_base &canvas, Menubar &menubar)
+User_state::User_state(Global_keys &global_keys, Area view_stack_size, Menubar &menubar)
 :
-	View_stack(canvas, *this), _global_keys(global_keys), _key_cnt(0),
+	View_stack(view_stack_size, *this), _global_keys(global_keys), _key_cnt(0),
 	_menubar(menubar), _pointed_view(0), _input_receiver(0),
 	_global_key_sequence(false)
 { }
 
 
-void User_state::handle_event(Input::Event ev)
+void User_state::handle_event(Input::Event ev, Canvas_base &canvas)
 {
 	Input::Keycode     const keycode = ev.keycode();
 	Input::Event::Type const type    = ev.type();
@@ -100,29 +100,32 @@ void User_state::handle_event(Input::Event ev)
 	 */
 	struct Update_all_guard
 	{
-		User_state &user_state;
-		bool        enabled;
-		char const *menu_title;
+		User_state  &user_state;
+		Canvas_base &canvas;
+		bool        update_menubar = false;
+		bool        update_views   = false;
+		char const *menu_title     = "";
 
-		Update_all_guard(User_state &user_state)
-		: user_state(user_state), enabled(false), menu_title("") { }
+		Update_all_guard(User_state &user_state, Canvas_base &canvas)
+		: user_state(user_state), canvas(canvas) { }
 
 		~Update_all_guard()
 		{
-			if (!enabled)
-				return;
+			Menubar_state state(user_state, "", "", BLACK);
 
 			if (user_state._input_receiver)
-				user_state._menubar.state(user_state,
-				                          user_state._input_receiver->label().string(),
-				                          menu_title,
-				                          user_state._input_receiver->color());
-			else
-				user_state._menubar.state(user_state, "", "", BLACK);
+				state = Menubar_state(user_state,
+				                      user_state._input_receiver->label().string(),
+				                      menu_title,
+				                      user_state._input_receiver->color());
 
-			user_state.update_all_views();
+			if (update_menubar)
+				user_state._menubar.state(state);
+
+			if (update_menubar || update_views)
+				user_state.update_all_views(canvas);
 		}
-	} update_all_guard(*this);
+	} update_all_guard(*this, canvas);
 
 	/*
 	 * Handle start of a key sequence
@@ -135,10 +138,11 @@ void User_state::handle_event(Input::Event ev)
 		 */
 		if (kill() && keycode == Input::BTN_LEFT) {
 			if (pointed_view)
-				lock_out_session(pointed_view->session());
+				lock_out_session(canvas, pointed_view->session());
 
 			/* leave kill mode */
-			update_all_guard.enabled = true;
+			update_all_guard.update_menubar = true;
+			update_all_guard.update_views   = true;
 			Mode::leave_kill();
 			return;
 		}
@@ -154,8 +158,10 @@ void User_state::handle_event(Input::Event ev)
 			 * Update the whole screen when the focus change results in
 			 * changing the focus to another session.
 			 */
-			if (flat() && !focus_stays_in_session)
-				update_all_guard.enabled = true;
+			if (flat() && !focus_stays_in_session) {
+				update_all_guard.update_menubar = true;
+				update_all_guard.update_views   = true;
+			}
 
 			/*
 			 * Notify both the old focussed session and the new one.
@@ -173,8 +179,10 @@ void User_state::handle_event(Input::Event ev)
 				}
 			}
 
+			update_all_guard.update_menubar = true;
+
 			if (!flat() || !focused_view() || !pointed_view)
-				update_all_guard.enabled = true;
+				update_all_guard.update_views = true;
 
 			focused_view(pointed_view);
 		}
@@ -191,10 +199,11 @@ void User_state::handle_event(Input::Event ev)
 		 */
 		Session * const global_receiver = _global_keys.global_receiver(keycode);
 		if (global_receiver) {
-			_global_key_sequence        = true;
-			_input_receiver             = global_receiver;
-			update_all_guard.menu_title = "";
-			update_all_guard.enabled    = true;
+			_global_key_sequence            = true;
+			_input_receiver                 = global_receiver;
+			update_all_guard.menu_title     = "";
+			update_all_guard.update_menubar = true;
+			update_all_guard.update_views   = true;
 		}
 
 		/*
@@ -202,8 +211,8 @@ void User_state::handle_event(Input::Event ev)
 		 * focused view or refers to a built-in operation.
 		 */
 		if (!global_receiver && focused_view()) {
-			_input_receiver             = &focused_view()->session();
-			update_all_guard.menu_title =  focused_view()->title();
+			_input_receiver = &focused_view()->session();
+			update_all_guard.menu_title = focused_view()->title();
 		}
 
 		/*
@@ -215,8 +224,10 @@ void User_state::handle_event(Input::Event ev)
 			if (_global_keys.is_kill_key(keycode)) Mode::toggle_kill();
 			if (_global_keys.is_xray_key(keycode)) Mode::toggle_xray();
 
-			update_all_guard.enabled = true;
-			_input_receiver          = 0;
+			update_all_guard.update_menubar = true;
+			update_all_guard.update_views   = true;
+
+			_input_receiver = 0;
 		}
 	}
 
@@ -251,10 +262,14 @@ void User_state::handle_event(Input::Event ev)
 	 * Detect end of global key sequence
 	 */
 	if (ev.type() == Event::RELEASE && _key_cnt == 0 && _global_key_sequence) {
-		_input_receiver             = focused_view() ? &focused_view()->session() : 0;
-		update_all_guard.menu_title = focused_view() ?  focused_view()->title()   : "";
-		update_all_guard.enabled    = true;
-		_global_key_sequence        = false;
+
+		_input_receiver = focused_view() ? &focused_view()->session() : 0;
+
+		update_all_guard.menu_title     = focused_view() ?  focused_view()->title()   : "";
+		update_all_guard.update_menubar = true;
+		update_all_guard.update_views   = true;
+
+		_global_key_sequence = false;
 	}
 }
 
@@ -263,12 +278,12 @@ void User_state::handle_event(Input::Event ev)
  ** Mode interface **
  ********************/
 
-void User_state::forget(View const &view)
+void User_state::forget(Canvas_base &canvas, View const &view)
 {
 	if (focused_view() == &view) {
 		Mode::forget(view);
-		_menubar.state(*this, "", "", BLACK);
-		update_all_views();
+		_menubar.state(Menubar_state(*this, "", "", BLACK));
+		update_all_views(canvas);
 	}
 	if (_input_receiver && view.belongs_to(*_input_receiver))
 		_input_receiver = 0;

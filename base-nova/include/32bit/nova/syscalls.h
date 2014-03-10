@@ -179,12 +179,14 @@ namespace Nova {
 
 
 	ALWAYS_INLINE
+	__attribute__((noreturn))
 	inline void reply(void *next_sp)
 	{
 		asm volatile ("sysenter;"
 		              :
 		              : "a" (NOVA_REPLY), "c" (next_sp)
 		              : "memory");
+		__builtin_unreachable();
 	}
 
 
@@ -208,9 +210,9 @@ namespace Nova {
 
 
 	ALWAYS_INLINE
-	inline uint8_t ec_ctrl(unsigned ec)
+	inline uint8_t ec_ctrl(Ec_op op, unsigned para = ~0UL)
 	{
-		return syscall_0(NOVA_EC_CTRL, 0, ec);
+		return syscall_0(NOVA_EC_CTRL, op, para);
 	}
 
 

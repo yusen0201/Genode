@@ -222,6 +222,7 @@ LIBC_IMPORT_INCLUDES += include/libc/sys/_types.h \
                         include/libc/sys/param.h \
                         include/libc/sys/stdint.h \
                         include/libc/sys/event.h \
+                        include/libc/sys/disk.h \
                         include/libc/errno.h \
                         include/libc/sys/errno.h \
                         include/libc/sys/poll.h
@@ -309,6 +310,7 @@ LIBC_IMPORT_INCLUDES += include/libc-i386/machine/_types.h \
                         include/libc-i386/machine/param.h \
                         include/libc-i386/machine/vm.h \
                         include/libc-i386/machine/specialreg.h \
+                        include/libc-i386/machine/npx.h \
                         include/libc-i386/stdarg.h \
                         include/libc-i386/float.h
 
@@ -325,6 +327,7 @@ LIBC_IMPORT_INCLUDES += include/libc-amd64/machine/_types.h \
                         include/libc-amd64/machine/param.h \
                         include/libc-amd64/machine/vm.h \
                         include/libc-amd64/machine/specialreg.h \
+                        include/libc-amd64/machine/fpu.h \
                         include/libc-amd64/stdarg.h \
                         include/libc-amd64/float.h
 

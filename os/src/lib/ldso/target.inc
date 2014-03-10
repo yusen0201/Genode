@@ -1,13 +1,14 @@
 #note: leave empty to disable debugging output
 DEBUG =
 
-LIBS = base ldso-arch
+include $(BASE_DIR)/mk/base-libs.mk
+LIBS   = $(BASE_LIBS) ldso-arch
 
 SRC_S  = rtld_start.S
 SRC_C  = reloc.c rtld.c map_object.c xmalloc.c debug.c main.c  \
          ldso_types.c rtld_dummies.c platform.c
 SRC_CC = stdio.cc stdlib.cc file.cc err.cc string.cc lock.cc \
-         test.cc environ.cc
+         test.cc environ.cc call_program_main.cc
 
 INC_DIR += $(DIR)/ \
            $(DIR)/contrib \
@@ -32,7 +33,7 @@ else
 LINK_ADDRESS = 0x30000
 endif
 
-ENTRY_POINT  = _start_ldso
+ENTRY_POINT  = _start
 
 D_OPTS += IN_RTLD __BSD_VISIBLE=1 LINK_ADDRESS=$(LINK_ADDRESS) $(RENAME_FUNCS)
 D_OPTS += $(if $(DEBUG),DEBUG,)

@@ -563,71 +563,78 @@ class Plugin : public Libc::Plugin
 
 		ssize_t read(Libc::File_descriptor *fd, void *buf, ::size_t count)
 		{
-			File_system::Session::Tx::Source &source = *file_system()->tx();
+			try {
+				File_system::Session::Tx::Source &source = *file_system()->tx();
 
-			size_t const max_packet_size = source.bulk_buffer_size() / 2;
+				size_t const max_packet_size = source.bulk_buffer_size() / 2;
 
-			size_t remaining_count = count;
+				size_t remaining_count = count;
 
-			if (context(fd)->seek_offset() == ~0)
-				context(fd)->seek_offset(0);
+				if (context(fd)->seek_offset() == ~0)
+					context(fd)->seek_offset(0);
 
-			while (remaining_count) {
+				while (remaining_count) {
 
-				collect_acknowledgements(source);
+					collect_acknowledgements(source);
 
-				size_t curr_packet_size = Genode::min(remaining_count, max_packet_size);
+					size_t curr_packet_size = Genode::min(remaining_count, max_packet_size);
 
-				/*
-				 * XXX handle 'Packet_alloc_failed' exception'
-				 */
-				File_system::Packet_descriptor
-					packet(source.alloc_packet(curr_packet_size),
-					       static_cast<File_system::Packet_ref *>(context(fd)),
-					       context(fd)->node_handle(),
-					       File_system::Packet_descriptor::READ,
-					       curr_packet_size,
-					       context(fd)->seek_offset());
+					off_t const seek_offset = context(fd)->seek_offset();
 
-				/* mark context as having an operation in flight */
-				context(fd)->in_flight = true;
+					File_system::Packet_descriptor
+						packet(source.alloc_packet(curr_packet_size),
+						       static_cast<File_system::Packet_ref *>(context(fd)),
+						       context(fd)->node_handle(),
+						       File_system::Packet_descriptor::READ,
+						       curr_packet_size,
+						       context(fd)->seek_offset());
 
-				/* pass packet to server side */
-				source.submit_packet(packet);
+					/* mark context as having an operation in flight */
+					context(fd)->in_flight = true;
 
-				do {
-					packet = source.get_acked_packet();
-					static_cast<Plugin_context *>(packet.ref())->in_flight = false;
-				} while (context(fd)->in_flight);
+					/* pass packet to server side */
+					source.submit_packet(packet);
 
-				context(fd)->in_flight = false;
+					do {
+						packet = source.get_acked_packet();
+						static_cast<Plugin_context *>(packet.ref())->in_flight = false;
 
-				/*
-				 * XXX check if acked packet belongs to request,
-				 *     needed for thread safety
-				 */
+						if (packet.operation() == File_system::Packet_descriptor::WRITE)
+							source.release_packet(packet);
 
-				size_t read_num_bytes = Genode::min(packet.length(), curr_packet_size);
+					} while (context(fd)->in_flight);
 
-				/* copy-out payload into destination buffer */
-				memcpy(buf, source.packet_content(packet), read_num_bytes);
+					/*
+					 * XXX check if acked packet belongs to request,
+					 *     needed for thread safety
+					 */
 
-				source.release_packet(packet);
+					size_t read_num_bytes = Genode::min(packet.length(), curr_packet_size);
 
-				/* prepare next iteration */
-				context(fd)->advance_seek_offset(read_num_bytes);
-				buf = (void *)((Genode::addr_t)buf + read_num_bytes);
-				remaining_count -= read_num_bytes;
+					/* copy-out payload into destination buffer */
+					memcpy(buf, source.packet_content(packet), read_num_bytes);
 
-				/*
-				 * If we received less bytes than requested, we reached the end
-				 * of the file.
-				 */
-				if (read_num_bytes < curr_packet_size)
-					break;
+					source.release_packet(packet);
+
+					/* prepare next iteration */
+					context(fd)->advance_seek_offset(read_num_bytes);
+					buf = (void *)((Genode::addr_t)buf + read_num_bytes);
+					remaining_count -= read_num_bytes;
+
+					/*
+					 * If we received less bytes than requested, we reached the end
+					 * of the file.
+					 */
+					if (read_num_bytes < curr_packet_size)
+						break;
+				}
+				return count - remaining_count;
+
+			} catch (File_system::Session::Tx::Source::Packet_alloc_failed) {
+				PERR("Packet_alloc_failed during read (count=%zd)", count);
+				return -1;
 			}
 
-			return count - remaining_count;
 		}
 
 		ssize_t readlink(const char *path, char *buf, size_t bufsiz)
@@ -659,7 +666,8 @@ class Plugin : public Libc::Plugin
 
 				ssize_t result = read(fd, buf, bufsiz);
 				if (verbose)
-					PDBG("result = %zd, buf = %s", result, buf);
+					PDBG("result = %zd, buf = %s", result, buf[result] ?
+					     "<not zero terminated>" : buf);
 				close(fd);
 
 				return result;
@@ -743,7 +751,28 @@ class Plugin : public Libc::Plugin
 
 		int unlink(const char *path)
 		{
-			return -1;
+			Canonical_path dir_path(path);
+			dir_path.strip_last_element();
+
+			Canonical_path basename(path);
+			basename.keep_only_last_element();
+
+			try {
+				/*
+				 * Open directory that contains the file to be opened/created
+				 */
+				File_system::Dir_handle const dir_handle =
+				    file_system()->dir(dir_path.base(), false);
+
+				Node_handle_guard guard(dir_handle);
+
+				file_system()->unlink(dir_handle, basename.base() + 1);
+			} catch (...) {
+				PERR("unlink(%s) failed", path);
+				return -1;
+			}
+
+			return 0;
 		}
 
 		ssize_t write(Libc::File_descriptor *fd, const void *buf, ::size_t count)

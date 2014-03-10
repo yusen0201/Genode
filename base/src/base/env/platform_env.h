@@ -23,7 +23,7 @@
 /* Genode includes */
 #include <base/printf.h>
 #include <base/env.h>
-#include <base/heap.h>
+#include <base/heap.h> 
 
 /* local includes */
 #include <platform_env_common.h>
@@ -36,7 +36,9 @@ namespace Genode {
 }
 
 
-struct Genode::Expanding_rm_session_client : Upgradeable_client<Genode::Rm_session_client>
+struct Genode::Expanding_rm_session_client
+:
+	Upgradeable_client<Genode::Rm_session_client>
 {
 	Expanding_rm_session_client(Rm_session_capability cap)
 	: Upgradeable_client<Genode::Rm_session_client>(cap) { }
@@ -94,21 +96,22 @@ class Genode::Platform_env : public Genode::Env, public Emergency_ram_reserve
 		struct Resources
 		{
 			template <typename T>
-			Capability<T> request(Parent &parent, char const *service) {
-				return static_cap_cast<T>(parent.session(service, "")); }
+			Capability<T> request(Parent &parent, char const *service)
+			{
+				return static_cap_cast<T>(parent.session(service, ""));
+			}
 
-			Ram_session_capability       ram_cap;
-			Expanding_ram_session_client ram = { ram_cap };
-			Cpu_session_capability       cpu_cap;
-			Expanding_cpu_session_client cpu = { cpu_cap };
+			Expanding_ram_session_client ram;
+			Expanding_cpu_session_client cpu;
 			Expanding_rm_session_client  rm;
 			Pd_session_client            pd;
 
-			Resources(Parent &parent) :
-				ram_cap(request<Ram_session>(parent, "Env::ram_session")),
-				cpu_cap(request<Cpu_session>(parent, "Env::cpu_session")),
-				rm     (request<Rm_session> (parent, "Env::rm_session")),
-				pd     (request<Pd_session> (parent, "Env::pd_session"))
+			Resources(Parent &parent)
+			:
+				ram(request<Ram_session>(parent, "Env::ram_session")),
+				cpu(request<Cpu_session>(parent, "Env::cpu_session")),
+				rm (request<Rm_session> (parent, "Env::rm_session")),
+				pd (request<Pd_session> (parent, "Env::pd_session"))
 			{ }
 		};
 
@@ -139,7 +142,29 @@ class Genode::Platform_env : public Genode::Env, public Emergency_ram_reserve
 			_emergency_ram_ds(_resources.ram.alloc(_emergency_ram_size()))
 		{ }
 
-		void reload_parent_cap(Native_capability::Dst, long);
+		/**
+		 * Reload parent capability and reinitialize environment resources
+		 *
+		 * This function is solely used for implementing fork semantics.
+		 * After forking a process, the new child process is executed
+		 * within a copy of the address space of the forking process.
+		 * Thereby, the new process inherits the original 'env' object of
+		 * the forking process, which is meaningless in the context of the
+		 * new process. By calling this function, the new process is able
+		 * to reinitialize its 'env' with meaningful capabilities obtained
+		 * via its updated parent capability.
+		 */
+		void reinit(Native_capability::Dst, long);
+
+		/**
+		 * Reinitialize main-thread object
+		 *
+		 * \param context_area_rm  new RM session of the context area
+		 *
+		 * This function is solely used for implementing fork semantics
+		 * as provided by the Noux environment.
+		 */
+		void reinit_main_thread(Rm_session_capability &);
 
 
 		/*************************************
@@ -160,9 +185,9 @@ class Genode::Platform_env : public Genode::Env, public Emergency_ram_reserve
 
 		Parent                 *parent()          { return &_parent_client; }
 		Ram_session            *ram_session()     { return &_resources.ram; }
-		Ram_session_capability  ram_session_cap() { return  _resources.ram_cap; }
+		Ram_session_capability  ram_session_cap() { return  _resources.ram; }
 		Cpu_session            *cpu_session()     { return &_resources.cpu; }
-		Cpu_session_capability  cpu_session_cap() { return  _resources.cpu_cap; }
+		Cpu_session_capability  cpu_session_cap() { return  _resources.cpu; }
 		Rm_session             *rm_session()      { return &_resources.rm; }
 		Pd_session             *pd_session()      { return &_resources.pd; }
 		Allocator              *heap()            { return &_heap; }

@@ -7,7 +7,7 @@
 # Linux/Genode programs. Hence, it must be void of any thread-related code.
 #
 
-LIBS += base-common syscall
+LIBS += base-common syscall cxx
 
 SRC_CC += console/log_console.cc
 SRC_CC += env/env.cc env/platform_env.cc env/context_area.cc
@@ -16,3 +16,5 @@ INC_DIR += $(REP_DIR)/src/base/env $(BASE_DIR)/src/base/env
 
 vpath %.cc  $(REP_DIR)/src/base
 vpath %.cc $(BASE_DIR)/src/base
+
+# vi:set ft=make :

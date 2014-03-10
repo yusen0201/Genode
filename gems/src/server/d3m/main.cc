@@ -129,6 +129,11 @@ struct Usb_policy : public Genode::Slave_policy
 		Block::Driver_registry &_block_driver_registry;
 		Block::Driver           _block_driver;
 
+		Genode::Root_capability _input_root;
+		Genode::Root_capability _block_root;
+		Genode::Lock            _input_root_lock;
+		Genode::Lock            _block_root_lock;
+
 	protected:
 
 		const char **_permitted_services() const
@@ -150,7 +155,9 @@ struct Usb_policy : public Genode::Slave_policy
 		:
 			Genode::Slave_policy("usb_drv", entrypoint, ram),
 			_input_source_registry(input_source_registry),
-			_block_driver_registry(block_driver_registry)
+			_block_driver_registry(block_driver_registry),
+			_input_root_lock(Genode::Lock::LOCKED),
+			_block_root_lock(Genode::Lock::LOCKED)
 		{
 			configure(config);
 		}
@@ -160,19 +167,34 @@ struct Usb_policy : public Genode::Slave_policy
 		                      Genode::Allocator      *alloc,
 		                      Genode::Server         *server)
 		{
+			PINF("announce_service %s", service_name);
 			if (Genode::strcmp(service_name, "Input") == 0) {
-				_input_source_registry_entry.connect(root);
-				_input_source_registry.add_source(&_input_source_registry_entry);
+				_input_root = root;
+				_input_root_lock.unlock();
 				return true;
 			}
 
 			if (Genode::strcmp(service_name, "Block") == 0) {
-				_block_driver.init("usb_drv", root);
-				_block_driver_registry.add_driver(&_block_driver);
+				_block_root = root;
+				_block_root_lock.unlock();
 				return true;
 			}
 
 			return false;
+		}
+
+		void connect_input()
+		{
+			_input_root_lock.lock();
+			_input_source_registry_entry.connect(_input_root);
+			_input_source_registry.add_source(&_input_source_registry_entry);
+		}
+
+		void connect_block()
+		{
+			_block_root_lock.lock();
+			_block_driver.init("usb_drv", _block_root);
+			_block_driver_registry.add_driver(&_block_driver);
 		}
 };
 
@@ -243,10 +265,10 @@ int main(int argc, char **argv)
 	/* create PS/2 driver */
 	static Rpc_entrypoint ps2_ep(&cap, STACK_SIZE, "ps2_slave");
 	static Ps2_policy     ps2_policy(ps2_ep, input_source_registry);
-	static Genode::Slave  ps2_slave(ps2_ep, ps2_policy, 512*1024);
+	static Genode::Slave  ps2_slave(ps2_ep, ps2_policy, 768*1024);
 
 	/* create USB driver */
-	char const *config = "<config><hid/><storage/></config>";
+	char const *config = "<config uhci=\"yes\" ehci=\"yes\"><hid/><storage/></config>";
 	static Rpc_entrypoint usb_ep(&cap, STACK_SIZE, "usb_slave");
 	static Usb_policy     usb_policy(usb_ep, input_source_registry,
 	                                 block_driver_registry, env()->ram_session(),
@@ -286,6 +308,9 @@ int main(int argc, char **argv)
 		static Block::Root block_root(block_driver_registry);
 		env()->parent()->announce(ep.manage(&block_root));
 	}
+
+	usb_policy.connect_input();
+	usb_policy.connect_block();
 
 	Genode::sleep_forever();
 	return 0;

@@ -115,12 +115,18 @@ ifeq ($(SHARED_LIBS),)
 LD_SCRIPTS  := $(LD_SCRIPT_STATIC)
 FILTER_DEPS := $(DEPS:.lib=)
 else
+
+#
+# Add a list of symbols that shall always be added to the dynsym section
+#
+LD_OPT += --dynamic-list=$(call select_from_repositories,src/platform/genode_dyn.dl)
+
 LD_SCRIPTS  := $(LD_SCRIPT_DYN)
 LD_CMD      += -Wl,--dynamic-linker=$(DYNAMIC_LINKER).lib.so \
                -Wl,--eh-frame-hdr
 
 #
-# Filter out the base libraries since they will be provided by the ldso.library
+# Filter out the base libraries since they will be provided by the LDSO library
 #
 FILTER_DEPS := $(filter-out $(BASE_LIBS),$(DEPS:.lib=))
 SHARED_LIBS += $(LIB_CACHE_DIR)/$(DYNAMIC_LINKER)/$(DYNAMIC_LINKER).lib.so
@@ -151,9 +157,9 @@ STATIC_LIBS := $(foreach l,$(FILTER_DEPS),$(LIB_CACHE_DIR)/$l/$l.lib.a)
 STATIC_LIBS := $(sort $(wildcard $(STATIC_LIBS)))
 
 #
-# For hybrid Linux/Genode programs, prevent the linkage Genode's cxx, base,
-# and startup libraries because these functionalities are covered by the glibc
-# or by 'src/platform/lx_hybrid.cc'.
+# For hybrid Linux/Genode programs, prevent the linkage Genode's cxx and base
+# library because these functionalities are covered by the glibc or by
+# 'src/platform/lx_hybrid.cc'.
 #
 ifeq ($(USE_HOST_LD_SCRIPT),yes)
 STATIC_LIBS := $(filter-out $(LIB_CACHE_DIR)/startup/startup.lib.a, $(STATIC_LIBS))
