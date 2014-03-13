@@ -552,12 +552,16 @@ namespace Init {
 
 						child_services->insert(new (_child.heap())
 							Routed_service(name, &_server));
-
 					}
 				} catch (Xml_node::Nonexistent_sub_node) { }
 			}
 
-			virtual ~Child() { }
+			virtual ~Child() {
+				Genode::Service *s;
+				while ((s = _child_services->find_by_server(&_server))) {
+					_child_services->remove(s);
+				}
+			}
 
 			/**
 			 * Return true if the child has the specified name
