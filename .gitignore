@@ -22,6 +22,7 @@
 /libports/contrib
 /libports/download
 /libports/include/curl/
+/libports/include/soplex/
 /libports/include/EGL/egl.h
 /libports/include/EGL/eglext.h
 /libports/include/GL
