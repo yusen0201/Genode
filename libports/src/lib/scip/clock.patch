@@ -1,0 +1,12 @@
+--- scip-3.1.0/src/scip/clock.c	2014-02-28 00:44:55.853329097 +0100
++++ scip_patched/src/scip/clock.c	2014-03-21 14:00:59.966170346 +0100
+@@ -417,6 +417,9 @@ SCIP_Real SCIPclockGetTime(
+    SCIP_Real result;
+    assert(clck != NULL);
+    result = 0.0;
++
++	/* FIXME adapt implementation for Genode */
++	return result;
+    
+    SCIPdebugMessage("getting time of clock %p (type %d, usedefault=%u, nruns=%d)\n",
+       (void*)clck, clck->clocktype, clck->usedefault, clck->nruns);
