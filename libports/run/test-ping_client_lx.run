@@ -1,5 +1,5 @@
 #
-# \brief  Test pong
+# \brief  Test ping
 # \author Josef Soentgen
 # \date   2013-01-06
 #
@@ -11,7 +11,7 @@
 set build_components {
 	core init
 	drivers/pci drivers/timer drivers/nic
-	test/lwip/pingpong/server
+	test/lwip/pingpong/client
 }
 
 lappend_if [expr [have_spec omap4] || [have_spec exynos5]] build_components drivers/usb
@@ -47,12 +47,6 @@ set config {
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
 		<provides> <service name="Timer"/> </provides>
-	</start>
-	<start name="test-ping_server_libc_lwip">
-		<resource name="RAM" quantum="16M"/>
-		<config>
-			<argv verbose="0" listenip="0.0.0.0" />
-		</config>
 	</start> }
 
 append_if [have_spec platform_arndale] config {
@@ -84,7 +78,7 @@ append_if [expr ![have_spec omap4] && ![have_spec exynos5]] config {
 		<resource name="RAM" quantum="4M"/>
 		<provides><service name="Nic"/></provides>
 		<config>
-			<nic tap="tap2" mac="02:00:00:00:00:02"/>
+			<nic tap="tap1" mac="02:00:00:00:00:01"/>
 		</config>
 	</start>}
 
@@ -93,6 +87,27 @@ append_if [have_spec pci] config {
 		<resource name="RAM" quantum="2M"/>
 		<provides> <service name="PCI"/> </provides>
 	</start> }
+
+# get server IP from /tmp/test-ping_server
+set ip_addr [exec cat /tmp/test-ping_server]
+puts "got server IP address: $ip_addr"
+
+append config {
+	<start name="test-ping_client_libc_lwip">
+		<resource name="RAM" quantum="16M"/>
+		<config>
+			<arg value="test-ping_client"/>
+			<arg value="-verbose"/>
+			<arg value="0"/>
+			<arg value="-startsize"/>
+			<arg value="1024"/>
+			<arg value="-endsize"/>
+			<arg value="1024"/>
+			<arg value="-serverip"/> }
+append config "
+			<arg value=\"$ip_addr\"/>
+		</config>
+	</start> "
 
 append config {
 </config>
@@ -107,8 +122,8 @@ install_config $config
 # generic modules
 set boot_modules {
 	core init timer
-	ld.lib.so libc.lib.so lwip.lib.so libc_log.lib.so
-	test-ping_server_libc_lwip
+	ld.lib.so libc.lib.so libc_log.lib.so lwip_nic_dhcp.lib.so lwip.lib.so
+	test-ping_client_libc_lwip
 }
 
 # platform-specific modules
@@ -132,19 +147,6 @@ append_if [have_spec lan9118] qemu_args " -net nic,model=lan9118 "
 
 append qemu_args " -net user "
 
-if [have_spec linux] {
-	set match_string "got IP address (.*)\033.*\n"
-	run_genode_until $match_string 30
-	set server_spawn_id $spawn_id
-
-	regexp $match_string $output all ip_addr
-	exec echo $ip_addr > /tmp/test-ping_server
-
-	run_genode_until forever 0 $server_spawn_id
-} else {
-	run_genode_until forever
-}
-
-
+run_genode_until forever
 
 # vi: set ft=tcl :
