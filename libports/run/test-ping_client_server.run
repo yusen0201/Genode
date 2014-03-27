@@ -1,0 +1,123 @@
+#
+# \brief  Test pingpong with nic_bridge
+# \author Johannes Schlatow
+# \date   2014-03-27
+#
+
+#
+# Build
+#
+
+set build_components {
+	core init
+	drivers/timer drivers/nic
+	server/nic_bridge
+	test/lwip/pingpong
+}
+
+build $build_components
+
+create_boot_directory
+
+#
+# Generate config
+#
+
+set config {
+<config verbose="yes">
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="RAM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="CAP"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+		<service name="SIGNAL"/>
+	</parent-provides>
+	<default-route>
+		<service name="Nic"><child name="nic_bridge"/></service>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Timer"/> </provides>
+	</start>
+	<start name="test-ping_server_libc_lwip">
+		<resource name="RAM" quantum="16M"/>
+		<config>
+			<argv verbose="0" listenip="0.0.0.0" />
+		</config>
+	</start>
+	<start name="test-ping_client_libc_lwip">
+		<resource name="RAM" quantum="16M"/>
+		<config>
+			<arg value="test-ping_client"/>
+			<arg value="-verbose"/>
+			<arg value="0"/>
+			<arg value="-startsize"/>
+			<arg value="16"/>
+			<arg value="-endsize"/>
+			<arg value="32"/>
+			<arg value="-serverip"/> }
+
+# get server IP from /tmp/test-ping_server
+set ip_addr [exec cat /tmp/test-ping_server]
+puts "got server IP address: $ip_addr"
+
+append config "
+			<arg value=\"$ip_addr\"/>
+		</config>
+"
+append config {
+	</start>
+	<start name="nic_drv">
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="Nic"/></provides>
+		<config>
+			<nic tap="tap1"/>
+		</config>
+	</start>
+	<start name="nic_bridge">
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="Nic"/></provides>
+		<config/>
+		<route>
+			<service name="Nic"><child name="nic_drv"/></service>
+			<any-service><parent/><any-child/></any-service>
+		</route>
+	</start>
+</config>
+}
+
+install_config $config
+
+#
+# Boot modules
+#
+
+# generic modules
+set boot_modules {
+	core init timer
+	ld.lib.so libc.lib.so lwip.lib.so libc_log.lib.so
+	test-ping_server_libc_lwip
+	test-ping_client_libc_lwip
+	nic_drv nic_bridge
+}
+
+build_boot_image $boot_modules
+
+#
+# Execute test case
+#
+
+# qemu config
+append qemu_args " -m 128 -nographic "
+append qemu_args " -net user "
+
+run_genode_until forever
+
+# vi: set ft=tcl :
