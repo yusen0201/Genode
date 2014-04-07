@@ -27,6 +27,7 @@
 /libports/include/lpi/
 /libports/include/nlpi/
 /libports/include/blockmemshell/
+/libports/include/lemon/
 /libports/include/EGL/egl.h
 /libports/include/EGL/eglext.h
 /libports/include/GL
