@@ -1,6 +1,8 @@
-build "core init test/sqlite3 server/lx_fs"
+build "core init drivers/timer test/sqlite3 server/lx_fs"
 
 assert_spec linux
+
+requires_installation_of sqlite3
 
 create_boot_directory
 
@@ -31,6 +33,10 @@ install_config {
 			<policy label="" root="/fs" writeable="yes"/>
 		</config>
 	</start>
+	<start name="timer">
+		<resource name="RAM" quantum="2M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
 	<start name="test-sqlite3">
 		<resource name="RAM" quantum="2M"/>
 	</start>
@@ -38,7 +44,6 @@ install_config {
 }
 
 exec mkdir -p bin/fs
-exec touch bin/fs/test.sqlite
 
 build_boot_image {
 	core init test-sqlite3
@@ -46,12 +51,20 @@ build_boot_image {
 	lx_fs libc_fs.lib.so
 	libc_log.lib.so
 	fs
+	timer
 }
 
 append qemu_args " -nographic -m 64 "
 
 run_genode_until {.*child exited with exit value 0.*} 10
 
-puts "\ntest succceeded\n"
+set result [exec sqlite3 bin/fs/test.sqlite "SELECT * FROM Testing;"]
+if {[expr $result == 3 ]} {
+	puts "\nTest succeeded\n"
+} else {
+	puts "\nTest failed\n"
+}
 
 exec rm -r bin/fs
+
+# vi: set ft=tcl :

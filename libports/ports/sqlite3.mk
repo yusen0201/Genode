@@ -25,6 +25,7 @@ $(DOWNLOAD_DIR)/$(SQLITE_ZIP).verified: $(DOWNLOAD_DIR)/$(SQLITE_ZIP)
 
 $(CONTRIB_DIR)/$(SQLITE): $(DOWNLOAD_DIR)/$(SQLITE_ZIP).verified
 	$(VERBOSE)unzip $(<:.verified=) -d $(CONTRIB_DIR) && touch $@
+	$(VERBOSE)patch -d $(CONTRIB_DIR)/$(SQLITE) -p1 -i $(CURDIR)/src/lib/sqlite/min_file_descriptor.patch
 
 SQLITE_INCLUDES = sqlite3.h sqlite3ext.h
 
