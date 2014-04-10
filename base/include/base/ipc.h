@@ -297,6 +297,17 @@ namespace Genode {
 			 * Set destination for the next 'IPC_SEND'
 			 */
 			void dst(Native_capability const &dst) { _dst = dst; }
+
+			size_t write_to_buf(char* buf, size_t max_size)
+			{
+				size_t size = _sndbuf_size - _write_offset - 1;
+				if (size > max_size) size = max_size;
+
+				memcpy(&_sndbuf[_write_offset], buf, size);
+				_write_offset += align_natural(size);
+
+				return size;
+			}
 	};
 
 
@@ -404,6 +415,17 @@ namespace Genode {
 			{
 				_unmarshal_capability(typed_cap);
 				return *this;
+			}
+
+			size_t read_from_buf(char* buf, size_t max_size)
+			{
+				size_t size = _rcvbuf_size - _read_offset - 1;
+				if (size > max_size) size = max_size;
+
+				memcpy(buf, &_rcvbuf[_read_offset], size);
+				_read_offset += align_natural(size);
+
+				return size;
 			}
 	};
 
