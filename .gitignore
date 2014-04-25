@@ -29,6 +29,7 @@
 /libports/include/blockmemshell/
 /libports/include/lemon/
 /libports/include/sqlite3/
+/libports/include/glucose/
 /libports/include/EGL/egl.h
 /libports/include/EGL/eglext.h
 /libports/include/GL
