@@ -27,6 +27,7 @@ $(CONTRIB_DIR)/$(GLUCOSE): $(DOWNLOAD_DIR)/$(GLUCOSE_TGZ).verified
 	$(VERBOSE)tar xfz $(<:.verified=) -C $(CONTRIB_DIR) && touch $@
 	$(VERBOSE)patch -d $(CONTRIB_DIR)/$(GLUCOSE) -p2 -i $(CURDIR)/src/lib/glucose/c++11.patch
 	$(VERBOSE)patch -d $(CONTRIB_DIR)/$(GLUCOSE) -p2 -i $(CURDIR)/src/lib/glucose/pow.patch
+	$(VERBOSE)patch -d $(CONTRIB_DIR)/$(GLUCOSE) -p2 -i $(CURDIR)/src/lib/glucose/map.patch
 
 GLUCOSE_CORE_INCLUDES  = $(notdir $(wildcard $(CONTRIB_DIR)/$(GLUCOSE)/core/*.h))
 GLUCOSE_MTL_INCLUDES   = $(notdir $(wildcard $(CONTRIB_DIR)/$(GLUCOSE)/mtl/*.h))
