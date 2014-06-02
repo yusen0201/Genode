@@ -1,5 +1,4 @@
---- scip-3.1.0/src/scip/clock.c	2014-02-28 00:44:55.853329097 +0100
-+++ scip_patched/src/scip/clock.c	2014-03-21 14:00:59.966170346 +0100
++++ src/lib/scip/src/scip/clock.c	2014-03-21 14:00:59.966170346 +0100
 @@ -417,6 +417,9 @@ SCIP_Real SCIPclockGetTime(
     SCIP_Real result;
     assert(clck != NULL);

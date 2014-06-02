@@ -1,5 +1,4 @@
-SCIP     = scip-3.1.0
-SCIP_DIR = $(REP_DIR)/contrib/$(SCIP)/src
+SCIP_DIR = $(call select_from_ports,scip)/src/lib/scip/src
 LIBS    += libc zlib 
 INC_DIR += $(SCIP_DIR)
 
@@ -189,8 +188,7 @@ SRC_C   +=	scip/branch.c \
 			xml/xmlparse.c
 
 # LP interface (soplex)
-SOPLEX     = soplex-2.0.0
-SOPLEX_DIR = $(REP_DIR)/contrib/$(SOPLEX)/src
+SOPLEX_DIR = $(call select_from_ports,soplex)/src/lib/soplex/src
 INC_DIR += $(SOPLEX_DIR)
 LIBS    += stdcxx soplex
 SRC_CC  +=	lpi/lpi_spx2.cpp
