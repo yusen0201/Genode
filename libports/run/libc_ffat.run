@@ -1,5 +1,0 @@
-set mkfs_cmd   mkfs.vfat
-set mkfs_opts  "-F32"
-set filesystem ffat
-
-source ${genode_dir}/libports/run/libc_filesystem_test.inc

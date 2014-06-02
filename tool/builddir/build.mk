@@ -30,6 +30,8 @@
 #                 Normally, the libcache is located at 'var/libcache' and
 #                 there is no need to change it.
 #
+# CONTRIB_DIR   - location of ported 3rd-party source codes
+#
 
 ##
 ## Define global configuration variables
@@ -49,6 +51,7 @@ export LIB_CACHE_DIR    ?= $(BUILD_BASE_DIR)/var/libcache
 export LIB_PROGRESS_LOG ?= $(BUILD_BASE_DIR)/progress.log
 export LIB_DEP_FILE     ?= var/libdeps
 export ECHO             ?= echo -e
+export CONTRIB_DIR
 
 #
 # Convert user-defined directories to absolute directories
@@ -186,10 +189,10 @@ traverse_dependencies: $(dir $(LIB_DEP_FILE)) init_libdep_file init_progress_log
 	            REP_DIR=$$rep TARGET_MK=$$rep/src/$$target \
 	            BUILD_BASE_DIR=$(BUILD_BASE_DIR) \
 	            SHELL=$(SHELL) \
-	            DARK_COL="$(DARK_COL)" DEFAULT_COL="$(DEFAULT_COL)"; \
+	            DARK_COL="$(DARK_COL)" DEFAULT_COL="$(DEFAULT_COL)" || result=false; \
 	    break; \
 	  done; \
-	done
+	done; $$result;
 
 .PHONY: $(LIB_DEP_FILE)
 $(LIB_DEP_FILE): traverse_dependencies
