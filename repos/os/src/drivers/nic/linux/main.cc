@@ -26,8 +26,11 @@
 #include <base/sleep.h>
 #include <cap_session/connection.h>
 #include <nic/component.h>
+#include <os/config.h>
+#include <nic/xml_node.h>
 
 /* Linux */
+#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -153,7 +156,10 @@ class Linux_driver : public Nic::Driver
 			int ret;
 
 			/* blocking-write packet to TAP */
-			do { ret = write(_tap_fd, packet, size); } while (ret < 0);
+			do {
+				ret = write(_tap_fd, packet, size); 
+				if (ret < 0) PERR("write: errno=%d", errno);
+			} while (ret < 0);
 		}
 
 
@@ -168,6 +174,7 @@ class Linux_driver : public Nic::Driver
 			/* blocking read incoming packet */
 			do {
 				ret = read(_tap_fd, _packet_buffer, sizeof(_packet_buffer));
+				if (ret < 0) PERR("read: errno=%d", errno);
 			} while (ret < 0);
 
 			void *buffer = _alloc.alloc(ret);

@@ -83,6 +83,23 @@ proc lappend_if {condition var string} {
 }
 
 
+##
+# Check syntax of specified XML file using xmllint
+#
+proc check_xml_syntax {xml_file} {
+
+	if {![have_installed xmllint]} {
+		puts "Warning: Cannot validate config syntax (please install xmllint)"
+		return;
+	}
+
+	if {[catch {exec xmllint --noout $xml_file} result]} {
+		puts stderr $result
+		puts stderr "Error: Invalid XML syntax in file [run_dir]/config"
+		exit 1
+	}
+}
+
 
 ##
 # Install content of specfied variable as init config file
@@ -91,6 +108,8 @@ proc install_config {config} {
 	set fh [open "[run_dir]/genode/config" "WRONLY CREAT TRUNC"]
 	puts $fh $config
 	close $fh
+
+	check_xml_syntax [run_dir]/genode/config
 }
 
 
@@ -112,6 +131,7 @@ proc build_boot_image {binaries} { }
 # \param  wait_for_re    regular expression that matches the test completion
 # \param  timeout_value  timeout in seconds
 # \param  spawn_id       spawn_id of a already running and spawned process
+#                        spawn_id may be a list of spawned processes if needed
 # \global output         contains the core output (modified)
 #
 # If the function is called without any argument, Genode is executed in
@@ -431,6 +451,48 @@ proc create_iso_image_from_run_dir { } {
 	}
 }
 
+
+##
+# Create disk image with the content of the run directory
+#
+# optional parameter: --disk-size <n> ... disk size in MiB
+#
+proc create_disk_image_from_run_dir { } {
+
+	global run_target
+
+	if {![regexp "disk" $run_target]} { return }
+
+	requires_installation_of parted
+	requires_installation_of resize2fs
+	requires_installation_of fallocate
+
+	set grub_img   "[genode_dir]/tool/grub2-head.img"
+	set disk_img   "[run_dir].img"
+	set part1_img  "[run_dir]-part1.img"
+	set run_size   [expr [regsub {\s.*} [exec du -sm [run_dir]] {}] + 4]
+	set disk_size  [get_cmd_arg --disk-size $run_size]
+	set part1_size [expr $disk_size - 1]MiB
+
+	# extract and resize partition image
+	exec dd if=$grub_img of=$part1_img bs=1M skip=1  2>/dev/null
+	exec fallocate -l $part1_size $part1_img
+	exec resize2fs $part1_img  2>/dev/null
+
+	# populate partition with binaries
+	exec [genode_dir]/tool/rump -F ext2fs -p [run_dir] $part1_img
+
+	# merge final image from GRUB2 head and partition
+	exec dd if=$grub_img  of=$disk_img status=noxfer bs=1M count=1  2>/dev/null
+	exec dd if=$part1_img of=$disk_img status=noxfer bs=1M seek=1   2>/dev/null
+	exec parted -s $disk_img -- rm 1 mkpart primary 2048s -1s
+
+	exec rm -f $part1_img
+
+	puts "Created image file $disk_img ($disk_size MiB)"
+}
+
+
 ##
 # Wait for a specific output of a already running spawned process
 #
@@ -552,7 +614,7 @@ proc is_amt_available { } {
 
 	if {![have_spec x86] || ![regexp "amt" $run_target]} { return false }
 
-	if {[info exists ::env(AMT_TEST_MACHINE_IP)] && 
+	if {[info exists ::env(AMT_TEST_MACHINE_IP)] &&
 	    [info exists ::env(AMT_TEST_MACHINE_PWD)] &&
 		[have_installed amtterm] &&
 		[have_installed amttool]} {
@@ -576,7 +638,7 @@ proc is_serial_available { } {
 
 
 ##
-# Execute scenario using Intel's AMT 
+# Execute scenario using Intel's AMT
 #
 proc spawn_amt { wait_for_re timeout_value } {
 	global spawn_id
@@ -719,6 +781,37 @@ proc exit {{status 0}} {
 
 
 ##
+# Load image to target hardware via JTAG
+#
+proc jtag_load { } {
+	if {![have_spec arm] || ![have_installed openocd]} {
+		puts "No support for JTAG detected."
+		exit -1
+	}
+
+	set debugger [get_cmd_arg --jtag-debugger 1]
+	set board    [get_cmd_arg --jtag-board 1]
+	set elf_img "[run_dir]/image.elf"
+
+	# sleep a bit, board might need some time to come up
+	sleep 8
+
+	# parse ELF entrypoint
+	set entrypoint [exec [cross_dev_prefix]readelf -h $elf_img | \
+	                grep "Entry point address: " | \
+	                sed -e "s/.*Entry point address: *//"]
+
+	eval spawn openocd -f $debugger -f $board -c init -c halt -c \"load_image $elf_img\" -c \"resume $entrypoint\"
+	set jtag_spawn_id $spawn_id
+	set timeout 210
+	expect {
+		"downloaded"  { }
+		eof     { puts stderr "openocd command process died unexpectedly" }
+		timeout { puts stderr "Loading timed out" }
+	}
+}
+
+##
 # Execute scenario expecting output via serial device
 #
 proc spawn_serial { wait_for_re timeout_value kernel_msg } {
@@ -731,6 +824,10 @@ proc spawn_serial { wait_for_re timeout_value kernel_msg } {
 
 		if {[regexp "reset" $run_target]} {
 			power_plug_reset
+		}
+
+		if {[regexp "jtag" $run_target]} {
+			jtag_load
 		}
 
 		eval spawn $serial_cmd

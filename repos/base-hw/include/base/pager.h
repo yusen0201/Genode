@@ -19,9 +19,7 @@
 #include <base/object_pool.h>
 #include <base/signal.h>
 #include <pager/capability.h>
-
-/* base-hw includes */
-#include <placement_new.h>
+#include <unmanaged_singleton.h>
 
 namespace Genode
 {
@@ -60,12 +58,12 @@ namespace Genode
 
 struct Genode::Mapping
 {
-	addr_t   virt_address;
-	addr_t   phys_address;
-	bool     write_combined;
-	bool     io_mem;
-	unsigned size_log2;
-	bool     writable;
+	addr_t          virt_address;
+	addr_t          phys_address;
+	Cache_attribute cacheable;
+	bool            io_mem;
+	unsigned        size_log2;
+	bool            writable;
 
 	/**
 	 * Constructor for invalid mappings
@@ -75,7 +73,7 @@ struct Genode::Mapping
 	/**
 	 * Constructor for valid mappings
 	 */
-	Mapping(addr_t const va, addr_t const pa, bool const wc,
+	Mapping(addr_t const va, addr_t const pa, Cache_attribute const c,
 	        bool const io, unsigned const sl2, bool const w);
 
 	/**
@@ -258,6 +256,13 @@ class Genode::Pager_object : public Object_pool<Pager_object>::Entry,
 		void thread_cap(Thread_capability const & c);
 
 		unsigned signal_context_id() const;
+
+
+		/*************
+		 ** Dummies **
+		 *************/
+
+		void unresolved_page_fault_occurred() { PDBG("not implemented"); }
 };
 
 class Genode::Pager_activation_base : public Thread_base,

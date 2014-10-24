@@ -98,7 +98,7 @@ Platform_thread::Platform_thread(const char * const label,
 	          sizeof(Native_utcb) / get_page_size());
 
 	/* set-up default start-info */
-	_utcb_core_addr->core_start_info()->init(Processor_driver::primary_id());
+	_utcb_core_addr->core_start_info()->init(Cpu::primary_id());
 
 	/* create kernel object */
 	_id = Kernel::new_thread(_kernel_thread, Kernel::Priority::MAX, _label);
@@ -128,7 +128,7 @@ Platform_thread::Platform_thread(const char * const label,
 	Ram_session_component * const ram =
 		dynamic_cast<Ram_session_component *>(core_env()->ram_session());
 	assert(ram);
-	try { _utcb = ram->alloc(sizeof(Native_utcb), 1); }
+	try { _utcb = ram->alloc(sizeof(Native_utcb), CACHED); }
 	catch (...) {
 		PERR("failed to allocate UTCB");
 		throw Cpu_session::Out_of_metadata();
@@ -202,7 +202,7 @@ int Platform_thread::start(void * const ip, void * const sp)
 	/* determine kernel name of targeted processor */
 	unsigned processor_id;
 	if (_location.valid()) { processor_id = _location.xpos(); }
-	else { processor_id = Processor_driver::primary_id(); }
+	else { processor_id = Cpu::primary_id(); }
 
 	/* start executing new thread */
 	_utcb_core_addr->start_info()->init(_id, _utcb);

@@ -18,13 +18,21 @@
 #include <base/rpc.h>
 #include <base/rpc_args.h>
 #include <dataspace/capability.h>
-#include <nitpicker_view/capability.h>
+#include <nitpicker_session/client.h>
 #include <base/signal.h>
 #include <session/session.h>
+#include <util/geometry.h>
 
 namespace Loader {
 
-	using namespace Genode;
+	typedef Genode::Point<> Point;
+	typedef Genode::Area<>  Area;
+	typedef Genode::Rect<>  Rect;
+
+	using Genode::Dataspace_capability;
+	using Genode::Signal_context_capability;
+	using Genode::Native_pd_args;
+	using Genode::Meta::Type_tuple;
 
 	struct Session : Genode::Session
 	{
@@ -40,18 +48,6 @@ namespace Loader {
 		struct Exception : Genode::Exception { };
 		struct View_does_not_exist       : Exception { };
 		struct Rom_module_does_not_exist : Exception { };
-
-		/**
-		 * Return argument of 'view_geometry()'
-		 */
-		struct View_geometry
-		{
-			int width, height;
-			int buf_x, buf_y;
-
-			View_geometry(): width(0), height(0), buf_x(0), buf_y() {}
-			View_geometry(int w, int h, int x, int y): width(w), height(h), buf_x(x), buf_y(y) {}
-		};
 
 		typedef Genode::Rpc_in_buffer<64>  Name;
 		typedef Genode::Rpc_in_buffer<128> Path;
@@ -109,7 +105,15 @@ namespace Loader {
 		 * Calling this function prior 'start()' enables the virtualization
 		 * of the nitpicker session interface.
 		 */
-		virtual void constrain_geometry(int width, int height) = 0;
+		virtual void constrain_geometry(Area size) = 0;
+
+		/**
+		 * Set the parent view of the subsystem's view.
+		 *
+		 * If 'parent_view' is not called prior calling 'start', the
+		 * subsystem's view will not have a parent view.
+		 */
+		virtual void parent_view(Nitpicker::View_capability view) = 0;
 
 		/**
 		 * Register signal handler notified at creation time of the first view
@@ -140,18 +144,14 @@ namespace Loader {
 		                   Native_pd_args const &pd_args = Native_pd_args()) = 0;
 
 		/**
-		 * Return first nitpicker view created by the loaded subsystem
-		 *
-		 * \throw View_does_not_exist
+		 * Set view geometry and buffer offset
 		 */
-		virtual Nitpicker::View_capability view() = 0;
+		virtual void view_geometry(Rect rect, Point offset) = 0;
 
 		/**
-		 * Return view geometry as initialized by the loaded subsystem
-		 *
-		 * \throw View_does_not_exist
+		 * Return view size as initialized by the loaded subsystem
 		 */
-		virtual View_geometry view_geometry() = 0;
+		virtual Area view_size() const = 0;
 
 
 		/*******************
@@ -164,20 +164,39 @@ namespace Loader {
 		                 GENODE_TYPE_LIST(Rom_module_does_not_exist),
 		                 Name const &);
 		GENODE_RPC(Rpc_ram_quota, void, ram_quota, size_t);
-		GENODE_RPC(Rpc_constrain_geometry, void, constrain_geometry, int, int);
+		GENODE_RPC(Rpc_constrain_geometry, void, constrain_geometry, Area);
+		GENODE_RPC(Rpc_parent_view, void, parent_view, Nitpicker::View_capability);
 		GENODE_RPC(Rpc_view_ready_sigh, void, view_ready_sigh, Signal_context_capability);
 		GENODE_RPC(Rpc_fault_sigh, void, fault_sigh, Signal_context_capability);
 		GENODE_RPC_THROW(Rpc_start, void, start,
 		                 GENODE_TYPE_LIST(Rom_module_does_not_exist),
 		                 Name const &, Name const &, Native_pd_args const &);
-		GENODE_RPC_THROW(Rpc_view, Nitpicker::View_capability, view,
+		GENODE_RPC_THROW(Rpc_view_geometry, void, view_geometry,
+		                 GENODE_TYPE_LIST(View_does_not_exist),
+		                 Rect, Point);
+		GENODE_RPC_THROW(Rpc_view_size, Area, view_size,
 		                 GENODE_TYPE_LIST(View_does_not_exist));
-		GENODE_RPC(Rpc_view_geometry, View_geometry, view_geometry);
 
-		GENODE_RPC_INTERFACE(Rpc_alloc_rom_module, Rpc_commit_rom_module,
-		                     Rpc_ram_quota, Rpc_constrain_geometry,
-		                     Rpc_view_ready_sigh, Rpc_fault_sigh, Rpc_start,
-		                     Rpc_view, Rpc_view_geometry);
+		/*
+		 * 'GENODE_RPC_INTERFACE' declaration done manually
+		 *
+		 * The number of RPC function of this interface exceeds the maximum
+		 * number of elements supported by 'Meta::Type_list'. Therefore, we
+		 * construct the type list by hand using nested type tuples instead
+		 * of employing the convenience macro 'GENODE_RPC_INTERFACE'.
+		 */
+		typedef Type_tuple<Rpc_alloc_rom_module,
+			    Type_tuple<Rpc_commit_rom_module,
+			    Type_tuple<Rpc_ram_quota,
+			    Type_tuple<Rpc_constrain_geometry,
+			    Type_tuple<Rpc_parent_view,
+			    Type_tuple<Rpc_view_ready_sigh,
+			    Type_tuple<Rpc_fault_sigh,
+			    Type_tuple<Rpc_start,
+			    Type_tuple<Rpc_view_geometry,
+			    Type_tuple<Rpc_view_size,
+			               Genode::Meta::Empty>
+			    > > > > > > > > > Rpc_functions;
 	};
 }
 

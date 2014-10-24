@@ -103,6 +103,9 @@ namespace Genode
 			IIM_BASE           = 0x63f98000,
 			IIM_SIZE           = 0x00004000,
 
+			CSU_BASE           = 0x63f9c000,
+			CSU_SIZE           = 0x00001000,
+
 			M4IF_BASE          = 0x63fd8000,
 			M4IF_SIZE          = 0x00001000,
 
@@ -110,7 +113,7 @@ namespace Genode
 			SECURITY_EXTENSION = 1,
 
 			/* CPU cache */
-			CACHE_LINE_SIZE_LOG2 = 2, /* FIXME get correct value from board spec */
+			CACHE_LINE_SIZE_LOG2 = 6,
 		};
 	};
 }

@@ -33,7 +33,6 @@
 #include <map_local.h>
 
 /* base includes */
-#include <base/allocator_avl.h>
 #include <unmanaged_singleton.h>
 #include <base/native_types.h>
 
@@ -75,88 +74,81 @@ namespace Kernel
 	Signal_receiver_pool * signal_receiver_pool() { return unmanaged_singleton<Signal_receiver_pool>(); }
 
 	/**
-	 * Return singleton kernel-timer
-	 */
-	Timer * timer()
-	{
-		static Timer _object;
-		return &_object;
-	}
-
-	/**
-	 * Start a new scheduling lap
-	 */
-	void reset_scheduling_time(unsigned const processor_id)
-	{
-		unsigned const tics = timer()->ms_to_tics(USER_LAP_TIME_MS);
-		timer()->start_one_shot(tics, processor_id);
-	}
-
-
-	/**
 	 * Static kernel PD that describes core
 	 */
 	Pd * core_pd()
 	{
-		using Ttable = Genode::Translation_table;
-		constexpr int tt_align  = 1 << Ttable::ALIGNM_LOG2;
+		typedef Early_translations_slab      Slab;
+		typedef Early_translations_allocator Allocator;
+		typedef Genode::Translation_table    Table;
 
-		/**
-		 * Dummy page slab backend allocator for bootstrapping only
-		 */
-		struct Simple_allocator : Genode::Core_mem_translator
-		{
-			Simple_allocator() { }
-
-			int add_range(addr_t base, size_t size) { return -1; }
-			int remove_range(addr_t base, size_t size) { return -1; }
-			Alloc_return alloc_aligned(size_t size, void **out_addr, int align) {
-				return Alloc_return::RANGE_CONFLICT; }
-			Alloc_return alloc_addr(size_t size, addr_t addr) {
-				return Alloc_return::RANGE_CONFLICT; }
-			void   free(void *addr) {}
-			size_t avail() { return 0; }
-			bool valid_addr(addr_t addr) { return false; }
-			bool alloc(size_t size, void **out_addr) { return false; }
-			void free(void *addr, size_t) {  }
-			size_t overhead(size_t size) { return 0; }
-			bool need_size_for_free() const override { return false; }
-
-			void * phys_addr(void * addr) { return addr; }
-			void * virt_addr(void * addr) { return addr; }
-		};
+		constexpr addr_t table_align = 1 << Table::ALIGNM_LOG2;
 
 		struct Core_pd : Platform_pd, Pd
 		{
-			Core_pd(Ttable * tt, Genode::Page_slab * slab)
-			: Platform_pd(tt, slab),
-			  Pd(tt, this)
+			/**
+			 * Establish initial one-to-one mappings for core/kernel.
+			 * This function avoids to take the core-pd's translation table
+			 * lock in contrast to normal translation insertions to
+			 * circumvent strex/ldrex problems in early bootstrap code
+			 * on some ARM SoCs.
+			 *
+			 * \param start   physical/virtual start address of area
+			 * \param end     physical/virtual end address of area
+			 * \param io_mem  true if it should be marked as device memory
+			 */
+			void map(addr_t start, addr_t end, bool io_mem)
+			{
+				using namespace Genode;
+
+				Translation_table *tt = Platform_pd::translation_table();
+				const Page_flags flags =
+					Page_flags::apply_mapping(true, io_mem ? UNCACHED : CACHED,
+					                          io_mem);
+
+				start = trunc_page(start);
+				size_t size  = round_page(end) - start;
+
+				try {
+					tt->insert_translation(start, start, size, flags, page_slab());
+				} catch(Page_slab::Out_of_slabs) {
+					PERR("Not enough page slabs");
+				} catch(Allocator::Out_of_memory) {
+					PERR("Translation table needs to much RAM");
+				} catch(...) {
+					PERR("Invalid mapping %p -> %p (%zx)", (void*)start,
+					     (void*)start, size);
+				}
+			}
+
+			/**
+			 * Constructor
+			 */
+			Core_pd(Table * const table, Slab * const slab)
+			: Platform_pd(table, slab), Pd(table, this)
 			{
 				using namespace Genode;
 
 				Platform_pd::_id = Pd::id();
 
 				/* map exception vector for core */
-				Kernel::mtc()->map(tt, slab);
+				Kernel::mtc()->map(table, slab);
 
 				/* map core's program image */
-				addr_t start = trunc_page((addr_t)&_prog_img_beg);
-				addr_t end   = round_page((addr_t)&_prog_img_end);
-				map_local(start, start, (end-start) / get_page_size());
+				map((addr_t)&_prog_img_beg, (addr_t)&_prog_img_end, false);
 
 				/* map core's mmio regions */
 				Native_region * r = Platform::_core_only_mmio_regions(0);
 				for (unsigned i = 0; r;
 				     r = Platform::_core_only_mmio_regions(++i))
-					map_local(r->base, r->base, r->size / get_page_size(), true);
+					map(r->base, r->base + r->size, true);
 			}
 		};
 
-		Simple_allocator  * sa   = unmanaged_singleton<Simple_allocator>();
-		Ttable            * tt   = unmanaged_singleton<Ttable, tt_align>();
-		Genode::Page_slab * slab = unmanaged_singleton<Genode::Page_slab,
-		                                               tt_align>(sa);
-		return unmanaged_singleton<Core_pd>(tt, slab);
+		Allocator * const alloc = unmanaged_singleton<Allocator>();
+		Table     * const table = unmanaged_singleton<Table, table_align>();
+		Slab      * const slab  = unmanaged_singleton<Slab, Slab::ALIGN>(alloc);
+		return unmanaged_singleton<Core_pd>(table, slab);
 	}
 
 	/**
@@ -212,8 +204,9 @@ namespace Kernel
 /**
  * Enable kernel-entry assembly to get an exclusive stack at every processor
  */
-char     kernel_stack[PROCESSORS][Kernel::STACK_SIZE] __attribute__((aligned()));
 unsigned kernel_stack_size = Kernel::STACK_SIZE;
+char     kernel_stack[PROCESSORS][Kernel::STACK_SIZE]
+         __attribute__((aligned(16)));
 
 
 /**
@@ -253,7 +246,6 @@ extern "C" void init_kernel_multiprocessor()
 	/* synchronize data view of all processors */
 	Processor::invalidate_data_caches();
 	Processor::invalidate_instr_caches();
-	Processor::invalidate_control_flow_predictions();
 	Processor::data_synchronization_barrier();
 
 	/* initialize processor in physical mode */
@@ -286,9 +278,13 @@ extern "C" void init_kernel_multiprocessor()
 	 */
 	perf_counter()->enable();
 
-	/* initialize interrupt controller */
-	pic()->init_processor_local();
+	/* locally initialize processor */
 	unsigned const processor_id = Processor::executing_id();
+	Processor * const processor = processor_pool()->processor(processor_id);
+	processor->init_processor_local();
+
+	/* locally initialize interrupt controller */
+	pic()->init_processor_local();
 	pic()->unmask(Timer::interrupt_id(processor_id), processor_id);
 
 	/* as primary processor create the core main thread */
@@ -314,18 +310,17 @@ extern "C" void init_kernel_multiprocessor()
 		_main_thread_utcb->start_info()->init(t.id(), Genode::Native_capability());
 		t.ip = (addr_t)CORE_MAIN;;
 		t.sp = (addr_t)s + STACK_SIZE;
-		t.init(processor_pool()->processor(processor_id), core_pd(), &utcb, 1);
+		t.init(processor, core_pd(), &utcb, 1);
 
 		/* initialize interrupt objects */
-		static Genode::uint8_t _irqs[Pic::MAX_INTERRUPT_ID * sizeof(Irq)];
-		for (unsigned i = 0; i < Pic::MAX_INTERRUPT_ID; i++) {
+		static Genode::uint8_t _irqs[Pic::NR_OF_IRQ * sizeof(Irq)];
+		for (unsigned i = 0; i < Pic::NR_OF_IRQ; i++) {
 			if (private_interrupt(i)) { continue; }
 			new (&_irqs[i * sizeof(Irq)]) Irq(i);
 		}
 		/* kernel initialization finished */
 		Genode::printf("kernel initialized\n");
 	}
-	reset_scheduling_time(processor_id);
 }
 
 
@@ -337,44 +332,16 @@ extern "C" void kernel()
 	/* ensure that no other processor accesses kernel data while we do */
 	data_lock().lock();
 
-	/* determine local processor scheduler */
+	/* determine local processor object and let it handle its exception */
 	unsigned const processor_id = Processor::executing_id();
 	Processor * const processor = processor_pool()->processor(processor_id);
-	Processor_scheduler * const scheduler = processor->scheduler();
-
-	/*
-	 * Request the current processor occupant without any update. While this
-	 * processor was outside the kernel, another processor may have changed the
-	 * scheduling of the local activities in a way that an update would return
-	 * an occupant other than that whose exception caused the kernel entry.
-	 */
-	Processor_client * const old_occupant = scheduler->occupant();
-	old_occupant->exception(processor_id);
-
-	/*
-	 * The processor local as well as remote exception-handling may have
-	 * changed the scheduling of the local activities. Hence we must update the
-	 * processor occupant.
-	 */
-	Processor_client * const new_occupant = scheduler->update_occupant();
-	if (old_occupant != new_occupant) { reset_scheduling_time(processor_id); }
-	new_occupant->proceed(processor_id);
+	processor->exception();
 }
 
 
-Kernel::Mode_transition_control * Kernel::mtc()
+Kernel::Cpu_context::Cpu_context(Genode::Translation_table * const table)
 {
-	/* create singleton processor context for kernel */
-	Cpu_context * const cpu_context = unmanaged_singleton<Cpu_context>();
-
-	/* initialize mode transition page */
-	return unmanaged_singleton<Mode_transition_control>(cpu_context);
-}
-
-
-Kernel::Cpu_context::Cpu_context()
-{
-	_init(STACK_SIZE);
+	_init(STACK_SIZE, (addr_t)table);
 	sp = (addr_t)kernel_stack;
 	ip = (addr_t)kernel;
 	core_pd()->admit(this);

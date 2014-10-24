@@ -20,48 +20,73 @@
 #include <pic.h>
 #include <timer.h>
 
-using namespace Kernel;
-
 namespace Kernel
 {
+	/**
+	 * Lists all pending domain updates
+	 */
+	class Processor_domain_update_list;
+
 	Pic * pic();
 	Timer * timer();
 }
 
-using Tlb_list_item = Genode::List_element<Processor_client>;
-using Tlb_list      = Genode::List<Tlb_list_item>;
-
-
-static Tlb_list *tlb_list()
+class Kernel::Processor_domain_update_list
+:
+	public Double_list<Processor_domain_update>
 {
-	static Tlb_list tlb_list;
-	return &tlb_list;
+	public:
+
+		/**
+		 * Perform all pending domain updates on the executing processor
+		 */
+		void for_each_perform_locally()
+		{
+			for_each([] (Processor_domain_update * const domain_update) {
+				domain_update->_perform_locally();
+			});
+		}
+};
+
+namespace Kernel
+{
+	/**
+	 * Return singleton of the processor domain-udpate list
+	 */
+	Processor_domain_update_list * processor_domain_update_list()
+	{
+		static Processor_domain_update_list s;
+		return &s;
+	}
 }
 
+
+/**********************
+ ** Processor_client **
+ **********************/
 
 void Kernel::Processor_client::_interrupt(unsigned const processor_id)
 {
 	/* determine handling for specific interrupt */
 	unsigned irq_id;
 	Pic * const ic = pic();
-	if (ic->take_request(irq_id))
-	{
+	if (ic->take_request(irq_id)) {
+
 		/* check wether the interrupt is a processor-scheduling timeout */
-		if (timer()->interrupt_id(processor_id) == irq_id) {
+		if (!_processor->check_timer_interrupt(irq_id)) {
 
-			__processor->scheduler()->yield_occupation();
-			timer()->clear_interrupt(processor_id);
+			/* check wether the interrupt is our inter-processor interrupt */
+			if (ic->is_ip_interrupt(irq_id, processor_id)) {
 
-		/* check wether the interrupt is our inter-processor interrupt */
-		} else if (ic->is_ip_interrupt(irq_id, processor_id)) {
+				processor_domain_update_list()->for_each_perform_locally();
+				_processor->ip_interrupt_handled();
 
-			__processor->ip_interrupt();
+			/* after all it must be a user interrupt */
+			} else {
 
-		/* after all it must be a user interrupt */
-		} else {
-
-			/* try to inform the user interrupt-handler */
-			Irq::occurred(irq_id);
+				/* try to inform the user interrupt-handler */
+				Irq::occurred(irq_id);
+			}
 		}
 	}
 	/* end interrupt request at controller */
@@ -69,47 +94,12 @@ void Kernel::Processor_client::_interrupt(unsigned const processor_id)
 }
 
 
-void Kernel::Processor_client::_schedule() { __processor->schedule(this); }
+void Kernel::Processor_client::_schedule() { _processor->schedule(this); }
 
 
-void Kernel::Processor_client::tlb_to_flush(unsigned pd_id)
-{
-	/* initialize pd and reference counters, and remove client from scheduler */
-	_flush_tlb_pd_id   = pd_id;
-	for (unsigned i = 0; i < PROCESSORS; i++)
-		_flush_tlb_ref_cnt[i] = false;
-	_unschedule();
-
-	/* find the last working item in the TLB work queue */
-	Tlb_list_item * last = tlb_list()->first();
-	while (last && last->next()) last = last->next();
-
-	/* insert new work item at the end of the work list */
-	tlb_list()->insert(&_flush_tlb_li, last);
-
-	/* enforce kernel entry of other processors */
-	for (unsigned i = 0; i < PROCESSORS; i++)
-		pic()->trigger_ip_interrupt(i);
-
-	processor_pool()->processor(Processor::executing_id())->flush_tlb();
-}
-
-
-void Kernel::Processor_client::flush_tlb_by_id()
-{
-	/* flush TLB on current processor and adjust ref counter */
-	Processor::flush_tlb_by_pid(_flush_tlb_pd_id);
-	_flush_tlb_ref_cnt[Processor::executing_id()] = true;
-
-	/* check whether all processors are done */
-	for (unsigned i = 0; i < PROCESSORS; i++)
-		if (!_flush_tlb_ref_cnt[i]) return;
-
-	/* remove work item from the list and re-schedule thread */
-	tlb_list()->remove(&_flush_tlb_li);
-	_schedule();
-}
-
+/***************
+ ** Processor **
+ ***************/
 
 void Kernel::Processor::schedule(Processor_client * const client)
 {
@@ -127,10 +117,8 @@ void Kernel::Processor::schedule(Processor_client * const client)
 		 * Additionailly we omit the interrupt if the insertion doesn't
 		 * rescind the current scheduling choice of the processor.
 		 */
-		if (_scheduler.insert_and_check(client) && !_ip_interrupt_pending) {
-			pic()->trigger_ip_interrupt(_id);
-			_ip_interrupt_pending = true;
-		}
+		if (_scheduler.insert_and_check(client)) { trigger_ip_interrupt(); }
+
 	} else {
 
 		/* add client locally */
@@ -139,26 +127,66 @@ void Kernel::Processor::schedule(Processor_client * const client)
 }
 
 
+void Kernel::Processor::trigger_ip_interrupt()
+{
+	if (!_ip_interrupt_pending) {
+		pic()->trigger_ip_interrupt(_id);
+		_ip_interrupt_pending = true;
+	}
+}
+
+
 void Kernel::Processor_client::_unschedule()
 {
-	assert(__processor->id() == Processor::executing_id());
-	__processor->scheduler()->remove(this);
+	assert(_processor->id() == Processor::executing_id());
+	_processor->scheduler()->remove(this);
 }
 
 
 void Kernel::Processor_client::_yield()
 {
-	assert(__processor->id() == Processor::executing_id());
-	__processor->scheduler()->yield_occupation();
+	assert(_processor->id() == Processor::executing_id());
+	_processor->scheduler()->yield_occupation();
 }
 
 
-void Kernel::Processor::flush_tlb()
+/*****************************
+ ** Processor_domain_update **
+ *****************************/
+
+void Kernel::Processor_domain_update::_perform_locally()
 {
-	/* iterate through the list of TLB work items, and proceed them */
-	for (Tlb_list_item * cli = tlb_list()->first(); cli;) {
-		Tlb_list_item * current = cli;
-		cli = current->next();
-		current->object()->flush_tlb_by_id();
+	/* perform domain update locally and get pending bit */
+	unsigned const processor_id = Processor::executing_id();
+	if (!_pending[processor_id]) { return; }
+	_domain_update();
+	_pending[processor_id] = false;
+
+	/* check wether there are still processors pending */
+	unsigned i = 0;
+	for (; i < PROCESSORS && !_pending[i]; i++) { }
+	if (i < PROCESSORS) { return; }
+
+	/* as no processors pending anymore, end the domain update */
+	processor_domain_update_list()->remove(this);
+	_processor_domain_update_unblocks();
+}
+
+
+bool Kernel::Processor_domain_update::_perform(unsigned const domain_id)
+{
+	/* perform locally and leave it at that if in uniprocessor mode */
+	_domain_id = domain_id;
+	_domain_update();
+	if (PROCESSORS == 1) { return false; }
+
+	/* inform other processors and block until they are done */
+	processor_domain_update_list()->insert_tail(this);
+	unsigned const processor_id = Processor::executing_id();
+	for (unsigned i = 0; i < PROCESSORS; i++) {
+		if (i == processor_id) { continue; }
+		_pending[i] = true;
+		processor_pool()->processor(i)->trigger_ip_interrupt();
 	}
+	return true;
 }

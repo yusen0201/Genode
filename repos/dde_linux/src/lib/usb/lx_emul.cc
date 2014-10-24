@@ -56,7 +56,7 @@ class Genode::Slab_backend_alloc : public Genode::Allocator,
 		};
 
 		addr_t                   _base;              /* virt. base address */
-		bool                     _cached;            /* non-/cached RAM */
+		Genode::Cache_attribute  _cached;            /* non-/cached RAM */
 		Ram_dataspace_capability _ds_cap[ELEMENTS];  /* dataspaces to put in VM */
 		addr_t                   _ds_phys[ELEMENTS]; /* physical bases of dataspaces */
 		int                      _index;             /* current index in ds_cap */
@@ -88,7 +88,7 @@ class Genode::Slab_backend_alloc : public Genode::Allocator,
 
 	public:
 
-		Slab_backend_alloc(bool cached)
+		Slab_backend_alloc(Genode::Cache_attribute cached)
 		: Rm_connection(0, VM_SIZE), _cached(cached), _index(0),
 		  _range(env()->heap())
 		{
@@ -206,11 +206,11 @@ class Malloc
 		typedef Genode::Slab_alloc Slab_alloc;
 		typedef Genode::Slab_backend_alloc Slab_backend_alloc;
 
-		Slab_backend_alloc *_back_allocator;
-		Slab_alloc         *_allocator[NUM_SLABS]; 
-		bool                _cached; /* cached or un-cached memory */
-		addr_t              _start;  /* VM region of this allocator */
-		addr_t              _end;
+		Slab_backend_alloc     *_back_allocator;
+		Slab_alloc             *_allocator[NUM_SLABS];
+		Genode::Cache_attribute _cached; /* cached or un-cached memory */
+		addr_t                  _start;  /* VM region of this allocator */
+		addr_t                  _end;
 
 		/**
 		 * Set 'value' at 'addr'
@@ -240,7 +240,7 @@ class Malloc
 
 	public:
 
-		Malloc(Slab_backend_alloc *alloc, bool cached)
+		Malloc(Slab_backend_alloc *alloc, Genode::Cache_attribute cached)
 		: _back_allocator(alloc), _cached(cached), _start(alloc->start()),
 		  _end(alloc->end())
 		{
@@ -326,8 +326,8 @@ class Malloc
 		 */
 		static Malloc *mem()
 		{
-			static Slab_backend_alloc _b(true);
-			static Malloc _m(&_b, true);
+			static Slab_backend_alloc _b(Genode::CACHED);
+			static Malloc _m(&_b, Genode::CACHED);
 			return &_m;
 		}
 
@@ -336,8 +336,8 @@ class Malloc
 		 */
 		static Malloc *dma()
 		{
-			static Slab_backend_alloc _b(false);
-			static Malloc _m(&_b, false);
+			static Slab_backend_alloc _b(Genode::UNCACHED);
+			static Malloc _m(&_b, Genode::UNCACHED);
 			return &_m;
 		}
 };
@@ -700,6 +700,12 @@ void *devm_ioremap_nocache(struct device *dev, resource_size_t offset,
 }
 
 
+void *devm_ioremap_resource(struct device *dev, struct resource *res)
+{
+	return _ioremap(res->start, res->end - res->start, 0);
+}
+
+
 void *phys_to_virt(unsigned long address)
 {
 	return (void *)Malloc::dma()->virt_addr(address);
@@ -846,15 +852,10 @@ void *devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
 }
 
 
-void *platform_get_drvdata(const struct platform_device *pdev)
+void *dev_get_platdata(const struct device *dev)
 {
-	return pdev->data;
-}
-
-
-void platform_set_drvdata(struct platform_device *pdev, void *data)
-{
-	pdev->data = data;
+	PDBG("called");
+	return (void *)dev->platform_data;
 }
 
 
@@ -950,12 +951,16 @@ unsigned long msecs_to_jiffies(const unsigned int m) { return m / JIFFIES_TICK_M
 long time_after_eq(long a, long b) { return (a - b) >= 0; }
 long time_after(long a, long b)    { return (b - a) < 0; }
 
+
+/*********
+ ** DMA **
+ *********/
+
 struct dma_pool
 {
 	size_t size;
 	int    align;
 };
-
 
 struct dma_pool *dma_pool_create(const char *name, struct device *d, size_t size,
                                  size_t align, size_t alloc)
@@ -1222,4 +1227,72 @@ u8 mii_resolve_flowctrl_fdx(u16 lcladv, u16 rmtadv)
 	 return cap;
 }
 
+int mii_link_ok (struct mii_if_info *mii)
+{
+	/* first, a dummy read, needed to latch some MII phys */
+	mii->mdio_read(mii->dev, mii->phy_id, MII_BMSR);
+	if (mii->mdio_read(mii->dev, mii->phy_id, MII_BMSR) & BMSR_LSTATUS)
+	        return 1;
+	return 0;
+}
 
+
+unsigned int mii_check_media (struct mii_if_info *mii,
+                              unsigned int ok_to_print,
+                              unsigned int init_media)
+{
+	if (mii_link_ok(mii))
+		netif_carrier_on(mii->dev);
+	else
+		netif_carrier_off(mii->dev);
+	return 0;
+}
+
+
+/******************
+ ** linux/log2.h **
+ ******************/
+
+
+int rounddown_pow_of_two(u32 n)
+{
+	return 1U << Genode::log2(n);
+}
+
+
+/******************
+ ** linux/wait.h **
+ ******************/
+
+void init_waitqueue_head(wait_queue_head_t *q)
+{
+	q->q = 0;
+}
+
+
+void add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait)
+{
+	if (q->q) {
+		PERR("Non-empty wait queue");
+		return;
+	}
+
+	q->q = wait;
+}
+
+
+void remove_wait_queue(wait_queue_head_t *q, wait_queue_t *wait)
+{
+	if (q->q != wait) {
+		PERR("Remove unkown element from wait queue");
+		return;
+	}
+
+	q->q = 0;
+}
+
+
+int waitqueue_active(wait_queue_head_t *q)
+{
+	return q->q ? 1 : 0;
+}

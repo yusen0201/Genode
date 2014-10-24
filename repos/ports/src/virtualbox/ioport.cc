@@ -22,6 +22,8 @@
 #include <VBox/err.h>
 #include <VBox/vmm/pdmdev.h>
 
+static bool verbose = false;
+
 class Guest_ioports
 {
 	struct Range;
@@ -133,9 +135,15 @@ class Guest_ioports
 			return 0;
 		}
 
+		/*
+		 * The whitelist is used to suppress log messages, which the VM tries
+		 * to access I/O ports with no device model associated. TinyCore Linux
+		 * seems to probe a lot of I/O ports, e.g. the LPT3 ports.
+		 */
 		bool _white_listed(RTIOPORT port)
 		{
 			/* LPT1 */ if (port >= 0x0378 && port <= 0x037f) return true;
+			/* LPT3 */ if (port >= 0x0278 && port <= 0x027f) return true;
 			/* ECP  */ if (port >= 0x0778 && port <= 0x077a) return true;
 			/* IDE1 */ if (port >= 0x0170 && port <= 0x017f) return true;
 			return false;
@@ -257,8 +265,9 @@ IOMR3IOPortRegisterR3(PVM pVM, PPDMDEVINS pDevIns,
                       R3PTRTYPE(PFNIOMIOPORTINSTRING)  pfnInStringCallback,
                       const char *pszDesc)
 {
-	PLOG("register I/O port range 0x%x-0x%x '%s'",
-	     PortStart, PortStart + cPorts - 1, pszDesc);
+	if (verbose)
+		PLOG("register I/O port range 0x%x-0x%x '%s'",
+		     PortStart, PortStart + cPorts - 1, pszDesc);
 
 	return guest_ioports()->add_range(pDevIns, PortStart, cPorts, pvUser,
 	                                  pfnOutCallback, pfnInCallback,
@@ -269,8 +278,9 @@ IOMR3IOPortRegisterR3(PVM pVM, PPDMDEVINS pDevIns,
 int IOMR3IOPortDeregister(PVM pVM, PPDMDEVINS pDevIns, RTIOPORT PortStart,
                           RTUINT cPorts)
 {
-	PLOG("deregister I/O port range 0x%x-0x%x",
-	     PortStart, PortStart + cPorts - 1);
+	if (verbose)
+		PLOG("deregister I/O port range 0x%x-0x%x",
+		     PortStart, PortStart + cPorts - 1);
 
 	return guest_ioports()->remove_range(pDevIns, PortStart, cPorts);
 }

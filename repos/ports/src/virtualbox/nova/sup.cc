@@ -113,10 +113,8 @@ int SUPR3CallVMMR0Ex(PVMR0 pVMR0, VMCPUID idCpu, unsigned
 	case VMMR0_DO_HWACC_ENABLE:
 		return VINF_SUCCESS;
 
-	/* XXX only do one of it - either recall or up - not both XXX */
 	case VMMR0_DO_GVMM_SCHED_POKE:
 		vcpu_handler->recall();
-		r0_halt_sem()->up();
 		return VINF_SUCCESS;
 
 	default:
@@ -180,11 +178,11 @@ bool Vmm_memory::unmap_from_vm(RTGCPHYS GCPhys)
 extern "C" void pthread_yield(void) { Nova::ec_ctrl(Nova::EC_YIELD); }
 
 
-extern "C"
 bool create_emt_vcpu(pthread_t * pthread, size_t stack,
                      const pthread_attr_t *attr,
                      void *(*start_routine)(void *), void *arg,
-                     Genode::Cpu_session * cpu_session)
+                     Genode::Cpu_session * cpu_session,
+                     Genode::Affinity::Location location)
 {
 	Nova::Hip * hip = hip_rom.local_addr<Nova::Hip>();
 
@@ -193,11 +191,11 @@ bool create_emt_vcpu(pthread_t * pthread, size_t stack,
 
 	if (hip->has_feature_vmx())
 		vcpu_handler = new Vcpu_handler_vmx(stack, attr, start_routine, arg,
-		                                    cpu_session);
+		                                    cpu_session, location);
 
 	if (hip->has_feature_svm())
 		vcpu_handler = new Vcpu_handler_svm(stack, attr, start_routine, arg,
-		                                    cpu_session);
+		                                    cpu_session, location);
 
 	*pthread = vcpu_handler;
 	return true;

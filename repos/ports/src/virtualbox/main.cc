@@ -20,13 +20,20 @@
 
 /* libc includes */
 #include <stdio.h>
+#include <string.h>
+
+/* libc memory allocator */
+#include <libc_mem_alloc.h>
 
 /* Virtualbox includes of VBoxBFE */
 #include <iprt/initterm.h>
 #include <iprt/err.h>
 
-void *operator new (Genode::size_t size) {
-	return Genode::env()->heap()->alloc(size); }
+void *operator new (Genode::size_t size)
+{
+	static Libc::Mem_alloc_impl heap(Genode::env()->rm_session());
+	return heap.alloc(size, 0x10);
+}
 
 void *operator new [] (Genode::size_t size) {
 	return Genode::env()->heap()->alloc(size); }
@@ -59,9 +66,7 @@ namespace {
 				if (_argc >= MAX_ARGS - 1)
 					throw Too_many_arguments();
 
-				/* XXX yes const-casting hurts but main() needs char**, if in
-				 * doubt we should strdup() here, right? */
-				_argv[_argc++] = const_cast<char *>(arg);
+				_argv[_argc++] = strdup(arg);
 			}
 
 			char *** argvp() {
@@ -164,7 +169,7 @@ int main()
 		try {
 			Xml_node::Attribute overlay = node.attribute("overlay");
 			overlay.value(c_type, sizeof(c_type));
-			if (!strcmp(c_type, "yes"))
+			if (!Genode::strcmp(c_type, "yes"))
 				bOverlay = true;
 		} catch (...) { }
 		type.value(c_type, sizeof(c_type));
@@ -196,10 +201,21 @@ int main()
 	}
 
 	args.add(c_file);
-	args.add("-ioapic");
 
 	if (bOverlay)
 		args.add("-overlay");
+
+	/* disable acpi support if requested */
+	try {
+		Genode::Xml_node node = Genode::config()->xml_node().sub_node("noacpi");
+		args.add("-noacpi");
+	} catch (...) { }
+
+	/* ioapic support */
+	try {
+		Genode::Xml_node node = Genode::config()->xml_node().sub_node("ioapic");
+		args.add("-ioapic");
+	} catch (...) { }
 
 	/* shared folder setup */
 	unsigned shares = 0;
@@ -222,9 +238,35 @@ int main()
 		}
 	} catch(Genode::Xml_node::Nonexistent_sub_node) { }
 
-	PINF("start %s image '%s' with %zu MB guest memory=%zu and %u shared folders",
+	/* network setup */
+	unsigned net = 0;
+	try {
+		using namespace Genode;
+		for (Xml_node node = config()->xml_node().sub_node("net");
+		     true; node = node.next("net")) {
+
+			net ++;
+
+			char buf [10];
+			Genode::snprintf(buf, sizeof(buf), "-hifdev%d", net);
+			args.add(buf);
+
+			/* read out network model, if not set use e1000 */
+			try {
+				Xml_node::Attribute model  = node.attribute("model");
+				char * c_model = new char[model.value_size() + 1];
+				model.value(c_model, model.value_size() + 1);
+				args.add(c_model);
+			} catch(Genode::Xml_node::Nonexistent_attribute) {
+				args.add("e1000");
+			}
+		}
+	} catch(Genode::Xml_node::Nonexistent_sub_node) { }
+
+	PINF("start %s image '%s' with %zu MB guest memory=%zu, %u shared folders,"
+	     " %u network connections",
 	     c_type, c_file, vm_size / 1024 / 1024,
-	     Genode::env()->ram_session()->avail(), shares);
+	     Genode::env()->ram_session()->avail(), shares, net);
 
 	if (RT_FAILURE(RTR3InitExe(args.argc(), args.argvp(), 0))) {
 		PERR("Intialization of VBox Runtime failed.");

@@ -42,8 +42,7 @@ class Ram_blk : public Block::Driver
 		         bool               read)
 		{
 			/* sanity check block number */
-			if ((block_number + block_count > _file_sz / _blk_sz)
-				|| block_number < 0) {
+			if (block_number + block_count > _file_sz / _blk_sz) {
 				PWRN("requested blocks %lld-%lld out of range!",
 					 block_number, block_number + block_count);
 				return;
@@ -124,7 +123,7 @@ struct Main
 			}
 			catch (...) { }
 
-			PINF("Using file=%s as device with block size %zx.", file, blk_sz);
+			PINF("Using file=%s as device with block size %zd.", file, blk_sz);
 
 			try {
 				return new (Genode::env()->heap()) Ram_blk(file, blk_sz);

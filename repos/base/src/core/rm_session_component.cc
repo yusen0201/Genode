@@ -280,7 +280,7 @@ int Rm_client::pager(Ipc_pager &pager)
 
 	Mapping mapping(dst_fault_area.base(),
 	                src_fault_area.base(),
-	                src_dataspace->write_combined(),
+	                src_dataspace->cacheability(),
 	                src_dataspace->is_io_mem(),
 	                map_size_log2,
 	                src_dataspace->writable());
@@ -313,6 +313,8 @@ void Rm_faulter::fault(Rm_session_component *faulting_rm_session,
 
 	_faulting_rm_session = faulting_rm_session;
 	_fault_state         = fault_state;
+
+	_pager_object->unresolved_page_fault_occurred();
 }
 
 

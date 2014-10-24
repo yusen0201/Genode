@@ -27,11 +27,14 @@
 #include <pic.h>
 #include <kernel/kernel.h>
 #include <translation_table.h>
+#include <trustzone.h>
 
 using namespace Genode;
 
 extern int _prog_img_beg;
 extern int _prog_img_end;
+
+void __attribute__((weak)) Kernel::init_trustzone(Pic * pic) { }
 
 /**
  * Format of a boot-module header
@@ -43,10 +46,10 @@ struct Bm_header
 	long size; /* size of module data in bytes */
 };
 
-extern int       _boot_modules_begin;
-extern Bm_header _boot_module_headers_begin;
-extern Bm_header _boot_module_headers_end;
-extern int       _boot_modules_end;
+extern Bm_header _boot_modules_headers_begin;
+extern Bm_header _boot_modules_headers_end;
+extern int       _boot_modules_binaries_begin;
+extern int       _boot_modules_binaries_end;
 
 /**
  * Functionpointer that provides accessor to a pool of address regions
@@ -97,8 +100,9 @@ Native_region * Platform::_core_only_ram_regions(unsigned const i)
 		  (size_t)((addr_t)&_prog_img_end - (addr_t)&_prog_img_beg) },
 
 		/* boot modules */
-		{ (addr_t)&_boot_modules_begin,
-		  (size_t)((addr_t)&_boot_modules_end - (addr_t)&_boot_modules_begin) }
+		{ (addr_t)&_boot_modules_binaries_begin,
+		  (size_t)((addr_t)&_boot_modules_binaries_end -
+		           (addr_t)&_boot_modules_binaries_begin) }
 	};
 	return i < sizeof(_r)/sizeof(_r[0]) ? &_r[i] : 0;
 }
@@ -131,7 +135,7 @@ Platform::Platform()
 	           _core_only_ram_regions, get_page_size_log2());
 
 	/* make interrupts available to the interrupt allocator */
-	for (unsigned i = 0; i < Kernel::Pic::MAX_INTERRUPT_ID; i++)
+	for (unsigned i = 0; i < Kernel::Pic::NR_OF_IRQ; i++)
 		_irq_alloc.add_range(i, 1);
 
 	/*
@@ -143,8 +147,8 @@ Platform::Platform()
 	init_alloc(&_io_mem_alloc, _mmio_regions, _core_only_mmio_regions, 0);
 
 	/* add boot modules to ROM FS */
-	Bm_header * header = &_boot_module_headers_begin;
-	for (; header < &_boot_module_headers_end; header++) {
+	Bm_header * header = &_boot_modules_headers_begin;
+	for (; header < &_boot_modules_headers_end; header++) {
 		Rom_module * rom_module = new (core_mem_alloc())
 			Rom_module(header->base, header->size, (const char*)header->name);
 		_rom_fs.insert(rom_module);
@@ -191,10 +195,10 @@ void Core_parent::exit(int exit_value)
  ** Support for core memory management **
  ****************************************/
 
-bool Genode::map_local(addr_t from_phys, addr_t to_virt, size_t num_pages, bool io_mem)
+bool Genode::map_local(addr_t from_phys, addr_t to_virt, size_t num_pages,
+                       Page_flags flags)
 {
 	Translation_table *tt = Kernel::core_pd()->translation_table();
-	const Page_flags flags = Page_flags::map_core_area(io_mem);
 
 	try {
 		for (unsigned i = 0; i < 2; i++) {
@@ -244,7 +248,7 @@ bool Core_mem_allocator::Mapped_mem_allocator::_map_local(addr_t   virt_addr,
 {
 	Genode::Page_slab * slab = Kernel::core_pd()->platform_pd()->page_slab();
 	slab->backing_store(_core_mem_allocator->raw());
-	bool ret = ::map_local(phys_addr, virt_addr, size / get_page_size(), false);
+	bool ret = ::map_local(phys_addr, virt_addr, size / get_page_size());
 	slab->backing_store(_core_mem_allocator);
 	return ret;
 }

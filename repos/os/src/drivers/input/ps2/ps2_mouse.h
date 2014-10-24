@@ -71,16 +71,25 @@ class Ps2_mouse : public Input_driver
 
 		static const bool verbose = false;
 
-		Serial_interface &_aux;
-		Event_queue      &_ev_queue;
+		Serial_interface   &_aux;
+		Input::Event_queue &_ev_queue;
 
-		Type              _type;
+		Type                _type;
 
-		bool              _button_state[NUM_BUTTONS];
+		bool                _button_state[NUM_BUTTONS];
 
 		unsigned char _packet[MAX_PACKET_LEN];
 		int           _packet_len;
 		int           _packet_idx;
+
+		void _check_for_event_queue_overflow()
+		{
+			if (_ev_queue.avail_capacity())
+				return;
+
+			PWRN("event queue overflow - dropping events");
+			_ev_queue.reset();
+		}
 
 		/**
 		 * Generate mouse button event on state changes
@@ -96,6 +105,8 @@ class Ps2_mouse : public Input_driver
 
 			if (verbose)
 				Genode::printf("post %s, key_code = %d\n", new_state ? "PRESS" : "RELEASE", key_code);
+
+			_check_for_event_queue_overflow();
 
 			_ev_queue.add(Input::Event(new_state ? Input::Event::PRESS
 			                                     : Input::Event::RELEASE,
@@ -149,9 +160,10 @@ class Ps2_mouse : public Input_driver
 
 	public:
 
-		Ps2_mouse(Serial_interface &aux, Event_queue &ev_queue)
+		Ps2_mouse(Serial_interface &aux, Input::Event_queue &ev_queue)
 		:
-			_aux(aux), _ev_queue(ev_queue), _type(PS2),
+			_aux(aux),
+			_ev_queue(ev_queue), _type(PS2),
 			_packet_len(PS2_PACKET_LEN), _packet_idx(0)
 		{
 			for (unsigned i = 0; i < NUM_BUTTONS; ++i)
@@ -222,6 +234,8 @@ class Ps2_mouse : public Input_driver
 				if (verbose)
 					Genode::printf("post MOTION, rel_x = %d, rel_y = %d\n", rel_x, rel_y);
 
+				_check_for_event_queue_overflow();
+
 				_ev_queue.add(Input::Event(Input::Event::MOTION,
 				                           0, 0, 0, rel_x, rel_y));
 			}
@@ -241,6 +255,8 @@ class Ps2_mouse : public Input_driver
 
 				if (verbose)
 					Genode::printf("post WHEEL, rel_z = %d\n", rel_z);
+
+				_check_for_event_queue_overflow();
 
 				_ev_queue.add(Input::Event(Input::Event::WHEEL,
 				                           0, 0, 0, 0, rel_z));
