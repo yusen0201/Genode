@@ -21,7 +21,7 @@ install_config {
 		<any-service> <parent/> <any-child/> </any-service>
 	</default-route>
 	<start name="test-glucose">
-		<resource name="RAM" quantum="2M"/>
+		<resource name="RAM" quantum="32M"/>
 		<config>
 			<libc stdin="/dev/null" stdout="/dev/log" stderr="/dev/log">
 				<vfs>
@@ -47,5 +47,5 @@ build_boot_image {
 
 append qemu_args " -nographic -m 64 "
 
-run_genode_until "--- returning from main ---" 20
+run_genode_until {.*Okay.*} 20
 

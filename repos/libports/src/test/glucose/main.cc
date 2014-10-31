@@ -13,6 +13,7 @@ int main()
 	if (gzfile_components != NULL) {
 		parse_DIMACS(gzfile_components, solver);
 		gzclose(gzfile_components);
+		PINF("Okay");
 	}
 	else {
 		PERR("Unable to open file \"Test.cnf\"");
