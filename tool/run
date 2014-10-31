@@ -325,7 +325,7 @@ proc genode_dir       { } { global genode_dir;       return $genode_dir }
 proc cross_dev_prefix { } { global cross_dev_prefix; return $cross_dev_prefix }
 
 # set expect match-buffer size
-match_max -d 20000
+match_max -d 100000
 
 ##
 # Return true if spec value is set for the build

@@ -49,3 +49,4 @@ append qemu_args " -nographic -m 64 "
 
 run_genode_until {.*Okay.*} 20
 
+exec rm bin/Test.cnf
