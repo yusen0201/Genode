@@ -1,6 +1,9 @@
 # Doxyfile 1.8.7
 
-# Run
+# INSTALL
+# $ sudo apt-get install graphviz doxygen
+
+# RUN
 # $ doxygen
 # in the directory where this file is located 
 # to generate the documentation
@@ -411,7 +414,7 @@ TYPEDEF_HIDES_STRUCT   = NO
 # the optimal cache size from a speed point of view.
 # Minimum value: 0, maximum value: 9, default value: 0.
 
-LOOKUP_CACHE_SIZE      = 0
+LOOKUP_CACHE_SIZE      = 1
 
 #---------------------------------------------------------------------------
 # Build related configuration options
@@ -771,12 +774,21 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = ../repos/base \
+                         ../repos/base-hw \
+                         ../repos/base-linux \
+                         ../repos/dde_ipxe \
+                         ../repos/dde_linux \
+                         ../repos/dde_oss \
+                         ../repos/dde_rump \
                          ../repos/demo \
                          ../repos/gems \
-                         ../repos/base-linux \
                          ../repos/hello_tutorial \
                          ../repos/mccl_genode \
-                         ../repos/os
+                         ../repos/os \
+                         ../repos/qt4
+                         
+# The following directories are to complex and needs more than 2GB RAM
+#                          ../repos/libports
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
