@@ -124,6 +124,13 @@ SRC_C = \
         pwdmodule.c \
         _sre.c \
         _codecsmodule.c \
+        timemodule.c \
+        operator.c \
+        binascii.c \
+        _randommodule.c \
+        itertoolsmodule.c \
+        _functoolsmodule.c \
+        _collectionsmodule.c \
         zipimport.c \
         zlibmodule.c \
         zlib/adler32.c \
@@ -135,7 +142,6 @@ SRC_C = \
         zlib/inffast.c \
         zlib/inflate.c \
         zlib/inftrees.c \
-        zlib/minigzip.c \
         zlib/trees.c \
         zlib/uncompr.c \
         zlib/zutil.c \
