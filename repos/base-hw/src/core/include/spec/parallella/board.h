@@ -1,5 +1,5 @@
 /*
- * \brief  Board driver for core on Zynq
+ * \brief  Board driver for core on Zynq/Parallella
  * \author Johannes Schlatow
  * \author Stefan Kalkowski
  * \date   2014-06-02
@@ -24,8 +24,9 @@ namespace Genode
 	struct Board : Board_base
 	{
 		enum {
-			UART_MMIO_BASE = UART_0_MMIO_BASE
+			UART_MMIO_BASE = UART_1_MMIO_BASE
 		};
+
 		/**
 		 * L2 outer cache controller
 		 */

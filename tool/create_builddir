@@ -38,6 +38,7 @@ usage:
 	@echo "                  'hw_odroid_xu'"
 	@echo "                  'hw_rpi'"
 	@echo "                  'hw_zynq'"
+	@echo "                  'hw_parallella'"
 	@echo "                  'foc_x86_32'"
 	@echo "                  'foc_x86_64'"
 	@echo "                  'foc_pbxa9'"
@@ -159,7 +160,7 @@ endif
 #
 # Add ARM drivers repositories to ARM build directories
 #
-ifeq ($(filter-out foc_panda foc_arndale hw_panda hw_rpi hw_zynq hw_arndale hw_odroid_xu foc_imx53,$(PLATFORM)),)
+ifeq ($(filter-out foc_panda foc_arndale hw_panda hw_rpi hw_zynq hw_parallella hw_arndale hw_odroid_xu foc_imx53,$(PLATFORM)),)
 $(BUILD_DIR)/etc/build.conf::
 	@cat $(BUILD_CONF).drivers_arm >> $@
 endif
@@ -240,6 +241,9 @@ hw_rpi::
 
 hw_zynq::
 	@echo "SPECS = genode hw_zynq" > $(BUILD_DIR)/etc/specs.conf
+
+hw_parallella::
+	@echo "SPECS = genode hw_parallella" > $(BUILD_DIR)/etc/specs.conf
 
 hw_odroid_xu::
 	@echo "SPECS = genode hw_odroid_xu" > $(BUILD_DIR)/etc/specs.conf
