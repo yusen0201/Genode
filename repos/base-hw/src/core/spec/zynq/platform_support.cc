@@ -52,14 +52,11 @@ Native_region * Platform::_core_only_mmio_regions(unsigned const i)
 		/* core timer and PIC */
 		{ Board::CORTEX_A9_PRIVATE_MEM_BASE,
 		  Board::CORTEX_A9_PRIVATE_MEM_SIZE },
-
-		/* FIXME already covered by MMIO_1_BASE */
-//		/* l2 cache controller */
-//		{ Board::PL310_MMIO_BASE, Board::PL310_MMIO_SIZE },
-
-		/* FIXME already covered by MMIO_0_BASE */
-//		/* core UART */
-//		{ Board::UART_0_MMIO_BASE, Board::UART_0_MMIO_BASE }
+		/* both UARTs */
+		{ Board::UART_0_MMIO_BASE, Board::UART_SIZE },
+		{ Board::UART_1_MMIO_BASE, Board::UART_SIZE },
+		/* L2 cache controller */
+		{ Board::PL310_MMIO_BASE, Board::PL310_MMIO_SIZE }
 	};
 	return i < sizeof(_regions)/sizeof(_regions[0]) ? &_regions[i] : 0;
 }
