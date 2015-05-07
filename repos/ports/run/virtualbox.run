@@ -44,7 +44,7 @@ set config {
 
 append_if [have_spec acpi] config {
 	<start name="acpi" priority="-1">
-		<resource name="RAM" quantum="8M"/>
+		<resource name="RAM" quantum="8M" constrain_phys="yes"/>
 		<binary name="acpi_drv"/>
 		<provides>
 			<service name="PCI"/>
@@ -58,7 +58,7 @@ append_if [have_spec acpi] config {
 
 append_if [expr ![have_spec acpi] && [have_spec pci]] config {
 	<start name="pci_drv" priority="-1">
-		<resource name="RAM" quantum="2M"/>
+		<resource name="RAM" quantum="2M" constrain_phys="yes"/>
 		<provides> <service name="PCI"/> </provides>
 	</start>}
 
@@ -111,9 +111,9 @@ append config {
 	<start name="virtualbox" priority="-2">
 		<resource name="RAM" quantum="448M"/>
 		<config vbox_file="test.vbox" vm_name="TestVM">
-			<libc stdout="/dev/log" stderr="/dev/log">
+			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc">
 				<vfs>
-					<dir name="dev"> <log/> </dir>}
+					<dir name="dev"> <log/> <rtc/> </dir>}
 
 append_if [expr $use_serial] config {
 					<dir name="dev"> <terminal/> </dir>}

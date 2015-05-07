@@ -202,12 +202,17 @@ _svn_dir = $(call _assert,$(DIR($1)),Missing declaration of DIR($*))
 
 _file_name = $(call _prefer,$(NAME($1)),$(notdir $(URL($1))))
 
+# Some downloads are available via HTTPS only, but wget < 3.14 does not support
+# server-name identification, which is used by some sites. So, we disable
+# certificate checking in wget and check the validity of the download via SIG
+# or SHA.
+
 %.file:
 	$(VERBOSE)test -n "$(URL($*))" ||\
 		($(ECHO) "Error: Undefined URL for $(call _file_name,$*)"; false);
 	$(VERBOSE)name=$(call _file_name,$*);\
 		(test -f $$name || $(MSG_DOWNLOAD)$(URL($*))); \
-		(test -f $$name || wget --quiet $(URL($*)) -O $$name) || \
+		(test -f $$name || wget --quiet --no-check-certificate $(URL($*)) -O $$name) || \
 			($(ECHO) Error: Download for $* failed; false)
 	$(VERBOSE)\
 		($(ECHO) "$(SHA($*))  $(call _file_name,$*)" |\
@@ -222,7 +227,8 @@ _file_name = $(call _prefer,$(NAME($1)),$(notdir $(URL($1))))
 _archive_name = $(call _prefer,$(NAME($1)),$(notdir $(URL($1))))
 _archive_dir  = $(call _assert,$(DIR($1)),Missing definition of DIR($*) in $(PORT))
 
-_tar_opt = $(call _prefer,$(TAR_OPT($1)),--strip-components=1)
+_tar_opt   = $(call _prefer,$(TAR_OPT($1)),--strip-components=1)
+_unzip_opt = $(call _prefer,$(UNZIP_OPT($1)),$(UNZIP_OPT))
 
 #
 # Archive extraction functions for various archive types
@@ -231,7 +237,7 @@ _extract_function(tgz)     = tar xfz $(ARCHIVE) -C $(DIR) $(call _tar_opt,$1)
 _extract_function(tar.gz)  = tar xfz $(ARCHIVE) -C $(DIR) $(call _tar_opt,$1)
 _extract_function(tar.xz)  = tar xfJ $(ARCHIVE) -C $(DIR) $(call _tar_opt,$1)
 _extract_function(tar.bz2) = tar xfj $(ARCHIVE) -C $(DIR) $(call _tar_opt,$1)
-_extract_function(zip)     = unzip -o -q -d $(DIR) $(ARCHIVE)
+_extract_function(zip)     = unzip -o -q -d $(DIR) $(call _unzip_opt,$1) $(ARCHIVE)
 
 _ARCHIVE_EXTS := tar.gz tar.xz tgz tar.bz2 zip
 
@@ -255,4 +261,3 @@ _extract_function = $(call _assert,\
 	$(VERBOSE)\
 		mkdir -p $(DIR);\
 		$(call _extract_function,$*)
-

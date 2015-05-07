@@ -49,7 +49,7 @@ set config  {
 if {![have_spec linux]} {
 	append config {
 		<start name="acpi">
-			<resource name="RAM" quantum="4M"/>
+			<resource name="RAM" quantum="2M" constrain_phys="yes"/>
 			<binary name="acpi_drv"/>
 			<provides>
 				<service name="PCI"/>
@@ -59,6 +59,16 @@ if {![have_spec linux]} {
 				<service name="PCI"> <any-child /> </service>
 				<any-service> <parent/> <any-child /> </any-service>
 			</route>
+		</start>
+		<start name="audio_out_drv">
+			<resource name="RAM" quantum="6M"/>
+			<route>
+				<service name="IRQ"><child name="acpi" /></service>
+				<any-service> <parent /> <any-child /></any-service>
+			</route>
+			<provides>
+				<service name="Audio_out" />
+			</provides>
 		</start>
 	}
 }
@@ -133,5 +143,5 @@ if {![have_spec linux]} {
 }
 
 build_boot_image $boot_modules
-append qemu_args "-m 256 -soundhw ac97 -nographic"
+append qemu_args "-m 256 -soundhw es1370 -nographic"
 run_genode_until forever
