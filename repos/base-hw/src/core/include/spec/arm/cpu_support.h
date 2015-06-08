@@ -29,6 +29,8 @@ namespace Genode
 	 * CPU driver for core
 	 */
 	class Arm;
+
+	typedef Genode::uint64_t sizet_arithm_t;
 }
 
 class Genode::Arm
@@ -36,6 +38,7 @@ class Genode::Arm
 	public:
 
 		static constexpr addr_t exception_entry   = 0xffff0000;
+		static constexpr addr_t mtc_size          = get_page_size();
 		static constexpr addr_t data_access_align = 4;
 
 		/**
@@ -251,7 +254,7 @@ class Genode::Arm
 			/**
 			 * Return value initialized for user execution with trustzone
 			 */
-			inline static access_t init_user_with_trustzone();
+			static access_t init_user_with_trustzone();
 
 			/**
 			 * Do common initialization on register value 'v'
@@ -364,7 +367,17 @@ class Genode::Arm
 			/**
 			 * Assign protection domain
 			 */
-			void protection_domain(unsigned const id) { cidr = id; }
+			void protection_domain(Genode::uint8_t const id) { cidr = id; }
+		};
+
+		/**
+		 * This class comprises ARM specific protection domain attributes
+		 */
+		struct Pd
+		{
+			Genode::uint8_t asid; /* address space id */
+
+			Pd(Genode::uint8_t id) : asid(id) {}
 		};
 
 		/**
@@ -466,12 +479,12 @@ class Genode::Arm
 		/**
 		 * Flush all entries of all data caches
 		 */
-		inline static void flush_data_caches();
+		static void flush_data_caches();
 
 		/**
 		 * Invalidate all entries of all data caches
 		 */
-		inline static void invalidate_data_caches();
+		static void invalidate_data_caches();
 
 		/**
 		 * Flush all caches

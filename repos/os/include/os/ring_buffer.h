@@ -18,8 +18,17 @@
 #include <base/exception.h>
 #include <util/string.h>
 
+namespace Genode {
 
-struct Ring_buffer_unsynchronized
+	struct Ring_buffer_unsynchronized;
+	struct Ring_buffer_synchronized;
+
+	template <typename, int, typename SYNC_POLICY = Ring_buffer_synchronized>
+	class Ring_buffer;
+}
+
+
+struct Genode::Ring_buffer_unsynchronized
 {
 	struct Sem
 	{
@@ -40,7 +49,7 @@ struct Ring_buffer_unsynchronized
 };
 
 
-struct Ring_buffer_synchronized
+struct Genode::Ring_buffer_synchronized
 {
 	typedef Genode::Semaphore Sem;
 	typedef Genode::Lock Lock;
@@ -60,9 +69,8 @@ struct Ring_buffer_synchronized
  * stored in the buffer. Hence, the ring buffer is suited
  * for simple plain-data element types.
  */
-template <typename ET, int QUEUE_SIZE,
-          typename SYNC_POLICY = Ring_buffer_synchronized>
-class Ring_buffer
+template <typename ET, int QUEUE_SIZE, typename SYNC_POLICY>
+class Genode::Ring_buffer
 {
 	private:
 
@@ -75,7 +83,7 @@ class Ring_buffer
 
 	public:
 
-		class Overflow : public Genode::Exception { };
+		class Overflow : public Exception { };
 
 		/**
 		 * Constructor
@@ -86,8 +94,7 @@ class Ring_buffer
 		/**
 		 * Place element into ring buffer
 		 *
-		 * If the ring buffer is full, this function
-		 * throws an Overflow exception.
+		 * \throw Overflow  the ring buffer is full
 		 */
 		void add(ET ev)
 		{
@@ -106,8 +113,8 @@ class Ring_buffer
 		 *
 		 * \return  element
 		 *
-		 * If the ring buffer is empty, this function
-		 * blocks until an element gets available.
+		 * If the ring buffer is empty, this method blocks until an element
+		 * gets available.
 		 */
 		ET get()
 		{

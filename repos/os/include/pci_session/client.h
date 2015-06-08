@@ -14,39 +14,42 @@
 #ifndef _INCLUDE__PCI_SESSION__CLIENT_H_
 #define _INCLUDE__PCI_SESSION__CLIENT_H_
 
-#include <pci_session/capability.h>
 #include <base/rpc_client.h>
 
-namespace Pci {
+#include <pci_device/client.h>
+#include <pci_session/capability.h>
 
-	struct Session_client : public Genode::Rpc_client<Session>
-	{
-		Session_client(Session_capability session)
-		: Genode::Rpc_client<Session>(session) { }
+namespace Pci { struct Session_client; }
 
-		Device_capability first_device(unsigned device_class = 0,
-		                               unsigned class_mask = 0) {
-			return call<Rpc_first_device>(device_class, class_mask); }
 
-		Device_capability next_device(Device_capability prev_device,
-		                              unsigned device_class = 0,
-		                              unsigned class_mask = 0) {
-			return call<Rpc_next_device>(prev_device, device_class, class_mask); }
+struct Pci::Session_client : public Genode::Rpc_client<Session>
+{
+	Session_client(Session_capability session)
+	: Genode::Rpc_client<Session>(session) { }
 
-		void release_device(Device_capability device) {
-			call<Rpc_release_device>(device); }
+	Device_capability first_device(unsigned device_class = 0,
+	                               unsigned class_mask = 0) override {
+		return call<Rpc_first_device>(device_class, class_mask); }
 
-		Genode::Io_mem_dataspace_capability config_extended(Device_capability device_cap) {
-			return call<Rpc_config_extended>(device_cap); }
+	Device_capability next_device(Device_capability prev_device,
+	                              unsigned device_class = 0,
+	                              unsigned class_mask = 0) override {
+		return call<Rpc_next_device>(prev_device, device_class, class_mask); }
 
-		Genode::Ram_dataspace_capability alloc_dma_buffer(Device_capability device_cap,
-		                                                  Genode::size_t size) {
-			return call<Rpc_alloc_dma_buffer>(device_cap, size); }
+	void release_device(Device_capability device) override {
+		call<Rpc_release_device>(device); }
 
-		void free_dma_buffer(Device_capability device_cap,
-		                     Genode::Ram_dataspace_capability cap) {
-			call<Rpc_free_dma_buffer>(device_cap, cap); }
-	};
-}
+	Genode::Io_mem_dataspace_capability config_extended(Device_capability device_cap) override {
+		return call<Rpc_config_extended>(device_cap); }
+
+	Genode::Ram_dataspace_capability alloc_dma_buffer(Genode::size_t size) override {
+		return call<Rpc_alloc_dma_buffer>(size); }
+
+	void free_dma_buffer(Genode::Ram_dataspace_capability cap) override {
+		call<Rpc_free_dma_buffer>(cap); }
+
+	Device_capability device(String const &device) override {
+		return call<Rpc_device>(device); }
+};
 
 #endif /* _INCLUDE__PCI_SESSION__CLIENT_H_ */

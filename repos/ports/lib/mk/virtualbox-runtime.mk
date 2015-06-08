@@ -33,6 +33,7 @@ SRC_CC += Runtime/common/log/logrel.cpp \
           $(addprefix Runtime/generic/,$(filter-out $(FILTERED_OUT_SRC_CC), $(GENERIC_SRC_CC)))
 
 SRC_CC += Runtime/common/err/RTErrConvertFromErrno.cpp
+SRC_CC += Runtime/common/alloc/alloc.cpp
 SRC_CC += Runtime/common/alloc/memcache.cpp
 SRC_CC += Runtime/common/alloc/heapoffset.cpp
 SRC_CC += Runtime/common/checksum/alt-md5.cpp
@@ -49,6 +50,9 @@ SRC_CC += Runtime/common/misc/assert.cpp
 SRC_CC += Runtime/common/misc/buildconfig.cpp
 SRC_CC += Runtime/common/misc/lockvalidator.cpp
 SRC_CC += Runtime/common/misc/once.cpp
+SRC_CC += Runtime/common/misc/req.cpp
+SRC_CC += Runtime/common/misc/reqpool.cpp
+SRC_CC += Runtime/common/misc/reqqueue.cpp
 SRC_CC += Runtime/common/misc/sg.cpp
 SRC_CC += Runtime/common/misc/term.cpp
 SRC_CC += Runtime/common/misc/RTAssertMsg1Weak.cpp

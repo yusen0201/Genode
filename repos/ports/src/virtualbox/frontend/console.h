@@ -24,9 +24,9 @@
 /* VirtualBox includes */
 #include "ConsoleImpl.h"
 #include <base/printf.h>
-
-/* XXX */
-enum { KMOD_RCTRL = 0, SDLK_RCTRL = 0 };
+#include <os/attached_dataspace.h>
+#include <report_session/connection.h>
+#include <vbox_pointer/shape_report.h>
 
 
 class Scan_code
@@ -107,11 +107,15 @@ class GenodeConsole : public Console {
 
 	private:
 
-		Input::Connection        _input;
-		Genode::Signal_receiver  _receiver;
-		Genode::Signal_context   _context;
-		Input::Event            *_ev_buf;
-		unsigned                 _ax, _ay;
+		Input::Connection           _input;
+		Genode::Signal_receiver     _receiver;
+		Genode::Signal_context      _context;
+		Input::Event               *_ev_buf;
+		unsigned                    _ax, _ay;
+		bool                        _last_received_motion_event_was_absolute;
+		Report::Connection          _shape_report_connection;
+		Genode::Attached_dataspace  _shape_report_ds;
+		Vbox_pointer::Shape_report *_shape_report;
 
 		bool _key_status[Input::KEY_MAX + 1];
 
@@ -128,7 +132,11 @@ class GenodeConsole : public Console {
 		:
 			Console(),
 			_ev_buf(static_cast<Input::Event *>(Genode::env()->rm_session()->attach(_input.dataspace()))),
-			_ax(0), _ay(0)
+			_ax(0), _ay(0),
+			_last_received_motion_event_was_absolute(false),
+			_shape_report_connection("shape", sizeof(Vbox_pointer::Shape_report)),
+			_shape_report_ds(_shape_report_connection.dataspace()),
+			_shape_report(_shape_report_ds.local_addr<Vbox_pointer::Shape_report>())
 		{
 			for (unsigned i = 0; i <= Input::KEY_MAX; i++)
 				_key_status[i] = 0;
@@ -136,64 +144,67 @@ class GenodeConsole : public Console {
 			_input.sigh(_receiver.manage(&_context));
 		}
 
-		void eventWait(IKeyboard * gKeyboard, IMouse * gMouse)
+		void eventWait(IKeyboard * gKeyboard, IMouse * gMouse);
+
+		void onMouseCapabilityChange(BOOL supportsAbsolute, BOOL supportsRelative,
+		                             BOOL supportsMT, BOOL needsHostCursor);
+
+		void onMousePointerShapeChange(bool fVisible, bool fAlpha,
+		                               uint32_t xHot, uint32_t yHot,
+		                               uint32_t width, uint32_t height,
+		                               ComSafeArrayIn(BYTE,pShape))
 		{
-			_receiver.wait_for_signal();
+			com::SafeArray<BYTE> shape_array(ComSafeArrayInArg(pShape));
 
-			for (int i = 0, num_ev = _input.flush(); i < num_ev; ++i) {
-				Input::Event &ev = _ev_buf[i];
+			if (fVisible && ((width == 0) || (height == 0)))
+				return;
 
-				bool const is_press   = ev.type() == Input::Event::PRESS;
-				bool const is_release = ev.type() == Input::Event::RELEASE;
-				bool const is_key     = is_press || is_release;
-				bool const is_motion  = ev.type() == Input::Event::MOTION;
+			_shape_report->visible = fVisible;
+			_shape_report->x_hot = xHot;
+			_shape_report->y_hot = yHot;
+			_shape_report->width = width;
+			_shape_report->height = height;
 
-				if (is_key) {
-					Scan_code scan_code(ev.keycode());
+			unsigned int and_mask_size = (_shape_report->width + 7) / 8 *
+			                              _shape_report->height;
 
-					unsigned char const release_bit =
-						(ev.type() == Input::Event::RELEASE) ? 0x80 : 0;
+			unsigned char *and_mask = shape_array.raw();
 
-					if (scan_code.is_normal())
-						gKeyboard->PutScancode(scan_code.code() | release_bit);
+			unsigned char *shape = and_mask + ((and_mask_size + 3) & ~3);
 
-					if (scan_code.is_ext()) {
-						gKeyboard->PutScancode(0xe0);
-						gKeyboard->PutScancode(scan_code.ext() | release_bit);
-					}
-				}
+			size_t shape_size = shape_array.size() - (shape - and_mask);
 
-				/*
-				 * Track press/release status of keys and buttons. Currently,
-				 * only the mouse-button states are actually used.
-				 */
-				if (is_press)
-					_key_status[ev.keycode()] = true;
+			if (shape_size > Vbox_pointer::MAX_SHAPE_SIZE) {
+				PERR("%s: shape data buffer is too small for %zu bytes",
+				     __func__, shape_size);
+				return;
+			}
 
-				if (is_release)
-					_key_status[ev.keycode()] = false;
+			Genode::memcpy(_shape_report->shape,
+			               shape,
+			               shape_size);
 
-				bool const is_mouse_button_event =
-					is_key && _is_mouse_button(ev.keycode());
+			if (fVisible && !fAlpha) {
 
-				bool const is_mouse_event = is_mouse_button_event || is_motion;
+				for (unsigned int i = 0; i < width * height; i++) {
 
-				if (is_mouse_event) {
-					unsigned const buttons = (_key_status[Input::BTN_LEFT]   ? MouseButtonState_LeftButton : 0)
-					                       | (_key_status[Input::BTN_RIGHT]  ? MouseButtonState_RightButton : 0)
-					                       | (_key_status[Input::BTN_MIDDLE] ? MouseButtonState_MiddleButton : 0);
-					if (ev.is_absolute_motion()) {
-						int const rx = ev.ax() - _ax; _ax = ev.ax();
-						int const ry = ev.ay() - _ay; _ay = ev.ay();
-						gMouse->PutMouseEvent(rx, ry, 0, 0, buttons);
-						gMouse->PutMouseEventAbsolute(ev.ax(), ev.ay(), 0, 0, buttons);
-					} else if (ev.is_relative_motion())
-						gMouse->PutMouseEvent(ev.rx(), ev.ry(), 0, 0, buttons);
+					unsigned int *color =
+						&((unsigned int*)_shape_report->shape)[i];
 
-					/* only the buttons changed */
-					else
-						gMouse->PutMouseEvent(0, 0, 0, 0, buttons);
+					/* heuristic from VBoxSDL.cpp */
+
+					if (and_mask[i / 8] & (1 << (7 - (i % 8)))) {
+
+						if (*color & 0x00ffffff)
+							*color = 0xff000000;
+						else
+							*color = 0x00000000;
+
+					} else
+						*color |= 0xff000000;
 				}
 			}
+
+			_shape_report_connection.submit(sizeof(Vbox_pointer::Shape_report));
 		}
 };

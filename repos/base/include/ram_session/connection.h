@@ -17,9 +17,8 @@
 #include <ram_session/client.h>
 #include <base/connection.h>
 
-namespace Genode {
-	struct Ram_connection;
-}
+namespace Genode { struct Ram_connection; }
+
 
 struct Genode::Ram_connection : Connection<Ram_session>, Ram_session_client
 {
@@ -33,8 +32,8 @@ struct Genode::Ram_connection : Connection<Ram_session>, Ram_session_client
 	               unsigned long phys_size = 0UL)
 	:
 		Connection<Ram_session>(
-			session("ram_quota=64K, phys_start=0x%lx, phys_size=0x%lx, "
-			        "label=\"%s\"", phys_start, phys_size, label)),
+			session("ram_quota=%u, phys_start=0x%lx, phys_size=0x%lx, "
+			        "label=\"%s\"", RAM_QUOTA, phys_start, phys_size, label)),
 
 		Ram_session_client(cap())
 	{ }

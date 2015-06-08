@@ -121,13 +121,13 @@ namespace Nova {
 
 	ALWAYS_INLINE
 	inline uint8_t syscall_5(Syscall s, uint8_t flags, mword_t sel,
-	                         mword_t &p1, mword_t &p2)
+	                         mword_t &p1, mword_t &p2, mword_t p3 = ~0UL)
 	{
 		mword_t status = rdi(s, flags, sel);
 
 		asm volatile ("syscall"
 		              : "+D" (status), "+S"(p1), "+d"(p2)
-		              :
+		              : "a" (p3)
 		              : "rcx", "r11", "memory");
 		return status;
 	}
@@ -211,7 +211,14 @@ namespace Nova {
 	ALWAYS_INLINE
 	inline uint8_t create_sm(mword_t sm, mword_t pd, mword_t cnt)
 	{
-		return syscall_2(NOVA_CREATE_SM, 0, sm, pd, cnt);
+		return syscall_3(NOVA_CREATE_SM, 0, sm, pd, cnt, 0);
+	}
+
+
+	ALWAYS_INLINE
+	inline uint8_t create_si(mword_t si, mword_t pd, mword_t value, mword_t sm)
+	{
+		return syscall_3(NOVA_CREATE_SM, 0, si, pd, value, sm);
 	}
 
 
@@ -241,6 +248,13 @@ namespace Nova {
 
 
 	ALWAYS_INLINE
+	inline uint8_t si_ctrl(mword_t sm, Sem_op op, mword_t &value, mword_t &cnt)
+	{
+		return syscall_5(NOVA_SM_CTRL, op, sm, value, cnt);
+	}
+
+
+	ALWAYS_INLINE
 	inline uint8_t sc_ctrl(mword_t sm, Sem_op op, mword_t &time)
 	{
 		mword_t status = rdi(NOVA_SC_CTRL, op, sm);
@@ -266,11 +280,12 @@ namespace Nova {
 
 	ALWAYS_INLINE
 	inline uint8_t assign_gsi(mword_t sm, mword_t dev, mword_t cpu,
-	                          mword_t &msi_addr, mword_t &msi_data)
+	                          mword_t &msi_addr, mword_t &msi_data,
+	                          mword_t si = ~0UL)
 	{
 		msi_addr = dev;
 		msi_data = cpu;
-		return syscall_5(NOVA_ASSIGN_GSI, 0, sm, msi_addr, msi_data);
+		return syscall_5(NOVA_ASSIGN_GSI, 0, sm, msi_addr, msi_data, si);
 	}
 }
 #endif /* _PLATFORM__NOVA_SYSCALLS_H_ */

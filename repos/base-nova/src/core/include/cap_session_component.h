@@ -27,8 +27,6 @@ namespace Genode {
 	{
 		private:
 
-			static long _unique_id_cnt;
-
 			struct Cap_object : List<Cap_object>::Element
 			{
 				Genode::addr_t _cap_sel;
@@ -63,6 +61,8 @@ namespace Genode {
 					destroy(&_cap_slab, obj);
 				}
 			}
+
+			void upgrade_ram_quota(size_t ram_quota) { }
 
 			Native_capability alloc(Native_capability ep, addr_t entry,
 			                        addr_t mtd)

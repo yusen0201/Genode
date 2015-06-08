@@ -63,6 +63,14 @@ append_if [have_spec acpi] config {
 			<service name="PCI"/>
 			<service name="IRQ" />
 		</provides>
+		<config>
+			<policy label="acpi_drv">
+				<pci class="ALL"/>
+			</policy>
+			<policy label="usb_drv">
+				<pci class="USB"/>
+			</policy>
+		</config>
 		<route>
 			<service name="PCI"> <any-child /> </service>
 			<any-service> <parent/> <any-child /> </any-service>
@@ -112,6 +120,7 @@ lappend_if [have_spec gpio]             boot_modules gpio_drv
 build_boot_image $boot_modules
 
 append qemu_args " -m 256 -usb  -usbdevice mouse -usbdevice keyboard"
+append qemu_args " -device usb-ehci,id=ehci"
 
 
 run_genode_until forever

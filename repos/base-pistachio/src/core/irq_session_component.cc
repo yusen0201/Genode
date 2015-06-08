@@ -2,12 +2,10 @@
  * \brief  Pistachio-specific implementation of IRQ sessions
  * \author Julian Stecklina
  * \date   2008-02-21
- *
- * FIXME ram quota missing
  */
 
 /*
- * Copyright (C) 2008-2013 Genode Labs GmbH
+ * Copyright (C) 2008-2015 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU General Public License version 2.
@@ -39,87 +37,112 @@ static inline L4_ThreadId_t irqno_to_threadid(unsigned int irqno)
 }
 
 
-bool Irq_session_component::Irq_control_component::associate_to_irq(unsigned)
+bool Irq_object::_associate()
 {
-	/*
-	 * We defer the association with the IRQ to the first call of the
-	 * 'wait_for_irq' function.
-	 */
-	return true;
+	L4_ThreadId_t const irq_thread = irqno_to_threadid(_irq);
+
+	return L4_AssociateInterrupt(irq_thread, L4_Myself());
 }
 
 
-void Irq_session_component::wait_for_irq()
+void Irq_object::_wait_for_irq()
 {
-	L4_ThreadId_t irq_thread = irqno_to_threadid(_irq_number);
+	L4_ThreadId_t const irq_thread = irqno_to_threadid(_irq);
 
-	/* attach to IRQ when called for the first time */
-	L4_MsgTag_t res;
-	if (!_irq_attached) {
+	/* send unmask message and wait for new IRQ */
+	L4_Set_MsgTag(L4_Niltag);
+	L4_MsgTag_t res = L4_Call(irq_thread);
 
-		if (L4_AssociateInterrupt(irq_thread, L4_Myself()) != true) {
-			PERR("L4_AssociateInterrupt failed");
-			return;
-		}
-
-		/*
-		 * Right after associating with an interrupt, the interrupt is
-		 * unmasked. Hence, we do not need to send an unmask message
-		 * to the IRQ thread but just wait for the IRQ.
-		 */
-		L4_Set_MsgTag(L4_Niltag);
-		res = L4_Receive(irq_thread);
-
-		/*
-		 * Now, the IRQ is masked. To receive the next IRQ we have to send
-		 * an unmask message to the IRQ thread first.
-		 */
-		_irq_attached = true;
-
-	/* receive subsequent interrupt */
-	} else {
-
-		/* send unmask message and wait for new IRQ */
-		L4_Set_MsgTag(L4_Niltag);
-		res = L4_Call(irq_thread);
-	}
-
-	if (L4_IpcFailed(res)) {
+	if (L4_IpcFailed(res))
 		PERR("ipc error while waiting for interrupt.");
+}
+
+
+void Irq_object::start()
+{
+	::Thread_base::start();
+	_sync_bootup.lock();
+}
+
+
+void Irq_object::entry()
+{
+	if (!_associate()) {
+		PERR("Could not associate with IRQ 0x%x", _irq);
 		return;
 	}
+
+	/* thread is up and ready */
+	_sync_bootup.unlock();
+
+	/* wait for first ack_irq */
+	_sync_ack.lock();
+
+	/*
+	 * Right after associating with an interrupt, the interrupt is
+	 * unmasked. Hence, we do not need to send an unmask message
+	 * to the IRQ thread but just wait for the IRQ.
+	 */
+	L4_ThreadId_t const irq_thread = irqno_to_threadid(_irq);
+	L4_Set_MsgTag(L4_Niltag);
+	L4_MsgTag_t res = L4_Receive(irq_thread);
+
+	if (L4_IpcFailed(res))
+		PERR("ipc error while attaching to interrupt.");
+
+	/*
+	 * Now, the IRQ is masked. To receive the next IRQ we have to send
+	 * an unmask message to the IRQ thread first.
+	 */
+	if (_sig_cap.valid()) {
+		Genode::Signal_transmitter(_sig_cap).submit(1);
+		_sync_ack.lock();
+	}
+
+	while (true) {
+
+		_wait_for_irq();
+
+		if (!_sig_cap.valid())
+			continue;
+
+		Genode::Signal_transmitter(_sig_cap).submit(1);
+
+		_sync_ack.lock();
+	}
 }
 
 
-Irq_session_component::Irq_session_component(Cap_session     *cap_session,
-                                             Range_allocator *irq_alloc,
+Irq_object::Irq_object(unsigned irq)
+:
+	Thread<4096>("irq"),
+	_sync_ack(Lock::LOCKED), _sync_bootup(Lock::LOCKED),
+	_irq(irq)
+{ }
+
+
+/***************************
+ ** IRQ session component **
+ ***************************/
+
+
+Irq_session_component::Irq_session_component(Range_allocator *irq_alloc,
                                              const char      *args)
 :
+	_irq_number(Arg_string::find_arg(args, "irq_number").long_value(-1)),
 	_irq_alloc(irq_alloc),
-	_ep(cap_session, STACK_SIZE, "irqctrl"),
-	_irq_attached(false),
-	_control_client(Capability<Irq_session_component::Irq_control>())
+	_irq_object(_irq_number)
 {
-	bool shared = Arg_string::find_arg(args, "irq_shared").bool_value(false);
-	if (shared) {
-		PWRN("IRQ sharing not supported");
+	long msi = Arg_string::find_arg(args, "device_config_phys").long_value(0);
+	if (msi)
+		throw Root::Unavailable();
 
-		/* FIXME error condition -> exception */
-		return;
+	if (!irq_alloc || irq_alloc->alloc_addr(1, _irq_number).is_error()) {
+		PERR("Unavailable IRQ 0x%x requested", _irq_number);
+		throw Root::Unavailable();
 	}
 
-	long irq_number = Arg_string::find_arg(args, "irq_number").long_value(-1);
-	if (irq_number == -1 || !irq_alloc ||
-	    irq_alloc->alloc_addr(1, irq_number).is_error()) {
-		PERR("unavailable IRQ %lx requested", irq_number);
-
-		/* FIXME error condition -> exception */
-		return;
-	}
-	_irq_number = irq_number;
-
-	/* initialize capability */
-	_irq_cap = _ep.manage(this);
+	_irq_object.start();
 }
 
 
@@ -127,8 +150,25 @@ Irq_session_component::~Irq_session_component()
 {
 	L4_Word_t res = L4_DeassociateInterrupt(irqno_to_threadid(_irq_number));
 
-	if (res != 1) {
+	if (res != 1)
 		PERR("L4_DeassociateInterrupt failed");
-	}
 }
 
+
+void Irq_session_component::ack_irq()
+{
+	_irq_object.ack_irq();
+}
+
+
+void Irq_session_component::sigh(Genode::Signal_context_capability cap)
+{
+	_irq_object.sigh(cap);
+}
+
+
+Genode::Irq_session::Info Irq_session_component::info()
+{
+	/* no MSI support */
+	return { .type = Genode::Irq_session::Info::Type::INVALID };
+}

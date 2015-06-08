@@ -20,13 +20,13 @@
 #include <base/native_types.h>
 #include <base/thread.h>
 
-/* base-hw includes */
-#include <kernel/core_interface.h>
-#include <kernel/log.h>
-
 /* core includes */
 #include <address_space.h>
+#include <object.h>
+
+#include <kernel/core_interface.h>
 #include <kernel/thread.h>
+#include <kernel/log.h>
 
 namespace Genode {
 
@@ -39,19 +39,17 @@ namespace Genode {
 	/**
 	 * Userland interface for the management of kernel thread-objects
 	 */
-	class Platform_thread
+	class Platform_thread : public Kernel_object<Kernel::Thread>
 	{
 		enum { LABEL_MAX_LEN = 32 };
 
-		Platform_pd *            _pd;
-		Weak_ptr<Address_space>  _address_space;
-		unsigned                 _id;
-		Rm_client *              _rm_client;
-		Native_utcb *            _utcb_core_addr; /* UTCB address in core */
-		Native_utcb *            _utcb_pd_addr;   /* UTCB address in pd   */
-		Ram_dataspace_capability _utcb;           /* UTCB dataspace       */
-		char                     _label[LABEL_MAX_LEN];
-		char                     _kernel_thread[sizeof(Kernel::Thread)];
+		Platform_pd *                 _pd;
+		Weak_ptr<Address_space>       _address_space;
+		Rm_client *                   _rm_client;
+		Native_utcb *                 _utcb_core_addr; /* UTCB addr in core */
+		Native_utcb *                 _utcb_pd_addr;   /* UTCB addr in pd   */
+		Ram_dataspace_capability      _utcb;           /* UTCB dataspace    */
+		char                          _label[LABEL_MAX_LEN];
 
 		/*
 		 * Wether this thread is the main thread of a program.
@@ -75,10 +73,10 @@ namespace Genode {
 		 */
 		bool _attaches_utcb_by_itself();
 
-		static size_t _generic_to_platform_quota(size_t const q)
+		unsigned _priority(unsigned virt_prio)
 		{
-			assert(Kernel::cpu_quota_ms <= Cpu_session::QUOTA_LIMIT);
-			return (q * Kernel::cpu_quota_ms) >> 15;
+			return Cpu_session::scale_priority(Kernel::Cpu_priority::max,
+			                                   virt_prio);
 		}
 
 		public:
@@ -131,17 +129,22 @@ namespace Genode {
 			/**
 			 * Pause this thread
 			 */
-			void pause() { Kernel::pause_thread(_id); }
+			void pause() { Kernel::pause_thread(kernel_object()); }
 
 			/**
 			 * Resume this thread
 			 */
-			void resume() { Kernel::resume_thread(_id); }
+			void resume() { Kernel::resume_thread(kernel_object()); }
 
 			/**
 			 * Cancel currently blocking operation
 			 */
 			void cancel_blocking() { resume(); }
+
+			/**
+			 * Set CPU quota of the thread to 'quota'
+			 */
+			void quota(size_t const quota);
 
 			/**
 			 * Get raw thread state
@@ -180,13 +183,13 @@ namespace Genode {
 			 ** Accessors **
 			 ***************/
 
+			char const * label() const { return _label; };
+
 			void pager(Pager_object * const pager);
 
 			Pager_object * pager();
 
 			Platform_pd * pd() const { return _pd; }
-
-			Native_thread_id id() const { return _id; }
 
 			Ram_dataspace_capability utcb() const { return _utcb; }
 	};

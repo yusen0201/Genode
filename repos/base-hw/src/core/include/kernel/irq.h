@@ -19,6 +19,7 @@
 #include <base/native_types.h>
 #include <irq_session/irq_session.h>
 #include <unmanaged_singleton.h>
+#include <util/avl_tree.h>
 
 /* core includes */
 #include <kernel/signal_receiver.h>
@@ -45,42 +46,37 @@ namespace Genode
 }
 
 
-class Kernel::Irq : public Object_pool<Irq>::Item
+class Kernel::Irq : public Genode::Avl_node<Irq>
 {
+	public:
+
+		struct Pool : Genode::Avl_tree<Irq>
+		{
+			Irq * object(unsigned const id) const
+			{
+				Irq * const irq = first();
+				if (!irq) return nullptr;
+				return irq->find(id);
+			}
+		};
+
 	protected:
 
-		/**
-		 * Get kernel name of the interrupt
-		 */
-		unsigned _id() const { return Pool::Item::id(); };
+		unsigned _irq_nr; /* kernel name of the interrupt */
+		Pool    &_pool;
 
 	public:
 
-		using Pool = Object_pool<Irq>;
-
 		/**
 		 * Constructor
 		 *
-		 * \param irq_id  kernel name of the interrupt
+		 * \param irq   interrupt number
+		 * \param pool  pool this interrupt shall belong to
 		 */
-		Irq(unsigned const irq_id)
-		: Pool::Item(irq_id) { }
+		Irq(unsigned const irq, Pool &pool)
+		: _irq_nr(irq), _pool(pool) { _pool.insert(this); }
 
-		/**
-		 * Constructor
-		 *
-		 * \param irq_id  kernel name of the interrupt
-		 * \param pool    pool this interrupt shall belong to
-		 */
-		Irq(unsigned const irq_id, Pool &pool)
-		: Irq(irq_id) { pool.insert(this); }
-
-		/**
-		 * Destructor
-		 *
-		 * By now, there is no use case to destruct interrupts
-		 */
-		virtual ~Irq() { PERR("destruction of interrupts not implemented"); }
+		virtual ~Irq() { _pool.remove(this); }
 
 		/**
 		 * Handle occurence of the interrupt
@@ -96,89 +92,67 @@ class Kernel::Irq : public Object_pool<Irq>::Item
 		 * Allow interrupt to occur
 		 */
 		void enable() const;
+
+		unsigned irq_number() { return _irq_nr; }
+
+
+		/************************
+		 * 'Avl_node' interface *
+		 ************************/
+
+		bool higher(Irq * i) const { return i->_irq_nr > _irq_nr; }
+
+		/**
+		 * Find irq with 'nr' within this AVL subtree
+		 */
+		Irq * find(unsigned const nr)
+		{
+			if (nr == _irq_nr) return this;
+			Irq * const subtree = Genode::Avl_node<Irq>::child(nr > _irq_nr);
+			return (subtree) ? subtree->find(nr): nullptr;
+		}
+
 };
 
 
-class Kernel::User_irq
-:
-	public Kernel::Irq,
-	public Signal_receiver,
-	public Signal_context,
-	public Signal_ack_handler
+class Kernel::User_irq : public Kernel::Irq, public Kernel::Object
 {
 	private:
+
+		Signal_context &_context;
 
 		/**
 		 * Get map that provides all user interrupts by their kernel names
 		 */
 		static Irq::Pool * _pool();
 
-		/**
-		 * Get kernel name of the interrupt-signal receiver
-		 */
-		unsigned _receiver_id() const { return Signal_receiver::Object::id(); }
-
-		/**
-		 * Get kernel name of the interrupt-signal context
-		 */
-		unsigned _context_id() const { return Signal_context::Object::id(); }
-
-
-		/************************
-		 ** Signal_ack_handler **
-		 ************************/
-
-		void _signal_acknowledged() { enable(); }
-
 	public:
 
 		/**
-		 * Constructor
-		 *
-		 * \param irq_id  kernel name of the interrupt
+		 * Construct object that signals interrupt 'irq' via signal 'context'
 		 */
-		User_irq(unsigned const irq_id)
-		: Irq(irq_id), Signal_context(this, 0)
-		{
-			_pool()->insert(this);
-			disable();
-			Signal_context::ack_handler(this);
-		}
+		User_irq(unsigned const irq, Signal_context &context)
+		: Irq(irq, *_pool()), _context(context) { disable(); }
+
+		/**
+		 * Destructor
+		 */
+		~User_irq() { disable(); }
 
 		/**
 		 * Handle occurence of the interrupt
 		 */
 		void occurred()
 		{
-			Signal_context::submit(1);
+			_context.submit(1);
 			disable();
 		}
 
 		/**
-		 * Get information that enables a user to handle an interrupt
-		 *
-		 * \param irq_id  kernel name of targeted interrupt
+		 * Handle occurence of interrupt 'irq'
 		 */
-		static Genode::Irq_signal signal(unsigned const irq_id)
-		{
-			typedef Genode::Irq_signal Irq_signal;
-			static Irq_signal const invalid = { 0, 0 };
-			User_irq * const irq =
-				dynamic_cast<User_irq*>(_pool()->object(irq_id));
-			if (irq) {
-				Irq_signal s = { irq->_receiver_id(), irq->_context_id() };
-				return s;
-			}
-			return invalid;
-		}
-
-		/**
-		 * Handle occurence of an interrupt
-		 *
-		 * \param irq_id  kernel name of targeted interrupt
-		 */
-		static User_irq * object(unsigned const irq_id) {
-			return dynamic_cast<User_irq*>(_pool()->object(irq_id)); }
+		static User_irq * object(unsigned const irq) {
+			return dynamic_cast<User_irq*>(_pool()->object(irq)); }
 };
 
 #endif /* _KERNEL__IRQ_H_ */

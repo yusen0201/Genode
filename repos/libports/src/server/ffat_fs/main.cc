@@ -12,6 +12,7 @@
  */
 
 /* Genode includes */
+#include <file_system/node_handle_registry.h>
 #include <file_system_session/rpc_object.h>
 #include <root/component.h>
 #include <cap_session/connection.h>
@@ -23,7 +24,6 @@
 /* local includes */
 #include <directory.h>
 #include <file.h>
-#include <node_handle_registry.h>
 #include <util.h>
 
 /* ffat includes */
@@ -881,8 +881,8 @@ namespace File_system {
 				char root[ROOT_MAX_LEN];
 				root[0] = 0;
 
+				Session_label  label(args);
 				try {
-					Session_label  label(args);
 					Session_policy policy(label);
 
 					/*
@@ -963,6 +963,11 @@ namespace File_system {
 					Arg_string::find_arg(args, "ram_quota"  ).ulong_value(0);
 				size_t tx_buf_size =
 					Arg_string::find_arg(args, "tx_buf_size").ulong_value(0);
+
+				if (!tx_buf_size) {
+					PERR("%s requested a session with a zero length transmission buffer", label.string());
+					throw Root::Invalid_args();
+				}
 
 				/*
 				 * Check if donated ram quota suffices for session data,

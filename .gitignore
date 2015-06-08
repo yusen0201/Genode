@@ -18,16 +18,12 @@
 /repos/dde_rump/include/rump
 /repos/libports/contrib
 /repos/libports/download
-/repos/libports/src/lib/qt5/qtjsbackend
-/repos/libports/src/lib/qt5/qtwebkit/Source/JavaScriptCore
-/repos/libports/src/lib/qt5/qtwebkit/Source/WebCore/generated
 /repos/ports-foc/contrib
 /repos/ports-okl4/contrib
 /repos/ports-okl4/download
 /repos/ports/contrib
 /repos/ports/download
 /repos/ports/src/app/arora/html
-/repos/ports/src/lib/gdbserver_platform/generated
 /repos/qt4/contrib
 /repos/qt4/download
 /repos/qt4/tool/bootstrap
@@ -38,4 +34,3 @@
 /repos/qt4/tool/qmake/qmake
 /repos/qt4/tool/rcc
 /repos/qt4/tool/uic
-/repos/linux_drivers

@@ -2,26 +2,22 @@
 
 #include "VirtualBoxBase.h"
 
+#include <VBox/usbfilter.h>
+#include <USBProxyServiceGenode.h>
+
+#include "dummy/macros.h"
+
+#include "HostImpl.h"
+
 static bool debug = false;
 
-#define TRACE(X) \
-	{ \
-		if (debug) \
-			PDBG(" called (%s) - eip=%p", __FILE__, \
-			     __builtin_return_address(0)); \
-		return X; \
-	}
 
-#define DUMMY(X) \
-	{ \
-		PERR("%s called (%s:%u), not implemented, eip=%p", __func__, \
-		      __FILE__, __LINE__, \
-		     __builtin_return_address(0)); \
-		while (1) \
-			asm volatile ("ud2a"); \
-		\
-		return X; \
-	}
+struct Host::Data
+{
+	VirtualBox          *pParent;
+    USBDeviceFilterList  llUSBDeviceFilters; // USB device filters in use by the USB proxy service
+	USBProxyService     *pUSBProxyService;
+};
 
 STDMETHODIMP Host::COMGETTER(DVDDrives)(ComSafeArrayOut(IMedium *, drives)) DUMMY(E_FAIL)
 STDMETHODIMP Host::COMGETTER(FloppyDrives)(ComSafeArrayOut(IMedium *, drives)) DUMMY(E_FAIL)
@@ -73,11 +69,36 @@ HRESULT Host::findHostDriveById(DeviceType_T, com::Guid const&, bool,
 
 HRESULT Host::saveSettings(settings::Host&)                                     TRACE(S_OK)
 
-HRESULT Host::init(VirtualBox *aParent)                                         TRACE(S_OK)
+HRESULT Host::init(VirtualBox *aParent)
+{
+    HRESULT hrc;
+
+	m = new Data();
+
+	m->pParent = aParent;
+
+	m->pUSBProxyService = new USBProxyServiceGenode(this);	
+
+    hrc = m->pUSBProxyService->init();
+    AssertComRCReturn(hrc, hrc);
+
+	return S_OK;
+}
+
 HRESULT Host::loadSettings(const settings::Host &)                              TRACE(S_OK)
 HRESULT Host::FinalConstruct()                                                  TRACE(S_OK)
 void    Host::FinalRelease()                                                    DUMMY()
-void    Host::uninit()                                                          DUMMY()
+
+void    Host::uninit()
+{
+	delete m->pUSBProxyService;
+	m->pUSBProxyService = 0;
+
+    m->llUSBDeviceFilters.clear();
+
+	delete m;
+	m = 0;
+}
 
 void Host::generateMACAddress(Utf8Str &mac)
 {
@@ -119,25 +140,26 @@ HRESULT Host::buildDVDDrivesList(MediaList &list) DUMMY(E_FAIL)
 HRESULT Host::buildFloppyDrivesList(MediaList &list) DUMMY(E_FAIL)
 
 #ifdef VBOX_WITH_USB
-USBProxyService* Host::usbProxyService() DUMMY(nullptr)
-HRESULT Host::addChild(HostUSBDeviceFilter *pChild) DUMMY(E_FAIL)
-HRESULT Host::removeChild(HostUSBDeviceFilter *pChild) DUMMY(E_FAIL)
-VirtualBox* Host::parent() DUMMY(nullptr)
+USBProxyService* Host::usbProxyService()
+{
+	return m->pUSBProxyService;
+}
 
-HRESULT Host::onUSBDeviceFilterChange(HostUSBDeviceFilter *aFilter) DUMMY(E_FAIL)
+HRESULT Host::addChild(HostUSBDeviceFilter *pChild)                             DUMMY(E_FAIL)
+HRESULT Host::removeChild(HostUSBDeviceFilter *pChild)                          DUMMY(E_FAIL)
 
-void Host::getUSBFilters(Host::USBDeviceFilterList *aGlobalFilters) DUMMY()
+VirtualBox* Host::parent()
+{
+	return m->pParent;
+}
+
+HRESULT Host::onUSBDeviceFilterChange(HostUSBDeviceFilter *, BOOL)              DUMMY(E_FAIL)
+
+void Host::getUSBFilters(Host::USBDeviceFilterList *aGlobalFilters)
+{
+    *aGlobalFilters = m->llUSBDeviceFilters;
+}
+
+HRESULT Host::checkUSBProxyService()                                            TRACE(S_OK)
+
 #endif
-
-/*
-void Host::getDVDInfoFromDevTree(std::list<ComObjPtr<Medium> > &list) DUMMY()
-bool Host::getDVDInfoFromHal(std::list<ComObjPtr<Medium> > &list) DUMMY(false)
-bool Host::getFloppyInfoFromHal(std::list< ComObjPtr<Medium> > &list) DUMMY(false)
-void Host::parseMountTable(char *mountTable, std::list< ComObjPtr<Medium> > &list) DUMMY()
-bool Host::validateDevice(const char *deviceNode, bool isCDROM) DUMMY(false)
-HRESULT Host::checkUSBProxyService() DUMMY(E_FAIL)
-HRESULT Host::updateNetIfList() DUMMY(E_FAIL)
-void Host::registerDiskMetrics(PerformanceCollector *aCollector) DUMMY()
-void Host::registerMetrics(PerformanceCollector *aCollector) DUMMY()
-void Host::unregisterMetrics (PerformanceCollector *aCollector) DUMMY()
-*/

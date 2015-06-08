@@ -13,6 +13,7 @@
 
 #include <base/env.h>
 #include <base/printf.h>
+#include <os/reporter.h>
 #include <root/component.h>
 #include <usb_session/rpc_object.h>
 #include <util/list.h>
@@ -43,13 +44,6 @@ struct Device : List<Device>::Element
 {
 	usb_device *udev;
 
-	Device(usb_device *udev) : udev(udev)
-	{
-		list()->insert(this);
-	}
-
-	~Device() { list()->remove(this); }
-
 	static List<Device> *list()
 	{
 		static List<Device> _l;
@@ -64,6 +58,50 @@ struct Device : List<Device>::Element
 		}
 
 		return nullptr;
+	}
+
+	static Genode::Reporter &device_list_reporter()
+	{
+		static Genode::Reporter _r("devices", 512*1024);
+		return _r;
+	}
+
+	static void report_device_list()
+	{
+		Genode::Reporter::Xml_generator xml(device_list_reporter(), [&] ()
+		{
+
+			for (Device *d = list()->first(); d; d = d->next()) {
+				xml.node("device", [&] ()
+				{
+					char buf[7];
+
+					Genode::snprintf(buf, sizeof(buf), "0x%4x",
+					                 d->udev->descriptor.idVendor);
+					xml.attribute("vendor_id", buf);
+
+					Genode::snprintf(buf, sizeof(buf), "0x%4x",
+					                 d->udev->descriptor.idProduct);
+					xml.attribute("product_id", buf);
+				});
+			}
+		});
+	}
+
+	Device(usb_device *udev) : udev(udev)
+	{
+		list()->insert(this);
+
+		if (device_list_reporter().is_enabled())
+			report_device_list();
+	}
+
+	~Device()
+	{
+		list()->remove(this);
+
+		if (device_list_reporter().is_enabled())
+			report_device_list();
 	}
 
 	usb_interface *interface(unsigned index)
@@ -95,6 +133,7 @@ class Usb::Worker
 		Signal_context_capability _sigh_ready;
 		Routine                  *_routine     = nullptr;
 		unsigned                  _p_in_flight = 0;
+		bool                      _device_ready = false;
 
 		void _ack_packet(Packet_descriptor &p)
 		{
@@ -142,6 +181,7 @@ class Usb::Worker
 				return;
 			}
 
+			p.control.actual_size = err;
 			p.succeded = true;
 		}
 
@@ -159,8 +199,10 @@ class Usb::Worker
 			                          p.control.request, p.control.request_type,
 			                          p.control.value, p.control.index, buf, p.size(),
 			                          p.control.timeout);
-			if (err >= 0 || err== -EPIPE)
+			if (err >= 0 || err== -EPIPE) {
+				p.control.actual_size = err;
 				p.succeded = true;
+			}
 
 			kfree(buf);
 		}
@@ -176,12 +218,14 @@ class Usb::Worker
 
 		void _async_finish(Packet_descriptor &p, urb *urb, bool read)
 		{
-			p.transfer.actual_size = urb->actual_length;
-			p.succeded             = true;
+			if (urb->status == 0) {
+				p.transfer.actual_size = urb->actual_length;
+				p.succeded             = true;
 
-			if (read)
-				Genode::memcpy(_sink->packet_content(p), urb->transfer_buffer, 
-				               urb->actual_length);
+				if (read)
+					Genode::memcpy(_sink->packet_content(p), urb->transfer_buffer, 
+				               	   urb->actual_length);
+			}
 
 			_ack_packet(p);
 		}
@@ -381,11 +425,10 @@ class Usb::Worker
 			_wait_event(_device);
 			_wait_event(_device->udev->actconfig);
 
-			/* set raw driver */
-			_device->udev->dev.driver = &raw_driver.drvwrap.driver;
-
 			if (_sigh_ready.valid())
 				Signal_transmitter(_sigh_ready).submit(1);
+
+			_device_ready = true;
 		}
 
 		/**
@@ -421,8 +464,10 @@ class Usb::Worker
 
 		void start()
 		{
-			if (!_routine)
+			if (!_routine) {
 				_routine = Routine::add(run, this, "worker");
+				Routine::schedule_all();
+			}
 		}
 
 		void stop()
@@ -439,6 +484,8 @@ class Usb::Worker
 			_device       = device;
 			_sigh_ready   = sigh_ready;
 		}
+
+		bool device_ready() { return _device_ready; }
 };
 
 
@@ -488,12 +535,19 @@ class Usb::Session_component : public Session_rpc_object,
 		  _ready_ack(ep, *this, &Session_component::_receive),
 		  _worker(sink())
 		{
-			_device = Device::device(_vendor, _product);
-			if (_device)
+			Device *device = Device::device(_vendor, _product);
+			if (device) {
 				PDBG("Found device");
+				state_change(DEVICE_ADD, device);
+			}
 
 			/* register signal handlers */
 			_tx.sigh_packet_avail(_packet_avail);
+		}
+
+		~Session_component()
+		{
+			_worker.stop();
 		}
 
 		/***********************
@@ -600,7 +654,13 @@ class Usb::Session_component : public Session_rpc_object,
 			return false;
 		}
 
-		void sigh_state_change(Signal_context_capability sigh) { _sigh_state_change = sigh; }
+		void sigh_state_change(Signal_context_capability sigh)
+		{
+			_sigh_state_change = sigh;
+
+			if (_worker.device_ready())
+				Signal_transmitter(_sigh_state_change).submit(1);
+		}
 };
 
 
@@ -657,6 +717,12 @@ class Usb::Root : public Genode::Root_component<Session_component>
 			return session;
 		}
 
+		void _destroy_session(Session_component *session)
+		{
+			::Session::list()->remove(session);
+			Genode::Root_component<Session_component>::_destroy_session(session);
+		}
+
 	public:
 
 		Root(Server::Entrypoint &session_ep,
@@ -666,8 +732,9 @@ class Usb::Root : public Genode::Root_component<Session_component>
 };
 
 
-void Raw::init(Server::Entrypoint &ep)
+void Raw::init(Server::Entrypoint &ep, bool report_device_list)
 {
+	Device::device_list_reporter().enabled(report_device_list);
 	static Usb::Root root(ep, env()->heap());
 	Genode::env()->parent()->announce(ep.rpc_ep().manage(&root));
 }
@@ -677,18 +744,36 @@ void Raw::init(Server::Entrypoint &ep)
  ** C interface **
  *****************/
 
-void raw_register_device(struct usb_device *udev)
+int raw_notify(struct notifier_block *nb, unsigned long action, void *data)
 {
-	::Session::list()->state_change(Usb::Session_component::DEVICE_ADD,
-	                                new (env()->heap()) Device(udev));
+	struct usb_device *udev = (struct usb_device*)data;
+
+	switch (action) {
+
+		case USB_DEVICE_ADD:
+		{
+			::Session::list()->state_change(Usb::Session_component::DEVICE_ADD,
+                                			new (env()->heap()) Device(udev));
+			break;
+		}
+
+		case USB_DEVICE_REMOVE:
+		{
+			Device *dev = Device::device(udev->descriptor.idVendor,
+	                             	 	 udev->descriptor.idProduct);
+			if (dev) {
+				::Session::list()->state_change(Usb::Session_component::DEVICE_REMOVE, dev);
+				destroy(env()->heap(), dev);
+			}
+			break;
+		}
+
+		case USB_BUS_ADD:
+			break;
+
+		case USB_BUS_REMOVE:
+			break;
+    } 
+
+    return NOTIFY_OK;
 }
-
-
-void raw_unregister_device(struct usb_device *udev)
-{
-	Device *dev = Device::device(udev->descriptor.idVendor,
-	                             udev->descriptor.idProduct);
-	if (dev)
-		::Session::list()->state_change(Usb::Session_component::DEVICE_REMOVE, dev);
-}
-

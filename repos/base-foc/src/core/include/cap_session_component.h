@@ -22,13 +22,11 @@ namespace Genode {
 
 	class Cap_session_component : public Rpc_object<Cap_session>
 	{
-		private:
-
-			static long _unique_id_cnt; /* TODO: remove this from generic core code */
-
 		public:
 
 			Cap_session_component(Allocator *md_alloc, const char *args) {}
+
+			void upgrade_ram_quota(size_t ram_quota) { }
 
 			Native_capability alloc(Native_capability ep);
 

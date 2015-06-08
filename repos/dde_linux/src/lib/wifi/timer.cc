@@ -120,6 +120,12 @@ class Lx::Timer
 			ctx->timeout    = expires;
 			ctx->pending    = true;
 			ctx->programmed = false;
+			/*
+			 * Also write the timeout value to the expires field in
+			 * struct timer_list because the wireless stack checks
+			 * it directly.
+			 */
+			ctx->timer->expires = expires;
 
 			Context *c;
 			for (c = _list.first(); c; c = c->next())
@@ -336,7 +342,6 @@ static void unblock_task(unsigned long task)
 
 signed long schedule_timeout(signed long timeout)
 {
-	long start = jiffies;
 	struct timer_list timer;
 
 	setup_timer(&timer, unblock_task, (unsigned long)Lx::scheduler().current());
@@ -346,7 +351,7 @@ signed long schedule_timeout(signed long timeout)
 
 	del_timer(&timer);
 
-	timeout -= (jiffies - start);
+	timeout = (timeout - jiffies);
 
 	return timeout < 0 ? 0 : timeout;
 }

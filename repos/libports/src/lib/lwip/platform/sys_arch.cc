@@ -65,16 +65,6 @@ static Lwip::Mutex *global_mutex()
 
 
 /**
- * Returns a timed semaphore used to wait for DHCP to come up.
- */
-static Genode::Timed_semaphore *dhcp_semaphore()
-{
-	static Genode::Timed_semaphore _sem;
-	return &_sem;
-}
-
-
-/**
  * Used for startup synchronization by the tcpip thread.
  */
 static void startup_done(void *arg)
@@ -82,15 +72,6 @@ static void startup_done(void *arg)
 	startup_lock()->unlock();
 }
 
-
-/**
- * Callback function used when doing dhcp requests,
- * to check availability of an IP address.
- */
-static void dhcp_callback(struct netif *netif)
-{
-	dhcp_semaphore()->up();
-}
 
 using namespace Lwip;
 
@@ -114,6 +95,42 @@ extern "C" {
 #if NO_SYS
 #error "You cannot use the Genode LwIP backend with NO_SYS!"
 #endif //NO_SYS
+
+#define netifapi_netif_set_link_up(n) netifapi_netif_common(n, netif_set_link_up, NULL)
+#define netifapi_netif_set_link_down(n) netifapi_netif_common(n, netif_set_link_down, NULL)
+
+	static struct netif netif;
+
+	/*
+	 * Callback function used when changing the interface state.
+	 */
+	static void status_callback(struct netif *netif)
+	{
+		static ip_addr_t ip_addr = { 0 };
+
+		if (ip_addr.addr != netif->ip_addr.addr) {
+			PINF("got IP address %d.%d.%d.%d",
+			     ip4_addr1(&(netif->ip_addr)),
+			     ip4_addr2(&(netif->ip_addr)),
+			     ip4_addr3(&(netif->ip_addr)),
+			     ip4_addr4(&(netif->ip_addr)));
+			ip_addr.addr = netif->ip_addr.addr;
+		}
+	}
+
+
+	/*
+	 * Callback function used when doing a link-state change.
+	 */
+	static void link_callback(struct netif *netif)
+	{
+		/*
+		 * We call the status callback at this point to print
+		 * the IP address because we may have got a new one,
+		 * e.h., we joined another wireless network.
+		 */
+		status_callback(netif);
+	}
 
 
 	/********************
@@ -141,7 +158,6 @@ extern "C" {
 	                  Genode::size_t  tx_buf_size,
 	                  Genode::size_t  rx_buf_size)
 	{
-		static struct netif netif;
 		struct ip_addr ip, nm, gw;
 		static struct netif_buf_sizes nbs;
 		nbs.tx_buf_size = tx_buf_size;
@@ -163,47 +179,43 @@ extern "C" {
 			 *
 			 * See: http://lwip.wikia.com/wiki/Writing_a_device_driver
 			 */
-			struct netif *ret = netif_add(&netif, &ip, &nm, &gw, &nbs,
-			                              genode_netif_init, tcpip_input);
-			if (!ret)
+			err_t ret = netifapi_netif_add(&netif, &ip, &nm, &gw, &nbs,
+			                               genode_netif_init, tcpip_input);
+			if (ret != ERR_OK)
 				throw Nic_not_availble();
 
 			/* Set Genode's nic as the default nic */
-			netif_set_default(&netif);
+			netifapi_netif_set_default(&netif);
 
 			/* If no static ip was set, we do dhcp */
 			if (!ip_addr) {
 #if LWIP_DHCP
-				/* Register callback function triggered, when DHCP succeeded. */
-				netif.status_callback = dhcp_callback;
+				/* Register callback functions. */
+				netif.status_callback = status_callback;
+				netif.link_callback = link_callback;
 
-				/* Start DHCP requests */
-				dhcp_start(&netif);
-
-				/* Block until DHCP succeeded or a timeout was triggered */
-				try {
-					dhcp_semaphore()->down(20000);
-				} catch (Genode::Timeout_exception) {
-					PWRN("DHCP timed out!");
-					return 1;
-				}
-				PINF("got IP address %d.%d.%d.%d",
-				     ip4_addr1(&(netif.ip_addr)),
-				     ip4_addr2(&(netif.ip_addr)),
-				     ip4_addr3(&(netif.ip_addr)),
-				     ip4_addr4(&(netif.ip_addr)));
+				netifapi_dhcp_start(&netif);
 #else
 				/* no IP address - no networking */
 				return 1;
 #endif /* LWIP_DHCP */
 			} else {
-				netif_set_up(&netif);
+				netifapi_netif_set_up(&netif);
 			}
 		} catch (Nic_not_availble) {
 			PWRN("NIC not available, loopback is used as default");
 			return 2;
 		}
 		return 0;
+	}
+
+
+	void lwip_nic_link_state_changed(int state)
+	{
+		if (state)
+			netifapi_netif_set_link_up(&netif);
+		else
+			netifapi_netif_set_link_down(&netif);
 	}
 
 

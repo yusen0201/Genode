@@ -22,21 +22,16 @@ using namespace Genode;
 
 namespace Genode { Rm_session * env_context_area_rm_session(); }
 
-extern Ram_dataspace_capability _main_thread_utcb_ds;
-extern Native_thread_id         _main_thread_id;
-
-
-/**
- * Return virtual UTCB location of main threads
- */
-Native_utcb * main_thread_utcb() { return UTCB_MAIN_THREAD; }
-
+namespace Hw {
+	extern Ram_dataspace_capability _main_thread_utcb_ds;
+	extern Untyped_capability       _main_thread_cap;
+}
 
 /*****************
  ** Thread_base **
  *****************/
 
-void Thread_base::_init_platform_thread(size_t quota, Type type)
+void Thread_base::_init_platform_thread(size_t weight, Type type)
 {
 	if (!_cpu_session) { _cpu_session = env()->cpu_session(); }
 	if (type == NORMAL) {
@@ -44,7 +39,8 @@ void Thread_base::_init_platform_thread(size_t quota, Type type)
 		/* create server object */
 		char buf[48];
 		name(buf, sizeof(buf));
-		_thread_cap = _cpu_session->create_thread(quota, buf, (addr_t)&_context->utcb);
+		addr_t const utcb = (addr_t)&_context->utcb;
+		_thread_cap = _cpu_session->create_thread(weight, buf, utcb);
 		return;
 	}
 	/* if we got reinitialized we have to get rid of the old UTCB */
@@ -55,14 +51,14 @@ void Thread_base::_init_platform_thread(size_t quota, Type type)
 	if (type == REINITIALIZED_MAIN) { rm->detach(utcb_new); }
 
 	/* remap initial main-thread UTCB according to context-area spec */
-	try { rm->attach_at(_main_thread_utcb_ds, utcb_new, utcb_size); }
+	try { rm->attach_at(Hw::_main_thread_utcb_ds, utcb_new, utcb_size); }
 	catch(...) {
 		PERR("failed to re-map UTCB");
 		while (1) ;
 	}
 	/* adjust initial object state in case of a main thread */
-	tid().thread_id = _main_thread_id;
-	_thread_cap     = env()->parent()->main_thread_cap();
+	tid().cap   = Hw::_main_thread_cap;
+	_thread_cap = env()->parent()->main_thread_cap();
 }
 
 

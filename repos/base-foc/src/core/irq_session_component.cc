@@ -4,12 +4,10 @@
  * \author Stefan Kalkowski
  * \author Sebastian Sumpf
  * \date   2007-09-13
- *
- * FIXME ram quota missing
  */
 
 /*
- * Copyright (C) 2007-2013 Genode Labs GmbH
+ * Copyright (C) 2007-2015 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU General Public License version 2.
@@ -18,10 +16,10 @@
 /* Genode includes */
 #include <base/printf.h>
 #include <util/arg_string.h>
+#include <util/bit_array.h>
 
 /* core includes */
 #include <irq_root.h>
-#include <irq_proxy_component.h>
 #include <irq_session_component.h>
 #include <platform.h>
 #include <util.h>
@@ -34,17 +32,18 @@ namespace Fiasco {
 #include <l4/sys/types.h>
 }
 
-using namespace Genode;
-
 namespace Genode {
 	class Interrupt_handler;
-	class Irq_proxy_component;
 }
+
+
+using namespace Genode;
+
 
 /**
  * Dispatches interrupts from kernel
  */
-class Genode::Interrupt_handler : public Thread<4096>
+class Genode::Interrupt_handler : public Thread<2048*sizeof(long)>
 {
 	private:
 
@@ -59,170 +58,229 @@ class Genode::Interrupt_handler : public Thread<4096>
 			static Interrupt_handler handler;
 			return handler._thread_cap.dst();
 		}
+
 };
 
 
-/**
- * Irq_proxy interface implementation
- */
-class Genode::Irq_proxy_component : public Irq_proxy_base
+enum { MAX_MSIS = 256 };
+static class Msi_allocator : public Genode::Bit_array<MAX_MSIS>
 {
-	private:
-
-		Cap_index *_cap;
-		Semaphore  _sem;
-		long       _trigger;    /* interrupt trigger */
-		long       _polarity; /* interrupt polarity */
-
-		Native_thread _capability() const { return _cap->kcap(); }
-
-	protected:
-
-		bool _associate()
-		{
-			using namespace Fiasco;
-			if (l4_error(l4_factory_create_irq(L4_BASE_FACTORY_CAP, _capability()))) {
-				PERR("l4_factory_create_irq failed!");
-				return false;
-			}
-
-			if (l4_error(l4_icu_bind(L4_BASE_ICU_CAP, _irq_number, _capability()))) {
-				PERR("Binding IRQ%ld to the ICU failed", _irq_number);
-				return false;
-			}
-
-			/* set interrupt mode */
-			Platform::setup_irq_mode(_irq_number, _trigger, _polarity);
-
-			if (l4_error(l4_irq_attach(_capability(), _irq_number,
-				                         Interrupt_handler::handler_cap()))) {
-				PERR("Error attaching to IRQ %ld", _irq_number);
-				return false;
-			}
-
-			return true;
-		}
-
-		void _wait_for_irq()
-		{
-			using namespace Fiasco;
-
-			int err;
-			l4_msgtag_t tag = l4_irq_unmask(_capability());
-			if ((err = l4_ipc_error(tag, l4_utcb())))
-				PERR("IRQ unmask: %d\n", err);
-
-			_sem.down();
-		}
-
-		void _ack_irq() { }
-
 	public:
 
-		Irq_proxy_component(long irq_number)
-		:
-		 Irq_proxy_base(irq_number),
-		 _cap(cap_map()->insert(platform_specific()->cap_id_alloc()->alloc())),
-		 _sem(), _trigger(-1), _polarity(-1) { }
+		Msi_allocator() {
+			using namespace Fiasco;
 
-		Semaphore *semaphore() { return &_sem; }
+			l4_icu_info_t info { .features = 0 };
+			l4_msgtag_t res = l4_icu_info(Fiasco::L4_BASE_ICU_CAP, &info);
 
-		void start(long trigger, long polarity)
-		{
-			_trigger    = trigger;
-			_polarity = polarity;
-			_start();
+			if (l4_error(res) || !(info.features & L4_ICU_FLAG_MSI))
+				set(0, MAX_MSIS);
+			else
+				if (info.nr_msis < MAX_MSIS)
+					set(info.nr_msis, MAX_MSIS - info.nr_msis);
 		}
+} msi_alloc;
 
-		bool match_mode(long trigger, long polarity)
-		{
-			if (trigger == Irq_session::TRIGGER_UNCHANGED &&
-			    polarity == Irq_session::POLARITY_UNCHANGED)
-			 return true;
+bool Genode::Irq_object::associate(unsigned irq, bool msi,
+                                   Irq_session::Trigger trigger,
+                                   Irq_session::Polarity polarity)
+{
+	if (msi)
+		/*
+		 * Local APIC address, See Intel x86 Spec - Section MSI 10.11.
+		 *
+		 * XXX local Apic ID encoding missing - address is constructed
+		 *     assuming that local APIC id of boot CPU is 0 XXX
+		 */
+		_msi_addr = 0xfee00000UL;
 
-			if (_trigger < 0 && _polarity < 0)
-				return true;
+	_irq      = irq;
+	_trigger  = trigger;
+	_polarity = polarity;
 
-			return _trigger == trigger && _polarity == polarity;
-		}
+	using namespace Fiasco;
+	if (l4_error(l4_factory_create_irq(L4_BASE_FACTORY_CAP,
+	                                   _capability()))) {
+		PERR("l4_factory_create_irq failed!");
+		return false;
+	}
 
-		long trigger()  const { return _trigger; }
-		long polarity() const { return _polarity; }
-};
+	unsigned long gsi = _irq;
+	if (_msi_addr)
+		gsi |= L4_ICU_FLAG_MSI;
+
+	if (l4_error(l4_icu_bind(L4_BASE_ICU_CAP, gsi, _capability()))) {
+		PERR("Binding IRQ %u to the ICU failed", _irq);
+		return false;
+	}
+
+	if (!_msi_addr)
+		/* set interrupt mode */
+		Platform::setup_irq_mode(gsi, _trigger, _polarity);
+
+	if (l4_error(l4_irq_attach(_capability(), reinterpret_cast<l4_umword_t>(this),
+	                           Interrupt_handler::handler_cap()))) {
+		PERR("Error attaching to IRQ %u", _irq);
+		return false;
+	}
+
+	if (_msi_addr && l4_error(l4_icu_msi_info(L4_BASE_ICU_CAP, gsi,
+	                                          &_msi_data))) {
+		PERR("Error getting MSI info");
+		return false;
+	}
+
+	return true;
+}
 
 
-/********************************
- ** IRQ session implementation **
- ********************************/
-
-
-Irq_session_component::Irq_session_component(Cap_session     *cap_session,
-                                             Range_allocator *irq_alloc,
-                                             const char      *args)
-:
-	_ep(cap_session, STACK_SIZE, "irqctrl"),
-	_proxy(0)
+void Genode::Irq_object::ack_irq()
 {
 	using namespace Fiasco;
 
-	long irq_number = Arg_string::find_arg(args, "irq_number").long_value(-1);
-	if (irq_number == -1) {
-		PERR("Unavailable IRQ %lx requested", irq_number);
-		throw Root::Invalid_args();
-	}
-
-	long irq_trigger = Arg_string::find_arg(args, "irq_trigger").long_value(-1);
-	irq_trigger = irq_trigger == -1 ? 0 : irq_trigger;
-
-	long irq_polarity = Arg_string::find_arg(args, "irq_polarity").long_value(-1);
-	irq_polarity = irq_polarity == -1 ? 0 : irq_polarity;
-
-	/*
-	 * temorary hack for fiasco.oc using the local-apic,
-	 * where old pic-line 0 maps to 2
-	 */
-	if (irq_number == 0)
-		irq_number = 2;
-
-	if (!(_proxy = Irq_proxy_component::get_irq_proxy<Irq_proxy_component>(irq_number,
-	                                                                       irq_alloc))) {
-		PERR("No proxy for IRQ %lu found", irq_number);
-		throw Root::Unavailable();
-	}
-
-	/* sanity check  */
-	if (!_proxy->match_mode(irq_trigger, irq_polarity)) {
-		PERR("Interrupt mode mismatch: IRQ %ld current mode: t: %ld p: %ld"
-		     "request mode: trg: %ld p: %ld",
-		     irq_number, _proxy->trigger(), _proxy->polarity(),
-		     irq_trigger, irq_polarity);
-		throw Root::Unavailable();
-	}
-
-	/* set interrupt mode and start proxy */
-	_proxy->start(irq_trigger, irq_polarity);
-
-	if (!_proxy->add_sharer())
-		throw Root::Unavailable();
-
-	/* initialize capability */
-	_irq_cap = _ep.manage(this);
+	int err;
+	l4_msgtag_t tag = l4_irq_unmask(_capability());
+	if ((err = l4_ipc_error(tag, l4_utcb())))
+		PERR("IRQ unmask: %d\n", err);
 }
 
 
-void Irq_session_component::wait_for_irq()
+Genode::Irq_object::Irq_object()
+:
+	 _cap(cap_map()->insert(platform_specific()->cap_id_alloc()->alloc())),
+	 _trigger(Irq_session::TRIGGER_UNCHANGED),
+	 _polarity(Irq_session::POLARITY_UNCHANGED),
+	 _irq(~0U), _msi_addr(0), _msi_data(0)
+{ }
+
+
+Genode::Irq_object::~Irq_object()
 {
-	_proxy->wait_for_irq();
+	if (_irq == ~0U)
+		return;
+
+	using namespace Fiasco;
+
+	unsigned long gsi = _irq;
+	if (_msi_addr)
+		gsi |= L4_ICU_FLAG_MSI;
+
+	if (l4_error(l4_irq_detach(_capability())))
+		PERR("Error detaching IRQ");
+
+	if (l4_error(l4_icu_unbind(L4_BASE_ICU_CAP, gsi, _capability())))
+		PERR("Error unbinding IRQ");
+
+	cap_map()->remove(_cap);
 }
 
 
-Irq_session_component::~Irq_session_component() {
-	_proxy->remove_sharer(); }
+/***************************
+ ** IRQ session component **
+ ***************************/
 
 
-/***************************************
- ** Interrupt handler implemtentation **
- ***************************************/
+Irq_session_component::Irq_session_component(Range_allocator *irq_alloc,
+                                             const char      *args)
+:
+	_irq_number(~0U), _irq_alloc(irq_alloc)
+{
+	long irq_number = Arg_string::find_arg(args, "irq_number").long_value(-1);
+	long msi = Arg_string::find_arg(args, "device_config_phys").long_value(0);
+	if (msi) {
+		if (msi_alloc.get(irq_number, 1)) {
+			PERR("Unavailable MSI %ld requested.",  irq_number);
+			throw Root::Unavailable();
+		}
+		msi_alloc.set(irq_number, 1);
+	} else {
+		if (!irq_alloc || irq_alloc->alloc_addr(1, irq_number).is_error()) {
+			PERR("Unavailable IRQ %ld requested.", irq_number);
+			throw Root::Unavailable();
+		}
+	}
+
+	_irq_number = irq_number;
+
+	long irq_t = Arg_string::find_arg(args, "irq_trigger").long_value(-1);
+	long irq_p = Arg_string::find_arg(args, "irq_polarity").long_value(-1);
+
+	Irq_session::Trigger irq_trigger;
+	Irq_session::Polarity irq_polarity;
+
+	switch(irq_t) {
+		case -1:
+		case Irq_session::TRIGGER_UNCHANGED:
+			irq_trigger = Irq_session::TRIGGER_UNCHANGED;
+			break;
+		case Irq_session::TRIGGER_EDGE:
+			irq_trigger = Irq_session::TRIGGER_EDGE;
+			break;
+		case Irq_session::TRIGGER_LEVEL:
+			irq_trigger = Irq_session::TRIGGER_LEVEL;
+			break;
+		default:
+			throw Root::Unavailable();
+	}
+
+	switch(irq_p) {
+		case -1:
+		case POLARITY_UNCHANGED:
+			irq_polarity = POLARITY_UNCHANGED;
+			break;
+		case POLARITY_HIGH:
+			irq_polarity = POLARITY_HIGH;
+			break;
+		case POLARITY_LOW:
+			irq_polarity = POLARITY_LOW;
+			break;
+		default:
+			throw Root::Unavailable();
+	}
+
+	_irq_object.associate(_irq_number, msi, irq_trigger, irq_polarity);
+}
+
+
+Irq_session_component::~Irq_session_component()
+{
+	if (_irq_number == ~0U)
+		return;
+
+	if (_irq_object.msi_address()) {
+		msi_alloc.clear(_irq_number, 1);
+	} else {
+		Genode::addr_t free_irq = _irq_number;
+		_irq_alloc->free((void *)free_irq);
+	}
+}
+
+
+void Irq_session_component::ack_irq() { _irq_object.ack_irq(); }
+
+
+void Irq_session_component::sigh(Genode::Signal_context_capability cap)
+{
+	_irq_object.sigh(cap);
+}
+
+
+Genode::Irq_session::Info Irq_session_component::info()
+{
+	if (!_irq_object.msi_address() || !_irq_object.msi_value())
+		return { .type = Genode::Irq_session::Info::Type::INVALID };
+
+	return {
+		.type    = Genode::Irq_session::Info::Type::MSI,
+		.address = _irq_object.msi_address(),
+		.value   = _irq_object.msi_value()
+	};
+}
+
+
+/**************************************
+ ** Interrupt handler implementation **
+ **************************************/
 
 /* Build with frame pointer to make GDB backtraces work. See issue #1061. */
 __attribute__((optimize("-fno-omit-frame-pointer")))
@@ -240,11 +298,8 @@ void Interrupt_handler::entry()
 		if ((err = l4_ipc_error(tag, l4_utcb())))
 			PERR("IRQ receive: %d\n", err);
 		else {
-			Irq_proxy_component *proxy;
-			proxy = Irq_proxy_component::get_irq_proxy<Irq_proxy_component>(label);
-
-			if (proxy)
-				proxy->semaphore()->up();
+			Irq_object * irq_object = reinterpret_cast<Irq_object *>(label);
+			irq_object->notify();
 		}
 	}
 }

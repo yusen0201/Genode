@@ -12,7 +12,7 @@
 # environments (i.e., the test won't work with the Linux version of Genode).
 #
 # Please make sure to include a nic driver in your build configuration. E.g.,
-# on the x86 platform, you may enable the 'linux_drivers' repository.
+# on the x86 platform, you may enable the 'dde_ipxe' repository.
 #
 
 #
@@ -132,12 +132,28 @@ append_if [have_spec acpi] config {
 			<service name="PCI"> <any-child /> </service>
 			<any-service> <parent/> <any-child /> </any-service>
 		</route>
+		<config>
+			<policy label="acpi_drv">
+				<pci class="ALL"/>
+			</policy>
+			<policy label="nic_drv">
+				<pci class="ETHERNET"/>
+			</policy>
+		</config>
 	</start>}
 
 append_if [expr ![have_spec acpi] && [have_spec pci]] config {
 	<start name="pci_drv">
 		<resource name="RAM" quantum="3M" constrain_phys="yes"/>
 		<provides> <service name="PCI"/> </provides>
+		<config>
+			<policy label="acpi_drv">
+				<pci class="ALL"/>
+			</policy>
+			<policy label="nic_drv">
+				<pci class="ETHERNET"/>
+			</policy>
+		</config>
 	</start>}
 
 append config {
@@ -180,7 +196,7 @@ append_if [have_spec lan9118] qemu_args " -net nic,model=lan9118 "
 
 append qemu_args " -net user -redir tcp:5555::80 "
 
-run_genode_until {.*Start the server loop \.\.\..*} 30
+run_genode_until {.*got IP address .*\n} 30
 
 if {[have_include "power_on/qemu"]} {
 	set uri "http://localhost:5555/"

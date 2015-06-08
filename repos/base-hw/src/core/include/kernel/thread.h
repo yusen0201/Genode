@@ -15,39 +15,33 @@
 #define _KERNEL__THREAD_H_
 
 /* core includes */
-#include <kernel/configuration.h>
 #include <kernel/signal_receiver.h>
 #include <kernel/ipc_node.h>
 #include <kernel/cpu.h>
 #include <kernel/thread_base.h>
+#include <kernel/object.h>
+#include <base/signal.h>
 
 namespace Kernel
 {
 	class Thread;
-	class Pd;
-
-	typedef Genode::Native_utcb Native_utcb;
 
 	/**
 	 * Kernel backend for userland execution-contexts
 	 */
 	class Thread;
 
-	class Thread_ids : public Id_allocator<MAX_THREADS> { };
-	typedef Object_pool<Thread> Thread_pool;
-
-	Thread_ids  * thread_ids();
-	Thread_pool * thread_pool();
+	class Core_thread;
 }
 
 class Kernel::Thread
-:
-	public Cpu::User_context,
-	public Object<Thread, MAX_THREADS, Thread_ids, thread_ids, thread_pool>,
-	public Cpu_domain_update, public Ipc_node, public Signal_context_killer,
-	public Signal_handler, public Thread_base, public Cpu_job
+: public Kernel::Object,
+  public Cpu::User_context,
+  public Cpu_domain_update, public Ipc_node, public Signal_context_killer,
+  public Signal_handler, public Thread_base, public Cpu_job
 {
 	friend class Thread_event;
+	friend class Core_thread;
 
 	private:
 
@@ -64,11 +58,9 @@ class Kernel::Thread
 			STOPPED                     = 7,
 		};
 
-		State              _state;
-		Pd *               _pd;
-		Native_utcb *      _utcb_phys;
-		Signal_receiver *  _signal_receiver;
-		char const * const _label;
+		State                     _state;
+		Signal_receiver *         _signal_receiver;
+		char const * const        _label;
 
 		/**
 		 * Notice that another thread yielded the CPU to this thread
@@ -84,8 +76,8 @@ class Kernel::Thread
 		 * \retval  0  succeeded
 		 * \retval -1  failed
 		 */
-		int _route_event(unsigned const event_id,
-		                 unsigned const signal_context_id);
+		int _route_event(unsigned         const event_id,
+		                 Signal_context * const signal_context_id);
 
 		/**
 		 * Map kernel name of thread event to the corresponding member
@@ -161,6 +153,11 @@ class Kernel::Thread
 		int _read_reg(addr_t const id, addr_t & value) const;
 
 		/**
+		 * Return amount of timer tics that 'quota' is worth 
+		 */
+		size_t _core_to_kernel_quota(size_t const quota) const;
+
+		/**
 		 * Override a thread register
 		 *
 		 * \param id     kernel name of targeted thread register
@@ -180,11 +177,6 @@ class Kernel::Thread
 		 * \retval >0  pointer to register content
 		 */
 		addr_t Thread::* _reg(addr_t const id) const;
-
-		/**
-		 * Print table of all threads and their current activity
-		 */
-		void _print_activity_table();
 
 		/**
 		 * Print the activity of the thread
@@ -208,10 +200,8 @@ class Kernel::Thread
 		 ** Kernel-call back-ends, see kernel-interface headers **
 		 *********************************************************/
 
-		void _call_new_pd();
-		void _call_bin_pd();
 		void _call_new_thread();
-		void _call_bin_thread();
+		void _call_thread_quota();
 		void _call_start_thread();
 		void _call_pause_current_thread();
 		void _call_pause_thread();
@@ -225,21 +215,39 @@ class Kernel::Thread
 		void _call_update_data_region();
 		void _call_update_instr_region();
 		void _call_print_char();
-		void _call_new_signal_receiver();
-		void _call_new_signal_context();
 		void _call_await_signal();
 		void _call_signal_pending();
 		void _call_submit_signal();
 		void _call_ack_signal();
 		void _call_kill_signal_context();
-		void _call_bin_signal_context();
-		void _call_bin_signal_receiver();
 		void _call_new_vm();
-		void _call_bin_vm();
+		void _call_delete_vm();
 		void _call_run_vm();
 		void _call_pause_vm();
 		void _call_access_thread_regs();
 		void _call_route_thread_event();
+		void _call_new_irq();
+		void _call_ack_irq();
+		void _call_new_obj();
+		void _call_delete_obj();
+		void _call_delete_cap();
+
+		template <typename T, typename... ARGS>
+		void _call_new(ARGS &&... args)
+		{
+			using Object = Core_object<T>;
+			void * dst = (void *)user_arg_1();
+			Object * o = Genode::construct_at<Object>(dst, args...);
+			user_arg_0(o->core_capid());
+		}
+
+
+		template <typename T>
+		void _call_delete()
+		{
+			using Object = Core_object<T>;
+			reinterpret_cast<Object*>(user_arg_1())->~Object();
+		}
 
 
 		/***************************
@@ -288,15 +296,30 @@ class Kernel::Thread
 		       char const * const label);
 
 		/**
-		 * Prepare thread to get active the first time
+		 * Syscall to create a thread
 		 *
-		 * \param cpu    targeted CPU
-		 * \param pd     targeted domain
-		 * \param utcb   core local pointer to userland thread-context
-		 * \param start  wether to start executing the thread
+		 * \param p         memory donation for the new kernel thread object
+		 * \param priority  scheduling priority of the new thread
+		 * \param quota     CPU quota of the new thread
+		 * \param label     debugging label of the new thread
+		 *
+		 * \retval capability id of the new kernel object
 		 */
-		void init(Cpu * const cpu, Pd * const pd, Native_utcb * const utcb,
-		          bool const start);
+		static capid_t syscall_create(void * const p, unsigned const priority,
+		                              size_t const quota,
+		                              char const * const label)
+		{
+			return call(call_id_new_thread(), (Call_arg)p, (Call_arg)priority,
+			            (Call_arg)quota, (Call_arg)label);
+		}
+
+		/**
+		 * Syscall to destroy a thread
+		 *
+		 * \param thread  pointer to thread kernel object
+		 */
+		static void syscall_destroy(Thread * thread) {
+			call(call_id_delete_thread(), (Call_arg)thread); }
 
 
 		/*************
@@ -312,10 +335,22 @@ class Kernel::Thread
 		 ** Accessors **
 		 ***************/
 
-		unsigned     id() const { return Object::id(); }
-		char const * label() const { return _label; };
-		unsigned     pd_id() const;
-		char const * pd_label() const;
+		char const * label() const { return _label;       }
+};
+
+
+/**
+ * The first core thread in the system bootstrapped by the Kernel
+ */
+class Kernel::Core_thread : public Core_object<Kernel::Thread>
+{
+	private:
+
+		Core_thread();
+
+	public:
+
+		static Thread & singleton();
 };
 
 #endif /* _KERNEL__THREAD_H_ */

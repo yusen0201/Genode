@@ -16,6 +16,8 @@
 #include <base/sleep.h>
 #include <base/service.h>
 #include <base/child.h>
+#include <rm_session/connection.h>
+#include <pd_session/connection.h>
 #include <rom_session/connection.h>
 #include <cpu_session/connection.h>
 
@@ -37,9 +39,6 @@
 
 using namespace Genode;
 
-
-/* support for cap session component */
-long Cap_session_component::_unique_id_cnt;
 
 /* pool of provided core services */
 static Service_registry local_services;
@@ -121,13 +120,15 @@ class Core_child : public Child_policy
 		/**
 		 * Constructor
 		 */
-		Core_child(Dataspace_capability elf_ds, Cap_session *cap_session,
-		           Ram_session_capability ram, Cpu_session_capability cpu,
-		           Rm_session_capability rm, Service_registry &services)
+		Core_child(Dataspace_capability elf_ds, Pd_session_capability pd,
+		           Cap_session *cap_session, Ram_session_capability ram,
+		           Cpu_session_capability cpu, Rm_session_capability rm,
+		           Service_registry &services)
 		:
 			_entrypoint(cap_session, STACK_SIZE, "init", false),
 			_local_services(services),
-			_child(elf_ds, ram, cpu, rm, &_entrypoint, this,
+			_child(elf_ds, pd, ram, cpu, rm, &_entrypoint, this,
+			       *_local_services.find(Pd_session::service_name()),
 			       *_local_services.find(Ram_session::service_name()),
 			       *_local_services.find(Cpu_session::service_name()),
 			       *_local_services.find(Rm_session::service_name()))
@@ -223,8 +224,7 @@ int main()
 	static Log_root     log_root     (e, &sliced_heap);
 	static Io_mem_root  io_mem_root  (e, e, platform()->io_mem_alloc(),
 	                                  platform()->ram_alloc(), &sliced_heap);
-	static Irq_root     irq_root     (core_env()->cap_session(),
-	                                  platform()->irq_alloc(), &sliced_heap);
+	static Irq_root     irq_root     (e, platform()->irq_alloc(), &sliced_heap);
 	static Trace::Root  trace_root   (e, &sliced_heap, trace_sources, trace_policies);
 
 	/*
@@ -267,14 +267,13 @@ int main()
 	Ram_session_client(init_ram_session_cap).ref_account(env()->ram_session_cap());
 
 	/* create CPU session for init and transfer all of the CPU quota to it */
-	constexpr size_t cpu_quota = Cpu_session::QUOTA_LIMIT;
 	static Cpu_session_component
 		cpu(e, e, rm_root.pager_ep(), &sliced_heap, trace_sources,
-		    "label=\"core\"", Affinity(), cpu_quota);
+		    "label=\"core\"", Affinity(), Cpu_session::QUOTA_LIMIT);
 	Cpu_session_capability cpu_cap = core_env()->entrypoint()->manage(&cpu);
 	Cpu_connection init_cpu("init");
 	init_cpu.ref_account(cpu_cap);
-	cpu.transfer_quota(init_cpu, cpu_quota);
+	cpu.transfer_quota(init_cpu, Cpu_session::quota_lim_upscale(100, 100));
 
 	Rm_connection  init_rm;
 
@@ -285,9 +284,10 @@ int main()
 	env()->ram_session()->transfer_quota(init_ram_session_cap, init_quota);
 	PDBG("transferred %zu MB to init", init_quota / (1024*1024));
 
+	Pd_connection init_pd("init");
 	Core_child *init = new (env()->heap())
 		Core_child(Rom_session_client(init_rom_session_cap).dataspace(),
-		           core_env()->cap_session(), init_ram_session_cap,
+		           init_pd, core_env()->cap_session(), init_ram_session_cap,
 		           init_cpu.cap(), init_rm.cap(), local_services);
 
 	PDBG("--- init created, waiting for exit condition ---");

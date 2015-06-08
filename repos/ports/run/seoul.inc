@@ -14,6 +14,8 @@ if {![have_spec nova]} {
 	exit 0
 }
 
+assert_spec acpi
+
 set build_components {
 	core init
 	drivers/timer
@@ -28,7 +30,6 @@ if {$use_fancy_stuff} { set use_framebuffer 1 }
 lappend_if [have_spec acpi]     build_components drivers/acpi
 lappend_if [have_spec pci]      build_components drivers/pci/device_pd
 lappend_if $use_usb             build_components drivers/usb
-lappend_if $use_block_ide       build_components drivers/atapi
 lappend_if $use_block_sata      build_components drivers/ahci
 lappend_if $use_nic_session     build_components drivers/nic
 lappend_if $use_nic_bridge      build_components server/nic_bridge
@@ -162,20 +163,17 @@ append_if [expr !$use_usb] config {
 	<start name="ps2_drv" priority="-1">
 		<resource name="RAM" quantum="3M"/>
 		<provides><service name="Input"/></provides>
-		<route> <any-service><parent/></any-service> </route>
+		<route> <any-service><parent/> <any-child/> </any-service> </route>
 	</start> }
 
 append_if $use_block_sata config {
 	<start name="ahci" priority="-1">
+		<binary name="ahci_drv" />
 		<resource name="RAM" quantum="1M" />
 		<provides><service name="Block"/></provides>
-	</start>}
-
-append_if $use_block_ide config {
-	<start name="atapi_drv" priority="-1">
-		<resource name="RAM" quantum="1M" />
-		<provides><service name="Block"/></provides>
-		<config ata="yes" />
+		<config>
+			<policy label="seoul" device="0" />
+		</config>
 	</start>}
 
 append_if $use_genode_iso config {
@@ -202,19 +200,20 @@ append_if [have_spec acpi] config {
 			<service name="PCI"/>
 			<service name="IRQ" />
 		</provides>
+		<config>
+			<policy label="acpi_drv"> <pci class="ALL"/> </policy>
+			<policy label="ahci">     <pci class="AHCI"/> </policy>
+			<policy label="nic_drv">  <pci class="ETHERNET"/> </policy>
+			<policy label="ps2_drv">  <device name="PS2"/> </policy>
+			<policy label="usb_drv">  <pci class="USB"/> </policy>
+			<policy label="fb_drv">   <pci class="VGA"/> </policy>
+		</config>
 		<route>
 			<service name="PCI"> <any-child /> </service>
 			<any-service> <parent/> <any-child /> </any-service>
 		</route>
 	</start>}
 
-append_if [expr ![have_spec acpi] && [have_spec pci]] config {
-	<start name="pci_drv" priority="-1">
-		<resource name="RAM" quantum="3M" constrain_phys="yes"/>
-		<provides><service name="PCI"/></provides>
-		<route> <any-service><parent/></any-service> </route>
-	</start>
-}
 
 append_if $use_nic_session config {
 	<start name="nic_drv" priority="-2">
@@ -427,8 +426,7 @@ lappend_if [have_spec acpi]   boot_modules acpi_drv
 lappend_if [have_spec nova]   boot_modules pci_device_pd
 lappend_if [expr !$use_usb]   boot_modules ps2_drv
 lappend_if $use_usb           boot_modules usb_drv
-lappend_if $use_block_ide     boot_modules atapi_drv
-lappend_if $use_block_sata    boot_modules ahci
+lappend_if $use_block_sata    boot_modules ahci_drv
 lappend_if $use_nic_session   boot_modules nic_drv
 lappend_if $use_nic_bridge    boot_modules nic_bridge
 lappend_if $use_framebuffer   boot_modules fb_drv

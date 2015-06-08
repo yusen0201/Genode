@@ -15,24 +15,32 @@
 #include <kernel/thread.h>
 #include <kernel/vm.h>
 
-void Kernel::Thread::_call_bin_vm()
+void Kernel::Thread::_call_new_vm()
 {
-	Vm * const vm = Vm::pool()->object(user_arg_1());
-	if (vm) vm->~Vm();
-	user_arg_0(vm ? 0 : -1);
+	Signal_context * context =
+		pd()->cap_tree().find<Signal_context>(user_arg_4());
+	if (!context) {
+		user_arg_0(cap_id_invalid());
+		return;
+	}
+
+	_call_new<Vm>((Genode::Cpu_state_modes*)user_arg_2(), context,
+	              (void*)user_arg_3());
 }
 
 
-void Kernel::Thread::_call_run_vm() {
-	Vm * const vm = Vm::pool()->object(user_arg_1());
-	if (vm) vm->run();
-	user_arg_0(vm ? 0 : -1);
+void Kernel::Thread::_call_delete_vm() { _call_delete<Vm>(); }
+
+
+void Kernel::Thread::_call_run_vm()
+{
+	reinterpret_cast<Vm*>(user_arg_1())->run();
+	user_arg_0(0);
 }
 
 
 void Kernel::Thread::_call_pause_vm()
 {
-	Vm * const vm = Vm::pool()->object(user_arg_1());
-	if (vm) vm->pause();
-	user_arg_0(vm ? 0 : -1);
+	reinterpret_cast<Vm*>(user_arg_1())->pause();
+	user_arg_0(0);
 }

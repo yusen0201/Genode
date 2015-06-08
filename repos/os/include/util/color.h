@@ -19,8 +19,7 @@
 namespace Genode {
 	struct Color;
 
-	template <>
-	inline size_t ascii_to<Color>(const char *, Color *, unsigned);
+	inline size_t ascii_to(const char *, Color &);
 }
 
 
@@ -46,9 +45,7 @@ struct Genode::Color
  * \return number of consumed characters, or 0 if the string contains
  *         no valid color
  */
-template <>
-inline Genode::size_t
-Genode::ascii_to<Genode::Color>(const char *s, Genode::Color *result, unsigned)
+inline Genode::size_t Genode::ascii_to(const char *s, Genode::Color &result)
 {
 	/* validate string */
 	if (strlen(s) < 7 || *s != '#') return 0;
@@ -62,7 +59,7 @@ Genode::ascii_to<Genode::Color>(const char *s, Genode::Color *result, unsigned)
 	    green = 16*digit(s[3], HEX) + digit(s[4], HEX),
 	    blue  = 16*digit(s[5], HEX) + digit(s[6], HEX);
 
-	*result = Color(red, green, blue);
+	result = Color(red, green, blue);
 	return 7;
 }
 

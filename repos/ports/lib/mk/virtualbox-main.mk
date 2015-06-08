@@ -1,6 +1,6 @@
 include $(REP_DIR)/lib/mk/virtualbox-common.inc
 
-VBOX_CC_OPT += -DVBOX_COM_INPROC_API_CLIENT
+VBOX_CC_OPT += -DVBOX_WITH_GENERIC_SESSION_WATCHER
 
 LIBS  += stdcxx
 
@@ -30,15 +30,19 @@ SRC_CC += Main/src-client/MouseImpl.cpp
 SRC_CC += Main/src-client/VBoxDriversRegister.cpp
 SRC_CC += Main/src-client/VMMDevInterface.cpp
 SRC_CC += Main/src-client/SessionImpl.cpp
+SRC_CC += Main/src-client/USBDeviceImpl.cpp
 
 SRC_CC += Main/src-server/AudioAdapterImpl.cpp
 SRC_CC += Main/src-server/BandwidthControlImpl.cpp
 SRC_CC += Main/src-server/BandwidthGroupImpl.cpp
 SRC_CC += Main/src-server/BIOSSettingsImpl.cpp
+SRC_CC += Main/src-server/ClientToken.cpp
 SRC_CC += Main/src-server/DHCPServerImpl.cpp
 SRC_CC += Main/src-server/GuestOSTypeImpl.cpp
+SRC_CC += Main/src-server/HostUSBDeviceImpl.cpp
 SRC_CC += Main/src-server/MachineImpl.cpp
 SRC_CC += Main/src-server/MachineImplCloneVM.cpp
+SRC_CC += Main/src-server/Matching.cpp
 SRC_CC += Main/src-server/MediumAttachmentImpl.cpp
 SRC_CC += Main/src-server/MediumImpl.cpp
 SRC_CC += Main/src-server/MediumFormatImpl.cpp
@@ -53,7 +57,9 @@ SRC_CC += Main/src-server/StorageControllerImpl.cpp
 SRC_CC += Main/src-server/SystemPropertiesImpl.cpp
 SRC_CC += Main/src-server/TokenImpl.cpp
 SRC_CC += Main/src-server/USBControllerImpl.cpp
+SRC_CC += Main/src-server/USBDeviceFilterImpl.cpp
 SRC_CC += Main/src-server/USBDeviceFiltersImpl.cpp
+SRC_CC += Main/src-server/USBProxyService.cpp
 SRC_CC += Main/src-server/VirtualBoxImpl.cpp
 SRC_CC += Main/src-server/VRDEServerImpl.cpp
 
@@ -65,3 +71,7 @@ SRC_CC += Main/glue/xpcom/helpers.cpp
 INC_DIR += $(VBOX_DIR)/Main/xml
 INC_DIR += $(VBOX_DIR)/Main/include
 INC_DIR += $(REP_DIR)/src/virtualbox/frontend
+INC_DIR += $(REP_DIR)/src/virtualbox/frontend/VBoxAPIWrap
+
+# search path to 'scan_code_set_2.h'
+INC_DIR += $(call select_from_repositories,src/drivers/input/ps2)

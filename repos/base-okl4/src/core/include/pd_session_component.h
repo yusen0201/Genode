@@ -33,8 +33,14 @@ namespace Genode {
 
 		public:
 
-			Pd_session_component(Rpc_entrypoint *thread_ep, const char *args)
+			Pd_session_component(Rpc_entrypoint *thread_ep,
+			                     Allocator *md_alloc, const char *args)
 			: _thread_ep(thread_ep) { }
+
+			/**
+			 * Register quota donation at allocator guard
+			 */
+			void upgrade_ram_quota(size_t ram_quota) { }
 
 
 			/**************************

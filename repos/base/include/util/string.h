@@ -1,5 +1,5 @@
 /*
- * \brief  String utility functions
+ * \brief  String utilities
  * \author Norman Feske
  * \author Sebastian Sumpf
  * \date   2006-05-10
@@ -21,8 +21,45 @@
 
 namespace Genode {
 
+	class Number_of_bytes;
+	template <Genode::size_t> class String;
+}
+
+
+/**
+ * Wrapper of 'size_t' for selecting the 'ascii_to' function to parse byte values
+ */
+class Genode::Number_of_bytes
+{
+	size_t _n;
+
+	public:
+
+		/**
+		 * Default constructor
+		 */
+		Number_of_bytes() : _n(0) { }
+
+		/**
+		 * Constructor, to be used implicitly via assignment operator
+		 */
+		Number_of_bytes(size_t n) : _n(n) { }
+
+		/**
+		 * Convert number of bytes to 'size_t' value
+		 */
+		operator size_t() const { return _n; }
+};
+
+
+/***********************
+ ** Utility functions **
+ ***********************/
+
+namespace Genode {
+
 	/**
-	 * Determine length of null-terminated string
+	 * Return length of null-terminated string in bytes
 	 */
 	inline size_t strlen(const char *s)
 	{
@@ -38,9 +75,9 @@ namespace Genode {
 	 * \param len   maximum number of characters to compare,
 	 *              default is unlimited
 	 *
-	 * \retval   0  strings are equal
-	 * \retval  >0  s1 is higher than s2
-	 * \retval  <0  s1 is lower than s2
+	 * \return   0 if both strings are equal, or
+	 *           a positive number if s1 is higher than s2, or
+	 *           a negative number if s1 is lower than s2
 	 */
 	inline int strcmp(const char *s1, const char *s2, size_t len = ~0UL)
 	{
@@ -50,7 +87,7 @@ namespace Genode {
 
 
 	/**
-	 * Simple memmove
+	 * Copy memory buffer to a potentially overlapping destination buffer
 	 *
 	 * \param dst   destination memory block
 	 * \param src   source memory block
@@ -73,7 +110,7 @@ namespace Genode {
 
 
 	/**
-	 * Copy memory block
+	 * Copy memory buffer to a non-overlapping destination buffer
 	 *
 	 * \param dst   destination memory block
 	 * \param src   source memory block
@@ -121,11 +158,11 @@ namespace Genode {
 	 * \param size  maximum number of characters to copy
 	 * \return      pointer to destination string
 	 *
-	 * This function is not fully compatible to the C standard, in particular
-	 * there is no zero-padding if the length of 'src' is smaller than 'size'.
-	 * Furthermore, in contrast to the libc version, this function always
-	 * produces a null-terminated string in the 'dst' buffer if the 'size'
-	 * argument is greater than 0.
+	 * Note that this function is not fully compatible to the C standard, in
+	 * particular there is no zero-padding if the length of 'src' is smaller
+	 * than 'size'. Furthermore, in contrast to the libc version, this function
+	 * always produces a null-terminated string in the 'dst' buffer if the
+	 * 'size' argument is greater than 0.
 	 */
 	inline char *strncpy(char *dst, const char *src, size_t size)
 	{
@@ -154,9 +191,9 @@ namespace Genode {
 	/**
 	 * Compare memory blocks
 	 *
-	 * \retval  0  memory blocks are equal
-	 * \retval <0  first memory block is less than second one
-	 * \retval >0  first memory block is greater than second one
+	 * \return  0 if both memory blocks are equal, or
+	 *          a negative number if 'p0' is less than 'p1', or
+	 *          a positive number if 'p0' is greater than 'p1'
 	 */
 	inline int memcmp(const void *p0, const void *p1, size_t size)
 	{
@@ -172,7 +209,11 @@ namespace Genode {
 
 
 	/**
-	 * Memset
+	 * Fill destination buffer with given value
+	 *
+	 * \param dst   destination buffer
+	 * \param i     byte value
+	 * \param size  buffer size in bytes
 	 */
 	inline void *memset(void *dst, int i, size_t size)
 	{
@@ -224,27 +265,19 @@ namespace Genode {
 
 
 	/**
-	 * Convert ASCII string to another type
+	 * Read unsigned long value from string
 	 *
-	 * \param T       destination type of conversion
-	 * \param s       null-terminated source string
-	 * \param result  destination pointer to conversion result
-	 * \param base    base, autodetected if set to 0
+	 * \param s       source string
+	 * \param result  destination variable
+	 * \param base    integer base
 	 * \return        number of consumed characters
 	 *
-	 * Please note that 'base' and 's_max_len' are not evaluated by all
-	 * template specializations.
+	 * If the base argument is 0, the integer base is detected based on the
+	 * characters in front of the number. If the number is prefixed with "0x",
+	 * a base of 16 is used, otherwise a base of 10.
 	 */
-	template <typename T>
-	inline size_t ascii_to(const char *s, T *result, unsigned base = 0);
-
-
-	/**
-	 * Read unsigned long value from string
-	 */
-	template <>
-	inline size_t ascii_to<unsigned long>(const char *s, unsigned long *result,
-	                                      unsigned base)
+	inline size_t ascii_to_unsigned_long(const char *s, unsigned long &result,
+	                                     unsigned base)
 	{
 		unsigned long i = 0, value = 0;
 
@@ -271,30 +304,42 @@ namespace Genode {
 			value = value*base + d;
 		}
 
-		*result = value;
+		result = value;
 		return i;
 	}
 
 
 	/**
-	 * Read unsigned int value from string
+	 * Read unsigned long value from string
+	 *
+	 * \return number of consumed characters
 	 */
-	template <>
-	inline size_t ascii_to<unsigned int>(const char *s, unsigned int *result,
-	                                     unsigned base)
+	inline size_t ascii_to(const char *s, unsigned long &result)
+	{
+		return ascii_to_unsigned_long(s, result, 0);
+	}
+
+
+	/**
+	 * Read unsigned int value from string
+	 *
+	 * \return number of consumed characters
+	 */
+	inline size_t ascii_to(const char *s, unsigned int &result)
 	{
 		unsigned long result_long = 0;
-		size_t ret = ascii_to<unsigned long>(s, &result_long, base);
-		*result = result_long;
+		size_t ret = ascii_to_unsigned_long(s, result_long, 0);
+		result = result_long;
 		return ret;
 	}
 
 
 	/**
 	 * Read signed long value from string
+	 *
+	 * \return number of consumed characters
 	 */
-	template <>
-	inline size_t ascii_to<long>(const char *s, long *result, unsigned base)
+	inline size_t ascii_to(const char *s, long &result)
 	{
 		int i = 0;
 
@@ -306,39 +351,13 @@ namespace Genode {
 		int j = 0;
 		unsigned long value = 0;
 
-		j = ascii_to(s, &value, base);
+		j = ascii_to_unsigned_long(s, value, 10);
 
 		if (!j) return i;
 
-		*result = sign*value;
+		result = sign*value;
 		return i + j;
 	}
-
-
-	/**
-	 * Wrapper of 'size_t' for selecting 'ascii_to' specialization
-	 */
-	class Number_of_bytes
-	{
-		size_t _n;
-
-		public:
-
-			/**
-			 * Default constructor
-			 */
-			Number_of_bytes() : _n(0) { }
-
-			/**
-			 * Constructor, to be used implicitly via assignment operator
-			 */
-			Number_of_bytes(size_t n) : _n(n) { }
-
-			/**
-			 * Convert number of bytes to 'size_t' value
-			 */
-			operator size_t() const { return _n; }
-	};
 
 
 	/**
@@ -346,14 +365,15 @@ namespace Genode {
 	 *
 	 * This function scales the resulting size value according to the suffixes
 	 * for G (2^30), M (2^20), and K (2^10) if present.
+	 *
+	 * \return number of consumed characters
 	 */
-	template <>
-	inline size_t ascii_to(const char *s, Number_of_bytes *result, unsigned)
+	inline size_t ascii_to(const char *s, Number_of_bytes &result)
 	{
 		unsigned long res = 0;
 
 		/* convert numeric part of string */
-		int i = ascii_to(s, &res, 0);
+		int i = ascii_to_unsigned_long(s, res, 0);
 
 		/* handle suffixes */
 		if (i > 0)
@@ -364,16 +384,17 @@ namespace Genode {
 			default: break;
 			}
 
-		*result = res;
+		result = res;
 		return i;
 	}
 
 
 	/**
 	 * Read double float value from string
+	 *
+	 * \return number of consumed characters
 	 */
-	template <>
-	inline size_t ascii_to<double>(const char *s, double *result, unsigned)
+	inline size_t ascii_to(const char *s, double &result)
 	{
 		double v = 0.0;    /* decimal part              */
 		double d = 0.1;    /* power of fractional digit */
@@ -391,7 +412,7 @@ namespace Genode {
 
 		/* if no fractional part exists, return current value */
 		if (s[i] != '.') {
-			*result = neg ? -v : v;
+			result = neg ? -v : v;
 			return i;
 		}
 
@@ -402,7 +423,7 @@ namespace Genode {
 		for (; s[i] && is_digit(s[i]); i++, d *= 0.1)
 			v += d*digit(s[i], false);
 
-		*result = neg ? -v : v;
+		result = neg ? -v : v;
 		return i;
 	}
 
@@ -447,54 +468,55 @@ namespace Genode {
 
 		return i;
 	}
-
-	/**
-	 * Buffer that contains a null-terminated string
-	 *
-	 * \param CAPACITY  buffer size including the terminating zero
-	 */
-	template <size_t CAPACITY>
-	class String
-	{
-		private:
-
-			char   _buf[CAPACITY];
-			size_t _length;
-
-		public:
-
-			constexpr static size_t size() { return CAPACITY; }
-
-			String() : _length(0) { }
-
-			String(char const *str, size_t len = ~0UL - 1)
-			:
-				_length(min(len + 1, min(strlen(str) + 1, CAPACITY)))
-			{
-				strncpy(_buf, str, _length);
-			}
-
-			size_t length() const { return _length; }
-
-			static constexpr size_t capacity() { return CAPACITY; }
-
-			bool valid() const {
-				return (_length <= CAPACITY) && (_length != 0) && (_buf[_length - 1] == '\0'); }
-
-			char const *string() const { return valid() ? _buf : ""; }
-
-			template <size_t OTHER_CAPACITY>
-			bool operator == (String<OTHER_CAPACITY> const &other) const
-			{
-				return strcmp(string(), other.string()) == 0;
-			}
-
-			template <size_t OTHER_CAPACITY>
-			bool operator != (String<OTHER_CAPACITY> const &other) const
-			{
-				return strcmp(string(), other.string()) != 0;
-			}
-	};
 }
+
+
+/**
+ * Buffer that contains a null-terminated string
+ *
+ * \param CAPACITY  buffer size including the terminating zero
+ */
+template <Genode::size_t CAPACITY>
+class Genode::String
+{
+	private:
+
+		char   _buf[CAPACITY];
+		size_t _length;
+
+	public:
+
+		constexpr static size_t size() { return CAPACITY; }
+
+		String() : _length(0) { }
+
+		String(char const *str, size_t len = ~0UL - 1)
+		:
+			_length(min(len + 1, min(strlen(str) + 1, CAPACITY)))
+		{
+			strncpy(_buf, str, _length);
+		}
+
+		size_t length() const { return _length; }
+
+		static constexpr size_t capacity() { return CAPACITY; }
+
+		bool valid() const {
+			return (_length <= CAPACITY) && (_length != 0) && (_buf[_length - 1] == '\0'); }
+
+		char const *string() const { return valid() ? _buf : ""; }
+
+		template <size_t OTHER_CAPACITY>
+		bool operator == (String<OTHER_CAPACITY> const &other) const
+		{
+			return strcmp(string(), other.string()) == 0;
+		}
+
+		template <size_t OTHER_CAPACITY>
+		bool operator != (String<OTHER_CAPACITY> const &other) const
+		{
+			return strcmp(string(), other.string()) != 0;
+		}
+};
 
 #endif /* _INCLUDE__UTIL__STRING_H_ */

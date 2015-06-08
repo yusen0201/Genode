@@ -14,6 +14,7 @@
 #ifndef _CORE__INCLUDE__CAP_SESSION_COMPONENT_H_
 #define _CORE__INCLUDE__CAP_SESSION_COMPONENT_H_
 
+#include <base/allocator.h>
 #include <base/rpc_server.h>
 #include <base/lock.h>
 
@@ -34,6 +35,8 @@ namespace Genode {
 		public:
 
 			Cap_session_component(Allocator *md_alloc, const char *args) {}
+
+			void upgrade_ram_quota(size_t ram_quota) { }
 
 			Native_capability alloc(Native_capability ep)
 			{

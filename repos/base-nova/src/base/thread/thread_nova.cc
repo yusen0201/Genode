@@ -65,7 +65,7 @@ void Thread_base::_thread_start()
  ** Thread base **
  *****************/
 
-void Thread_base::_init_platform_thread(size_t, Type type)
+void Thread_base::_init_platform_thread(size_t weight, Type type)
 {
 	using namespace Nova;
 
@@ -89,6 +89,19 @@ void Thread_base::_init_platform_thread(size_t, Type type)
 		return;
 	}
 
+	/*
+	 * Revoke possible left-over UTCB of a previously destroyed thread
+	 * which used this context location.
+	 *
+	 * This cannot be done in '_deinit_platform_thread()', because a
+	 * self-destructing thread needs its UTCB to call
+	 * 'Cpu_session::kill_thread()' and is not able to revoke the UTCB
+	 * afterwards.
+	 */
+	Rights rwx(true, true, true);
+	addr_t utcb = reinterpret_cast<addr_t>(&_context->utcb);
+	revoke(Mem_crd(utcb >> 12, 0, rwx));
+
 	_tid.exc_pt_sel = cap_map()->insert(NUM_INITIAL_PT_LOG2);
 	if (_tid.exc_pt_sel == Native_thread::INVALID_INDEX)
 		throw Cpu_session::Thread_creation_failed();
@@ -101,7 +114,7 @@ void Thread_base::_init_platform_thread(size_t, Type type)
 	char buf[48];
 	name(buf, sizeof(buf));
 
-	_thread_cap = _cpu_session->create_thread(0, buf);
+	_thread_cap = _cpu_session->create_thread(weight, buf);
 	if (!_thread_cap.valid())
 		throw Cpu_session::Thread_creation_failed();
 
@@ -123,11 +136,6 @@ void Thread_base::_deinit_platform_thread()
 
 	revoke(Obj_crd(_tid.exc_pt_sel, NUM_INITIAL_PT_LOG2));
 	cap_map()->remove(_tid.exc_pt_sel, NUM_INITIAL_PT_LOG2, false);
-
-	/* revoke utcb */
-	Rights rwx(true, true, true);
-	addr_t utcb = reinterpret_cast<addr_t>(&_context->utcb);
-	revoke(Mem_crd(utcb >> 12, 0, rwx));
 
 	/* de-announce thread */
 	if (_thread_cap.valid())

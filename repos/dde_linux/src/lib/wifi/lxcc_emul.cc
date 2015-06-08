@@ -103,7 +103,7 @@ class Lx::Slab_backend_alloc : public Genode::Allocator,
 		/**
 		 * Allocate
 		 */
-		bool alloc(size_t size, void **out_addr)
+		bool alloc(size_t size, void **out_addr) override
 		{
 			bool done = _range.alloc(size, out_addr);
 
@@ -119,8 +119,8 @@ class Lx::Slab_backend_alloc : public Genode::Allocator,
 			return _range.alloc(size, out_addr);
 		}
 
-		void   free(void *addr, size_t /* size */) { }
-		size_t overhead(size_t size) { return  0; }
+		void   free(void *addr, size_t /* size */) override { }
+		size_t overhead(size_t size) const override { return  0; }
 		bool need_size_for_free() const override { return false; }
 
 		/**
@@ -319,7 +319,7 @@ class Malloc
 				msb = SLAB_STOP_LOG2;
 
 			if (msb > SLAB_STOP_LOG2) {
-				PERR("Slab too large %u reqested %zu cached %d", 1U << msb, size, _cached);
+				// PERR("Slab too large %u reqested %zu cached %d", 1U << msb, size, _cached);
 				return 0;
 			}
 
@@ -1034,7 +1034,7 @@ int dev_set_name(struct device *dev, const char *fmt, ...)
 int strict_strtoul(const char *s, unsigned int base, unsigned long *res)
 {
 	unsigned long r = -EINVAL;
-	Genode::ascii_to<unsigned long>(s, &r, base);
+	Genode::ascii_to_unsigned_long(s, r, base);
 	*res = r;
 
 	return r;
@@ -1227,7 +1227,7 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	void *addr = Malloc::dma().alloc(size, 12, &dma_addr);
 
 	if (!addr) {
-		PERR("dma alloc: %zu failed", size);
+		// PERR("dma alloc: %zu failed", size);
 		return 0;
 	}
 
@@ -1486,20 +1486,14 @@ void put_page(struct page *page)
 unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
                             unsigned long offset)
 {
-	unsigned long i, j;
+	unsigned long i  = offset / BITS_PER_LONG;
+	offset -= (i * BITS_PER_LONG);
 
-	for (i = offset; i < (size / BITS_PER_LONG); i++)
-		if (addr[i] == ~0UL)
-			break;
+	for (; offset < size; offset++)
+		if (addr[i] & (1UL << offset))
+			return offset;
 
-	if (i == size)
-		return size;
-
-	for (j = 0; j < BITS_PER_LONG; j++)
-		if ((addr[i]) & (1UL << j))
-			break;
-
-	return (i * BITS_PER_LONG) + j;
+	return size;
 }
 
 

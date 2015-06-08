@@ -19,6 +19,7 @@
 
 #include <base/child.h>
 #include <base/service.h>
+#include <pd_session/connection.h>
 
 #include <init/child_config.h>
 #include <init/child_policy.h>
@@ -62,6 +63,8 @@ namespace Gdb_monitor {
 			Cpu_session_capability        _cpu_session_cap;
 
 			Ram_session_capability        _ram_session_cap;
+
+			Pd_connection                 _pd;
 
 			Child                         _child;
 
@@ -180,7 +183,7 @@ namespace Gdb_monitor {
 
 						Genode::size_t ram_quota =
 							Arg_string::find_arg(args.string(),
-							                     "ram_quota").long_value(0);
+							                     "ram_quota").ulong_value(0);
 
 						/* forward session quota to child */
 						env()->ram_session()->transfer_quota(_child_ram, ram_quota);
@@ -209,7 +212,7 @@ namespace Gdb_monitor {
 
 						Genode::size_t ram_quota =
 							Arg_string::find_arg(args.string(),
-							                     "ram_quota").long_value(0);
+							                     "ram_quota").ulong_value(0);
 
 						/* forward session quota to child */
 						env()->ram_session()->transfer_quota(_child_ram, ram_quota);
@@ -274,7 +277,9 @@ namespace Gdb_monitor {
 			  _cpu_root(&_entrypoint, env()->heap() /* should be _child.heap() */, &_gdb_stub_thread),
 			  _cpu_session_cap(_get_cpu_session_cap()),
 			  _ram_session_cap(ram_session),
-			  _child(elf_ds, ram_session, _cpu_session_cap, _rm_session_cap, &_entrypoint, this),
+			  _pd(unique_name),
+			  _child(elf_ds, _pd.cap(), ram_session, _cpu_session_cap,
+			         _rm_session_cap, &_entrypoint, this),
 			  _root_ep(root_ep),
 			  _rom_service(&_entrypoint, _child.heap()),
 			  _rm_service(&_entrypoint, _child.heap(), &_managed_ds_map)

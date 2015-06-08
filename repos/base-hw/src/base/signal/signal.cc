@@ -79,10 +79,7 @@ void Signal_context::submit(unsigned num)
  ** Signal transmitter **
  ************************/
 
-void Signal_transmitter::submit(unsigned const cnt)
-{
-	Kernel::submit_signal(_context.dst(), cnt);
-}
+Signal_connection * Signal_transmitter::connection() { return signal_connection(); }
 
 
 /*********************
@@ -107,7 +104,7 @@ Signal_receiver::Signal_receiver()
 				return;
 			}
 			PINF("upgrading quota donation for SIGNAL session");
-			env()->parent()->upgrade(s->cap(), "ram_quota=4K");
+			env()->parent()->upgrade(s->cap(), "ram_quota=8K");
 			session_upgraded = 1;
 		}
 	}
@@ -162,7 +159,7 @@ Signal_context_capability Signal_receiver::manage(Signal_context * const c)
 				return Signal_context_capability();
 			}
 			PINF("upgrading quota donation for signal session");
-			env()->parent()->upgrade(s->cap(), "ram_quota=4K");
+			env()->parent()->upgrade(s->cap(), "ram_quota=8K");
 			session_upgraded = 1;
 		}
 	}
@@ -192,12 +189,13 @@ bool Signal_receiver::pending() { return Kernel::signal_pending(_cap.dst()); }
 Signal Signal_receiver::wait_for_signal()
 {
 	/* await a signal */
-	if (Kernel::await_signal(_cap.dst(), 0)) {
+	if (Kernel::await_signal(_cap.dst())) {
 		PERR("failed to receive signal");
 		return Signal(Signal::Data());
 	}
+
 	/* get signal data */
-	Signal s(*(Signal::Data *)Thread_base::myself()->utcb());
+	Signal s(*(Signal::Data *)Thread_base::myself()->utcb()->base());
 	return s;
 }
 

@@ -102,7 +102,7 @@ class Genode::Slab_backend_alloc : public Genode::Allocator,
 		/**
 		 * Allocate 
 		 */
-		bool alloc(size_t size, void **out_addr)
+		bool alloc(size_t size, void **out_addr) override
 		{
 				bool done = _range.alloc(size, out_addr);
 
@@ -118,8 +118,8 @@ class Genode::Slab_backend_alloc : public Genode::Allocator,
 				return _range.alloc(size, out_addr);
 		}
 
-		void   free(void *addr, size_t /* size */) { }
-		size_t overhead(size_t size) { return  0; }
+		void   free(void *addr, size_t /* size */) override { }
+		size_t overhead(size_t size) const override { return  0; }
 		bool need_size_for_free() const override { return false; }
 
 		/**
@@ -681,49 +681,6 @@ void kmem_cache_free(struct kmem_cache *cache, void *objp)
 /**********************
  ** asm-generic/io.h **
  **********************/
-
-void *_ioremap(resource_size_t phys_addr, unsigned long size, int wc)
-{
-	dde_kit_addr_t map_addr;
-	if (dde_kit_request_mem(phys_addr, size, wc, &map_addr)) {
-		PERR("Failed to request I/O memory: [%zx,%lx)", phys_addr, phys_addr + size);
-		return 0;
-	}
-	return (void *)map_addr;
-}
-
-
-void *ioremap_wc(resource_size_t phys_addr, unsigned long size)
-{
-	return _ioremap(phys_addr, size, 1);
-}
-
-
-void *ioremap(resource_size_t offset, unsigned long size)
-{
-	return _ioremap(offset, size, 0);
-}
-
-
-void *devm_ioremap(struct device *dev, resource_size_t offset,
-                   unsigned long size)
-{
-	return ioremap(offset, size);
-}
-
-
-void *devm_ioremap_nocache(struct device *dev, resource_size_t offset,
-                           unsigned long size)
-{
-	return ioremap(offset, size);
-}
-
-
-void *devm_ioremap_resource(struct device *dev, struct resource *res)
-{
-	return _ioremap(res->start, res->end - res->start, 0);
-}
-
 
 void *phys_to_virt(unsigned long address)
 {
@@ -1341,4 +1298,62 @@ int utf16s_to_utf8s(const wchar_t *pwcs, int len,
 		out[i] = in[i];
 
 	return 2 * length;
+}
+
+/**********************
+ ** linux/notifier.h **
+ **********************/
+
+int raw_notifier_chain_register(struct raw_notifier_head *nh,
+                                struct notifier_block *n)
+{
+	struct notifier_block *nl = nh->head;
+	struct notifier_block *pr = 0;
+	while (nl) {
+		if (n->priority > nl->priority)
+			break;
+		pr = nl;
+		nl = nl->next;
+	}
+
+	n->next = nl;
+	if (pr)
+		pr->next = n;
+	else
+		nh->head = n;
+
+	return 0;
+}
+
+
+int raw_notifier_call_chain(struct raw_notifier_head *nh,
+                            unsigned long val, void *v)
+{
+	int ret = NOTIFY_DONE;
+	struct notifier_block *nb = nh->head;
+
+	while (nb) {
+
+		ret = nb->notifier_call(nb, val, v);
+		if ((ret & NOTIFY_STOP_MASK) == NOTIFY_STOP_MASK)
+			break;
+
+		nb = nb->next;
+	}
+
+	return ret;
+}
+
+
+int blocking_notifier_chain_register(struct blocking_notifier_head *nh,
+                                     struct notifier_block *n)
+{
+	return raw_notifier_chain_register((struct raw_notifier_head *)nh, n);
+}
+
+
+int blocking_notifier_call_chain(struct blocking_notifier_head *nh,
+                                 unsigned long val, void *v)
+{
+	return raw_notifier_call_chain((struct raw_notifier_head *)nh, val, v);
 }

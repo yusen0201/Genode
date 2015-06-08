@@ -30,6 +30,7 @@
 /* Fiasco includes */
 namespace Fiasco {
 #include <l4/sigma0/sigma0.h>
+#include <l4/sys/icu.h>
 #include <l4/sys/ipc.h>
 #include <l4/sys/kip>
 #include <l4/sys/thread.h>
@@ -140,7 +141,8 @@ Platform::Core_pager::Core_pager(Platform_pd *core_pd, Sigma0 *sigma0)
 {
 	Platform_thread::pager(sigma0);
 
-	core_pd->bind_thread(this);
+	if (core_pd->bind_thread(this))
+		panic("Binding thread failed");
 	cap(thread().local);
 
 	/* stack begins at the top end of the '_core_pager_stack' array */
@@ -332,7 +334,17 @@ void Platform::_setup_mem_alloc()
 }
 
 
-void Platform::_setup_irq_alloc() { _irq_alloc.add_range(0, 0x100); }
+void Platform::_setup_irq_alloc()
+{
+	using namespace Fiasco;
+
+	l4_icu_info_t info { .features = 0 };
+	l4_msgtag_t res = l4_icu_info(Fiasco::L4_BASE_ICU_CAP, &info);
+	if (l4_error(res))
+		panic("could not determine number of IRQs");
+
+	_irq_alloc.add_range(0, info.nr_irqs);
+}
 
 
 void Platform::_setup_basics()
@@ -499,7 +511,8 @@ Platform::Platform() :
 		Platform_thread(thi, irqi, "core.main");
 
 	core_thread->pager(&_sigma0);
-	_core_pd->bind_thread(core_thread);
+	if (_core_pd->bind_thread(core_thread))
+		panic("Binding thread failed");
 }
 
 

@@ -4,7 +4,106 @@
                                ===========
 
 
-Genode OS Framework release 15.02 | 2015-01-27
+Genode OS Framework release 15.05 | 2015-05-26
+##############################################
+
+| For the first time, a Genode release is accompanied by a book.
+| Further highlights of the current release are vast improvements of our
+| base-hw kernel, preliminary support for the seL4 microkernel, new
+| device-driver infrastructure, and plenty of new device drivers.
+
+With version 15.05, we equip Genode users with comprehensive documentation
+in the form of the free book "Genode Foundations". The book covers the
+architecture in great detail, assists developers with the explanation of the
+development environment and system configuration, and provides insights behind
+the scenes of the framework. Furthermore, the book contains the specification
+of the framework's programming interfaces.
+
+Besides the documentation, the second highlight of the release is the base-hw
+kernel, which enables the execution of Genode without a 3rd-party microkernel.
+Our kernel, originally designed for the ARM architecture, has become able
+to run on the 64-bit x86 architecture, it received support for
+kernel-protected capabilities, and its scheduler got much more flexible.
+
+Even though we invest a lot of work in our custom kernel, the biggest
+strength of Genode is its ability to leverage the benefits of different
+kernels. With the current release, we introduce preliminary support to run
+simple system scenarios on top of the seL4 microkernel. With seL4, there
+is now the prospect of running Genode on top of a formally verified kernel.
+
+At the framework's architectural level, we took the opportunity to
+redesign the infrastructure for user-level device drivers. With this
+release, device drivers become subjected to rigid access control with respect
+to hardware resources. Along with this architectural change, there are
+massive improvements of the device driver support. There is a new AHCI
+driver, new audio drivers ported from OpenBSD, new SD-card drivers,
+added platform support for i.MX6, and support for message-signalled interrupts
+on x86-based machines.
+
+A detailed description of all the improvements is provided by the
+[http:/documentation/release-notes/15.05 - release documentation of version 15.05...]
+
+
+Genode's core running on the seL4 kernel | 2015-05-18
+#####################################################
+
+| In the third part of our seL4 article series, we describe the steps
+| taken to run Genode's fundamental components on seL4.
+
+The article "Porting the core component" builds upon the experience gained
+from the first two articles to execute Genode-based systems on
+top of seL4. As for the previous articles, it is full of technical insights
+into both seL4 and Genode. Among the many challenges that had to be overcome
+are the management of capabilities and memory, the synchronous RPC
+communication between components, and the handling of page faults. As result,
+simple Genode system scenarios can be readily executed on top of the seL4 kernel.
+[http://genode.org/documentation/articles/sel4_part_3 - Read the article...]
+
+All the steps described in the article can be followed in the
+topic branch [http://github.com/nfeske/genode/commits/sel4] of the ongoing
+development. Furthermore, the principle support for seL4 will be featured
+in the upcoming Genode release 15.05.
+
+
+An in-depth look into the ARM virtualization extensions | 2015-03-12
+####################################################################
+
+| Our new article explores the mechanisms of the ARM virtualization extensions
+| and describes how Genode's custom base-hw kernel was turned into
+| a microhypervisor.
+
+With the recently published
+[http:/documentation/release-notes/15.02 - version 15.02], Genode received
+support for ARM's virtualization extensions. While conducting this line
+of work during the year of 2014, we took the chance to thoroughly document
+the experience. The article "An in-depth look into the ARM virtualization
+extensions" presents the overall virtualization architecture and goes into
+detail about the virtualization of memory, CPU, interrupts, and time.
+Furthermore, it covers a series of experiments with I/O protection mechanisms.
+[http:/documentation/articles/arm_virtualization - Read the article...]
+
+
+Exercising the seL4 kernel interface | 2015-03-10
+#################################################
+
+| The second part of the article series about Genode on seL4 goes into
+| detail about the kernel mechanisms for synchronous inter-process
+| communication and the management of virtual memory.
+
+The article "Genode on seL4 - IPC and virtual memory" examines the most
+important mechanisms of the seL4 kernel.
+It covers synchronous inter-process communication between threads, the
+delegation of capabilities, and the management of virtual memory.
+Apart from presenting hands-on experience with using the kernel, it identifies
+potential challenges for using it as Genode base platform.
+[http://genode.org/documentation/articles/sel4_part_2 - Read the article...]
+
+All the steps described in the article can be followed in the
+topic branch [http://github.com/nfeske/genode/commits/sel4] of the ongoing
+development.
+
+
+Genode OS Framework release 15.02 | 2015-02-27
 ##############################################
 
 | Version 15.02 extends the base-hw kernel with ARM-virtualization support,

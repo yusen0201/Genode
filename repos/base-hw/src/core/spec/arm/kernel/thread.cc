@@ -22,10 +22,9 @@ using namespace Kernel;
 
 Thread::Thread(unsigned const priority, unsigned const quota,
                char const * const label)
-:
-	Thread_base(this), Cpu_job(priority, quota), _state(AWAITS_START), _pd(0),
-	_utcb_phys(0), _signal_receiver(0), _label(label)
-{ cpu_exception = RESET; }
+: Thread_base(this), Cpu_job(priority, quota),
+  _state(AWAITS_START), _signal_receiver(0),
+  _label(label) { cpu_exception = RESET; }
 
 
 void Thread::exception(unsigned const cpu)
@@ -48,13 +47,15 @@ void Thread::exception(unsigned const cpu)
 		return;
 	case UNDEFINED_INSTRUCTION:
 		if (_cpu->retry_undefined_instr(&_lazy_state)) { return; }
-		PWRN("undefined instruction");
+		PWRN("%s -> %s: undefined instruction at ip=%p",
+		     pd_label(), label(), (void*)ip);
 		_stop();
 		return;
 	case RESET:
 		return;
 	default:
-		PWRN("unknown exception");
+		PWRN("%s -> %s: triggered an unknown exception %lu",
+		     pd_label(), label(), (unsigned long)cpu_exception);
 		_stop();
 		return;
 	}
@@ -104,8 +105,8 @@ void Thread::_mmu_exception()
 {
 	_become_inactive(AWAITS_RESUME);
 	if (in_fault(_fault_addr, _fault_writes)) {
-		_fault_pd    = (addr_t)_pd->platform_pd();
-		_fault_signal = _fault.signal_context_id();
+		_fault_pd     = (addr_t)_pd->platform_pd();
+		_fault_signal = (addr_t)_fault.signal_context();
 
 		/**
 		 * core should never raise a page-fault,
@@ -119,4 +120,11 @@ void Thread::_mmu_exception()
 		return;
 	}
 	PERR("unknown MMU exception");
+}
+
+
+void Thread::_call_update_pd()
+{
+	Pd * const pd = (Pd *) user_arg_1();
+	if (Cpu_domain_update::_do_global(pd->asid)) { _pause(); }
 }

@@ -22,21 +22,21 @@
 
 /* Core includes */
 #include <dataspace_component.h>
+#include <object.h>
 #include <kernel/vm.h>
 
 namespace Genode {
 	class Vm_session_component;
 }
 
-class Genode::Vm_session_component :
-	public Genode::Rpc_object<Genode::Vm_session>
+class Genode::Vm_session_component
+: public Genode::Rpc_object<Genode::Vm_session>,
+  public Kernel_object<Kernel::Vm>
 {
 	private:
 
 		Rpc_entrypoint      *_ds_ep;
 		Range_allocator     *_ram_alloc;
-		unsigned             _vm_id;
-		char                 _vm[sizeof(Kernel::Vm)];
 		Dataspace_component  _ds;
 		Dataspace_capability _ds_cap;
 		addr_t               _ds_addr;

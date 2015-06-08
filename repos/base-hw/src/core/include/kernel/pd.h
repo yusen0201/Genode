@@ -15,64 +15,15 @@
 #ifndef _KERNEL__PD_H_
 #define _KERNEL__PD_H_
 
-/* Genode includes */
-#include <cpu/atomic.h>
-#include <cpu/memory_barrier.h>
-
 /* core includes */
 #include <kernel/early_translations.h>
-#include <kernel/configuration.h>
-#include <kernel/object.h>
 #include <kernel/cpu.h>
-#include <assert.h>
-#include <page_slab.h>
-#include <board.h>
+#include <kernel/object.h>
 
-/* structure of the mode transition */
-extern int            _mt_begin;
-extern int            _mt_end;
-extern int            _mt_user_entry_pic;
-extern Genode::addr_t _mt_client_context_ptr;
-extern Genode::addr_t _mt_master_context_begin;
-extern Genode::addr_t _mt_master_context_end;
-
-namespace Kernel
-{
-	/**
-	 * Lock that enables synchronization inside the kernel
-	 */
-	class Lock;
+namespace Genode {
+	class Page_slab;
+	class Platform_pd;
 }
-
-class Kernel::Lock
-{
-	private:
-
-		int volatile _locked;
-
-	public:
-
-		Lock() : _locked(0) { }
-
-		/**
-		 * Request the lock
-		 */
-		void lock() { while (!Genode::cmpxchg(&_locked, 0, 1)); }
-
-		/**
-		 * Free the lock
-		 */
-		void unlock()
-		{
-			Genode::memory_barrier();
-			_locked = 0;
-		}
-
-		/**
-		 * Provide guard semantic for this type of lock
-		 */
-		typedef Genode::Lock_guard<Kernel::Lock> Guard;
-};
 
 namespace Kernel
 {
@@ -97,14 +48,6 @@ namespace Kernel
 	 * Kernel backend of protection domains
 	 */
 	class Pd;
-
-	class Pd_ids : public Id_allocator<MAX_PDS> { };
-	typedef Object_pool<Pd> Pd_pool;
-
-	Pd_ids  * pd_ids();
-	Pd_pool * pd_pool();
-
-	Lock & data_lock();
 }
 
 class Kernel::Mode_transition_control
@@ -126,33 +69,22 @@ class Kernel::Mode_transition_control
 		/**
 		 * Return size of the mode transition
 		 */
-		static size_t _size() { return (addr_t)&_mt_end - (addr_t)&_mt_begin; }
+		static size_t _size();
 
 		/**
 		 * Return size of master-context space in the mode transition
 		 */
-		static size_t _master_context_size()
-		{
-			addr_t const begin = (addr_t)&_mt_master_context_begin;
-			addr_t const end = (addr_t)&_mt_master_context_end;
-			return end - begin;
-		}
+		static size_t _master_context_size();
 
 		/**
 		 * Return virtual address of the user entry-code
 		 */
-		static addr_t _virt_user_entry()
-		{
-			addr_t const phys      = (addr_t)&_mt_user_entry_pic;
-			addr_t const phys_base = (addr_t)&_mt_begin;
-			return VIRT_BASE + (phys - phys_base);
-		}
+		static addr_t _virt_user_entry();
 
 	public:
 
 		enum {
-			SIZE_LOG2  = Genode::Translation_table::MIN_PAGE_SIZE_LOG2,
-			SIZE       = 1 << SIZE_LOG2,
+			SIZE       = Cpu::mtc_size,
 			VIRT_BASE  = Cpu::exception_entry,
 			ALIGN_LOG2 = Genode::Translation_table::ALIGNM_LOG2,
 			ALIGN      = 1 << ALIGN_LOG2,
@@ -172,15 +104,7 @@ class Kernel::Mode_transition_control
 		 * \param ram  RAM donation for mapping (first try without)
 		 */
 		void map(Genode::Translation_table * tt,
-		         Genode::Page_slab         * alloc)
-		{
-			try {
-				addr_t const phys_base = (addr_t)&_mt_begin;
-				tt->insert_translation(VIRT_BASE, phys_base, SIZE,
-				                       Page_flags::mode_transition(), alloc);
-			} catch(...) {
-				PERR("Inserting exception vector in page table failed!"); }
-		}
+		         Genode::Page_slab         * alloc);
 
 		/**
 		 * Continue execution of client context
@@ -193,21 +117,7 @@ class Kernel::Mode_transition_control
 		void switch_to(Cpu::Context * const context,
 		               unsigned const cpu,
 		               addr_t const entry_raw,
-		               addr_t const context_ptr_base)
-		{
-			/* override client-context pointer of the executing CPU */
-			size_t const context_ptr_offset = cpu * sizeof(context);
-			addr_t const context_ptr = context_ptr_base + context_ptr_offset;
-			*(void * *)context_ptr = context;
-
-			/* unlock kernel data */
-			data_lock().unlock();
-
-			/* call assembly code that applies the virtual-machine context */
-			typedef void (* Entry)();
-			Entry __attribute__((noreturn)) const entry = (Entry)entry_raw;
-			entry();
-		}
+		               addr_t const context_ptr_base);
 
 		/**
 		 * Continue execution of user context
@@ -216,23 +126,26 @@ class Kernel::Mode_transition_control
 		 * \param cpu               kernel name of targeted CPU
 		 */
 		 void switch_to_user(Cpu::Context * const context,
-		                     unsigned const cpu)
-		 {
-			 switch_to(context, cpu, _virt_user_entry(),
-			           (addr_t)&_mt_client_context_ptr);
-		 }
+		                     unsigned const cpu);
 } __attribute__((aligned(Mode_transition_control::ALIGN)));
 
-class Kernel::Pd : public Object<Pd, MAX_PDS, Pd_ids, pd_ids, pd_pool>
+
+class Kernel::Pd : public Cpu::Pd,
+                   public Kernel::Object
 {
 	public:
 
-		typedef Genode::Translation_table Table;
+		static constexpr unsigned max_cap_ids = 1 << (sizeof(capid_t) * 8);
+
+		using Table           = Genode::Translation_table;
+		using Capid_allocator = Genode::Bit_allocator<max_cap_ids>;
 
 	private:
 
-		Table       * const _table;
-		Platform_pd * const _platform_pd;
+		Table                  * const _table;
+		Genode::Platform_pd    * const _platform_pd;
+		Capid_allocator                _capid_alloc;
+		Object_identity_reference_tree _cap_tree;
 
 	public:
 
@@ -242,25 +155,35 @@ class Kernel::Pd : public Object<Pd, MAX_PDS, Pd_ids, pd_ids, pd_pool>
 		 * \param table        translation table of the PD
 		 * \param platform_pd  core object of the PD
 		 */
-		Pd(Table * const table, Platform_pd * const platform_pd)
-		: _table(table), _platform_pd(platform_pd) { }
+		Pd(Table * const table, Genode::Platform_pd * const platform_pd);
+
+		~Pd();
 
 		/**
 		 * Let the CPU context 'c' join the PD
 		 */
-		void admit(Cpu::Context * const c)
+		void admit(Cpu::Context * const c);
+
+
+		static capid_t syscall_create(void * const dst,
+		                              Genode::Translation_table * tt,
+		                              Genode::Platform_pd * const pd)
 		{
-			c->protection_domain(id());
-			c->translation_table((addr_t)translation_table());
+			return call(call_id_new_pd(), (Call_arg)dst,
+			            (Call_arg)tt, (Call_arg)pd);
 		}
 
+		static void syscall_destroy(Pd * const pd) {
+			call(call_id_delete_pd(), (Call_arg)pd); }
 
 		/***************
 		 ** Accessors **
 		 ***************/
 
-		Platform_pd * platform_pd() const { return _platform_pd; }
-		Table * translation_table() const { return _table; }
+		Genode::Platform_pd * platform_pd()       const { return _platform_pd; }
+		Table               * translation_table() const { return _table;       }
+		Capid_allocator     & capid_alloc()             { return _capid_alloc; }
+		Object_identity_reference_tree & cap_tree()     { return _cap_tree;    }
 };
 
 #endif /* _KERNEL__PD_H_ */

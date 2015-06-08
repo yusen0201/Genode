@@ -10,11 +10,12 @@ append build_components {
 	server/part_blk
 	server/rump_fs
 	drivers/ahci
-	drivers/input
 	drivers/framebuffer
 	drivers/timer
 }
 
+lappend_if [expr $use_ps2]    build_components drivers/input
+lappend_if [expr $use_usb]    build_components drivers/usb
 lappend_if [have_spec acpi]   build_components drivers/acpi
 lappend_if [have_spec pci]    build_components drivers/pci
 lappend_if [have_spec x86]    build_components drivers/rtc
@@ -40,16 +41,19 @@ set config {
 		<service name="SIGNAL"/>
 	</parent-provides>
 	<default-route>
-		<any-service> <any-child/> <parent/> </any-service>
+		<any-service> <parent/> <any-child/> </any-service>
 	</default-route>
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
 		<provides><service name="Timer"/></provides>
 	</start>
 	<start name="ahci" priority="-1">
-		<binary name="ahci" />
+		<binary name="ahci_drv" />
 		<resource name="RAM" quantum="10M" />
 		<provides><service name="Block" /></provides>
+		<config>
+			<policy label="part_blk" device="0" />
+		</config>
 		<route>
 			<service name="IRQ"><child name="acpi" /></service>
 			<any-service> <parent /> <any-child /></any-service>
@@ -92,12 +96,20 @@ append_if [expr $use_ram_fs] config {
 
 append_if [have_spec acpi] config {
 	<start name="acpi" priority="-1">
-		<resource name="RAM" quantum="10M" constrain_phys="yes"/>
+		<resource name="RAM" quantum="12M" constrain_phys="yes"/>
 		<binary name="acpi_drv"/>
 		<provides>
 			<service name="PCI"/>
 			<service name="IRQ" />
 		</provides>
+		<config>
+			<policy label="acpi_drv"> <pci class="ALL"/> </policy>
+			<policy label="ahci">     <pci class="AHCI"/> </policy>
+			<policy label="nic_drv">  <pci class="ETHERNET"/> </policy>
+			<policy label="ps2_drv">  <device name="PS2"/> </policy>
+			<policy label="usb_drv">  <pci class="USB"/> </policy>
+			<policy label="fb_drv">   <pci class="VGA"/> </policy>
+		</config>
 		<route>
 			<service name="PCI"> <any-child /> </service>
 			<any-service> <parent/> <any-child /> </any-service>
@@ -108,19 +120,50 @@ append_if [expr ![have_spec acpi] && [have_spec pci]] config {
 	<start name="pci_drv" priority="-1">
 		<resource name="RAM" quantum="2M" constrain_phys="yes"/>
 		<provides> <service name="PCI"/> </provides>
+		<config>
+			<policy label="ahci">     <pci class="AHCI"/> </policy>
+			<policy label="nic_drv">  <pci class="ETHERNET"/> </policy>
+			<policy label="ps2_drv">  <device name="PS2"/> </policy>
+			<policy label="usb_drv">  <pci class="USB"/> </policy>
+			<policy label="fb_drv">   <pci class="VGA"/> </policy>
+		</config>
 	</start>}
 
-append_if [have_spec ps2] config {
+append_if [expr $use_ps2] config {
 	<start name="ps2_drv" priority="-1">
 		<resource name="RAM" quantum="1M"/>
 		<provides><service name="Input"/></provides>
+		<route>
+			<service name="IRQ"><child name="acpi" /></service>
+			<any-service> <parent /> <any-child /></any-service>
+		</route>
 	</start>}
+
+append_if [expr $use_usb] config {
+	<start name="usb_drv" priority="-1">
+		<resource name="RAM" quantum="8M"/>
+		<provides>
+			<service name="Input"/>
+			<service name="Usb" />
+		</provides>
+		<config uhci="yes" ehci="yes" xhci="yes">
+			<hid/>
+			<raw>
+				<report devices="yes"/>
+			</raw>
+		</config>
+		<route>
+			<service name="IRQ"><child name="acpi" /></service>
+			<any-service> <parent /> <any-child /></any-service>
+		</route>
+	</start>
+}
 
 append_if [have_spec framebuffer] config {
 	<start name="fb_drv" priority="-1">
 		<resource name="RAM" quantum="6M"/>
 		<provides><service name="Framebuffer"/></provides>
-		<config buffered="yes" width="1024" height="768" depth="16" />
+		<config buffered="yes" />
 	</start>}
 
 append_if [have_spec x86] config {
@@ -141,7 +184,7 @@ install_config $config
 
 append boot_modules {
 	core init timer
-	part_blk ahci
+	part_blk ahci_drv
 	ld.lib.so libc.lib.so libm.lib.so pthread.lib.so
 	libc_lock_pipe.lib.so libc_terminal.lib.so
 	libiconv.lib.so stdcxx.lib.so
@@ -153,7 +196,8 @@ lappend_if [expr $use_ram_fs]      boot_modules ram_fs
 lappend_if [expr $use_ram_fs]      boot_modules ${overlay_image}
 
 # platform-specific modules
-lappend_if [have_spec         ps2] boot_modules ps2_drv
+lappend_if [expr         $use_ps2] boot_modules ps2_drv
+lappend_if [expr         $use_usb] boot_modules usb_drv
 lappend_if [have_spec        acpi] boot_modules acpi_drv
 lappend_if [have_spec         pci] boot_modules pci_drv
 lappend_if [have_spec framebuffer] boot_modules fb_drv

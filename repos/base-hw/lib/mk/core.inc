@@ -7,9 +7,6 @@
 # add library dependencies
 LIBS += core-perf_counter
 
-# set entry point of core's first thread
-CC_OPT += -DCORE_MAIN=_main
-
 # add library dependencies
 LIBS += base-common
 
@@ -43,17 +40,23 @@ SRC_CC += rm_session_component.cc
 SRC_CC += rom_session_component.cc
 SRC_CC += signal_session_component.cc
 SRC_CC += trace_session_component.cc
-SRC_CC += thread/thread.cc
 SRC_CC += thread_start.cc
+SRC_CC += env.cc
 SRC_CC += rm_session_support.cc
 SRC_CC += pager.cc
 SRC_CC += _main.cc
+SRC_CC += kernel/cpu_scheduler.cc
+SRC_CC += kernel/double_list.cc
 SRC_CC += kernel/kernel.cc
 SRC_CC += kernel/thread.cc
 SRC_CC += kernel/signal_receiver.cc
+SRC_CC += kernel/ipc_node.cc
 SRC_CC += kernel/irq.cc
 SRC_CC += kernel/pd.cc
 SRC_CC += kernel/cpu.cc
+SRC_CC += kernel/object.cc
+SRC_CC += init_main_thread.cc
+SRC_CC += capability.cc
 
 # add assembly sources
 SRC_S += boot_modules.s
@@ -75,4 +78,3 @@ vpath boot_modules.s $(BOOT_MODULES_VPATH)
 vpath %  $(REP_DIR)/src/core
 vpath % $(BASE_DIR)/src/core
 vpath % $(BASE_DIR)/src/platform
-vpath % $(BASE_DIR)/src/base

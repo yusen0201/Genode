@@ -131,7 +131,7 @@ void Rpc_entrypoint::_activation_entry()
 	srv >> IPC_WAIT >> opcode;
 
 	/* set default return value */
-	srv.ret(ERR_INVALID_OBJECT);
+	srv.ret(Ipc_client::ERR_INVALID_OBJECT);
 
 	/* atomically lookup and lock referenced object */
 	ep->_curr_obj = ep->lookup_and_lock(id_pt);
@@ -221,7 +221,7 @@ Rpc_entrypoint::Rpc_entrypoint(Cap_session *cap_session, size_t stack_size,
                                const char  *name, bool start_on_construction,
                                Affinity::Location location)
 :
-	Thread_base(0, name, stack_size),
+	Thread_base(Cpu_session::DEFAULT_WEIGHT, name, stack_size),
 	_curr_obj(start_on_construction ? 0 : (Rpc_object_base *)~0UL),
 	_delay_start(Lock::LOCKED),
 	_cap_session(cap_session)

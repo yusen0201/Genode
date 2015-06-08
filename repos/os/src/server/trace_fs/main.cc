@@ -12,6 +12,7 @@
  */
 
 /* Genode includes */
+#include <file_system/node_handle_registry.h>
 #include <cap_session/connection.h>
 #include <file_system_session/rpc_object.h>
 #include <os/attached_rom_dataspace.h>
@@ -29,15 +30,30 @@
 #include <buffer.h>
 #include <directory.h>
 #include <followed_subject.h>
-#include <node_handle_registry.h>
 #include <trace_files.h>
-#include <util.h>
 
 
 static bool const verbose = false;
 #define PDBGV(...) if (verbose) PDBG(__VA_ARGS__)
 
+/**
+ * Return true if 'str' is a valid file name
+ */
+static inline bool valid_filename(char const *str)
+{
+	if (!str) return false;
 
+	/* must have at least one character */
+	if (str[0] == 0) return false;
+
+	/* must not contain '/' or '\' or ':' */
+	if (string_contains(str, '/') ||
+		string_contains(str, '\\') ||
+		string_contains(str, ':'))
+		return false;
+
+	return true;
+}
 
 /**
  * This class updates the file system
@@ -933,8 +949,8 @@ class File_system::Root : public Root_component<Session_component>
 			Genode::Number_of_bytes buffer_size_max  =   1 * (1 << 20); /*   1 MiB */
 			unsigned trace_parent_levels             = 0;
 
+			Session_label  label(args);
 			try {
-				Session_label  label(args);
 				Session_policy policy(label);
 
 				/*
@@ -987,6 +1003,11 @@ class File_system::Root : public Root_component<Session_component>
 				Arg_string::find_arg(args, "ram_quota"  ).ulong_value(0);
 			size_t tx_buf_size =
 				Arg_string::find_arg(args, "tx_buf_size").ulong_value(0);
+
+			if (!tx_buf_size) {
+				PERR("%s requested a session with a zero length transmission buffer", label.string());
+				throw Root::Invalid_args();
+			}
 
 			/*
 			 * Check if donated ram quota suffices for session data,

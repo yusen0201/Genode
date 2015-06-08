@@ -11,9 +11,13 @@
  * under the terms of the GNU General Public License version 2.
  */
 
-/* Genode inludes */
-#include <ram_session/client.h>
+/* Genode base includes */
 #include <base/object_pool.h>
+#include <io_mem_session/client.h>
+#include <irq_session/connection.h>
+#include <ram_session/client.h>
+
+/* Genode os includes */
 #include <pci_session/connection.h>
 #include <pci_device/client.h>
 
@@ -29,7 +33,7 @@ struct  bus_type pci_bus_type;
 /**
  * Scan PCI bus and probe for HCDs
  */
-class Pci_driver
+class Pci_driver : public Genode::List<Pci_driver>::Element
 {
 	private:
 
@@ -53,9 +57,12 @@ class Pci_driver
 		{
 			using namespace Pci;
 
-			_dev = new (Genode::env()->heap()) pci_dev;
 			Device_client client(_cap);
+			uint8_t bus, dev, func;
+			client.bus_address(&bus, &dev, &func);
 
+			_dev = new (Genode::env()->heap()) pci_dev;
+			_dev->devfn        = ((uint16_t)bus << 8) | (0xff & PCI_DEVFN(dev, func));
 			_dev->vendor       = client.vendor_id();
 			_dev->device       = client.device_id();
 			_dev->class_       = client.class_code();
@@ -84,7 +91,8 @@ class Pci_driver
 
 				/* request port I/O session */
 				if (res.type() == Device::Resource::IO) {
-					if (dde_kit_request_io(res.base(), res.size()))
+					if (dde_kit_request_io(res.base(), res.size(), i, bus, dev,
+					                       func))
 						PERR("Failed to request I/O: [%u,%u)",
 						     res.base(), res.base() + res.size());
 					io = true;
@@ -105,6 +113,8 @@ class Pci_driver
 			/* enable bus master */
 			cmd |= 0x4;
 			client.config_write(CMD, cmd, Device::ACCESS_16BIT);
+
+			_drivers().insert(this);
 		}
 
 		/**
@@ -135,6 +145,12 @@ class Pci_driver
 			}
 		}
 
+		static Genode::List<Pci_driver> & _drivers()
+		{
+			static Genode::List<Pci_driver> _list;
+			return _list;
+		}
+
 	public:
 
 		Pci_driver(pci_driver *drv, Pci::Device_capability cap,
@@ -157,6 +173,8 @@ class Pci_driver
 					dde_kit_release_io(r->start, (r->end - r->start) + 1);
 			}
 
+			_drivers().remove(this);
+
 			destroy(Genode::env()->heap(), _dev);
 		}
 
@@ -176,8 +194,43 @@ class Pci_driver
 			Pci::Device_client client(_cap);
 			client.config_write(devfn, val, _access_size(val));
 		}
-};
 
+		static Genode::Irq_session_capability irq_cap(unsigned irq)
+		{
+			for (Pci_driver *d = _drivers().first(); d; d = d->next()) {
+				if (d->_dev && d->_dev->irq != irq)
+					continue;
+
+				Pci::Device_client client(d->_cap);
+				return client.irq(0);
+			}
+
+			return Genode::Irq_session_capability();
+		}
+
+		static Genode::Io_mem_session_capability io_mem(resource_size_t phys) {
+
+			for (Pci_driver *d = _drivers().first(); d; d = d->next()) {
+				if (!d->_dev)
+					continue;
+
+				uint8_t bar = 0;
+				for (unsigned bar = 0; bar < PCI_ROM_RESOURCE; bar++) {
+					if ((pci_resource_flags(d->_dev, bar) & IORESOURCE_MEM) &&
+					    (pci_resource_start(d->_dev, bar) == phys))
+						break;
+				}
+				if (bar >= PCI_ROM_RESOURCE)
+					continue;
+
+				Pci::Device_client client(d->_cap);
+				return client.io_mem(bar);
+			}
+
+			PERR("Device using i/o memory of address %zx is unknown", phys);
+			return Genode::Io_mem_session_capability();
+		}
+};
 
 /********************************
  ** Backend memory definitions **
@@ -221,7 +274,6 @@ struct Dma_object : Memory_object_base
  ** Linux interface **
  *********************/
 
-static Pci::Device_capability pci_device_cap;
 static Pci::Connection pci;
 static Genode::Object_pool<Memory_object_base> memory_pool;
 
@@ -246,6 +298,8 @@ int pci_register_driver(struct pci_driver *drv)
 			continue;
 		}
 
+		Genode::env()->parent()->upgrade(pci.cap(), "ram_quota=4096");
+
 		Pci::Device_capability cap = pci.first_device(id->class_,
 		                                              id->class_mask);
 		while (cap.valid()) {
@@ -259,28 +313,28 @@ int pci_register_driver(struct pci_driver *drv)
 
 			Pci_driver *pci_drv = 0;
 			try {
-				/*
-				 * Assign cap already here, since for probing already DMA
-				 * buffer is required and allocated by
-				 * Genode::Mem::alloc_dma_buffer(size_t size)
-				 */
-				pci_device_cap = cap;
-
-				/* trigger that the device get be assigned to the usb driver */
-				pci.config_extended(cap);
-
 				/* probe device */
 				pci_drv = new (env()->heap()) Pci_driver(drv, cap, id);
 				pci.on_destruction(Pci::Connection::KEEP_OPEN);
 				found = true;
 
+			} catch (Pci::Device::Quota_exceeded) {
+				Genode::env()->parent()->upgrade(pci.cap(), "ram_quota=4096");
+				continue;
 			} catch (...) {
 				destroy(env()->heap(), pci_drv);
 				pci_drv = 0;
 			}
 
 			Pci::Device_capability free_up = cap;
-			cap = pci.next_device(cap, id->class_, id->class_mask);
+
+			try {
+				cap = pci.next_device(cap, id->class_, id->class_mask);
+			} catch (Pci::Device::Quota_exceeded) {
+				Genode::env()->parent()->upgrade(pci.cap(), "ram_quota=4096");
+				cap = pci.next_device(cap, id->class_, id->class_mask);
+			}
+
 			if (!pci_drv)
 				pci.release_device(free_up);
 		}
@@ -366,7 +420,7 @@ const char *pci_name(const struct pci_dev *pdev)
 void Ram_object::free() { Genode::env()->ram_session()->free(ram_cap()); }
 
 
-void Dma_object::free() { pci.free_dma_buffer(pci_device_cap, ram_cap()); }
+void Dma_object::free() { pci.free_dma_buffer(ram_cap()); }
 
 
 Genode::Ram_dataspace_capability
@@ -380,7 +434,12 @@ Backend_memory::alloc(Genode::addr_t size, Genode::Cache_attribute cached)
 		cap = env()->ram_session()->alloc(size);
 		o = new (env()->heap())	Ram_object(cap);
 	} else {
-		cap = pci.alloc_dma_buffer(pci_device_cap, size);
+		/* transfer quota to pci driver, otherwise it will give us a exception */
+		char buf[32];
+		Genode::snprintf(buf, sizeof(buf), "ram_quota=%ld", size);
+		Genode::env()->parent()->upgrade(pci.cap(), buf);
+
+		cap = pci.alloc_dma_buffer(size);
 		o = new (env()->heap()) Dma_object(cap);
 	}
 
@@ -400,4 +459,52 @@ void Backend_memory::free(Genode::Ram_dataspace_capability cap)
 	o->free();
 	memory_pool.remove_locked(o);
 	destroy(env()->heap(), o);
+}
+
+
+/*****************************************
+ ** Platform specific irq cap discovery **
+ *****************************************/
+
+Genode::Irq_session_capability platform_irq_activate(int irq)
+{
+	return Pci_driver::irq_cap(irq);
+}
+
+/******************
+ ** MMIO regions **
+ ******************/
+
+class Mem_range : public Genode::Io_mem_session_client
+{
+	private:
+
+		Genode::Io_mem_dataspace_capability _ds;
+		Genode::addr_t                      _vaddr;
+
+	public:
+
+		Mem_range(Genode::addr_t base,
+		          Genode::Io_mem_session_capability io_cap)
+		:
+			Io_mem_session_client(io_cap), _ds(dataspace()), _vaddr(0UL)
+		{
+			_vaddr  = Genode::env()->rm_session()->attach(_ds);
+			_vaddr |= base & 0xfffUL;
+		}
+
+		Genode::addr_t vaddr()     const { return _vaddr; }
+};
+
+
+void *ioremap(resource_size_t phys_addr, unsigned long size)
+{
+	Mem_range  * io_mem  = new (Genode::env()->heap()) Mem_range(phys_addr, Pci_driver::io_mem(phys_addr));
+	if (io_mem->vaddr())
+		return (void *)io_mem->vaddr();
+
+	PERR("Failed to request I/O memory: [%zx,%lx)", phys_addr,
+	     phys_addr + size);
+
+	return nullptr;
 }

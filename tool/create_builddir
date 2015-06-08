@@ -33,11 +33,13 @@ usage:
 	@echo "                  'hw_imx53_qsb'"
 	@echo "                  'hw_imx53_qsb_tz'"
 	@echo "                  'hw_usb_armory'"
+	@echo "                  'hw_wand_quad'"
 	@echo "                  'hw_arndale'"
 	@echo "                  'hw_odroid_xu'"
 	@echo "                  'hw_rpi'"
 	@echo "                  'hw_zynq'"
 	@echo "                  'hw_parallella'"
+	@echo "                  'hw_x86_64'"
 	@echo "                  'foc_x86_32'"
 	@echo "                  'foc_x86_64'"
 	@echo "                  'foc_pbxa9'"
@@ -45,6 +47,7 @@ usage:
 	@echo "                  'foc_vea9x4'"
 	@echo "                  'foc_panda'"
 	@echo "                  'foc_arndale'"
+	@echo "                  'sel4_x86_32'"
 	@echo "                  'lx_hybrid_x86'"
 	@echo
 	@echo "  The definition of BUILD_DIR is optional. If specified,"
@@ -151,7 +154,7 @@ endif
 #
 # Add x86 drivers repositories to x86 build directories
 #
-ifeq ($(filter-out foc_x86_32 foc_x86_64 okl4_x86 nova_x86_32 nova_x86_64 pistachio_x86 fiasco_x86,$(PLATFORM)),)
+ifeq ($(filter-out foc_x86_32 foc_x86_64 okl4_x86 nova_x86_32 nova_x86_64 pistachio_x86 fiasco_x86 hw_x86_64 sel4_x86_32,$(PLATFORM)),)
 $(BUILD_DIR)/etc/build.conf::
 	@cat $(BUILD_CONF).drivers_x86 >> $@
 endif
@@ -193,6 +196,10 @@ nova_x86_64::
 	@echo "SPECS = genode nova_x86_64" > $(BUILD_DIR)/etc/specs.conf
 	@echo "SPECS += acpi"             >> $(BUILD_DIR)/etc/specs.conf
 
+sel4_x86_32::
+	@echo "SPECS  = genode sel4_x86_32" > $(BUILD_DIR)/etc/specs.conf
+	@echo "SPECS += acpi"              >> $(BUILD_DIR)/etc/specs.conf
+
 foc_pbxa9::
 	@echo "SPECS = genode foc_pbxa9" > $(BUILD_DIR)/etc/specs.conf
 
@@ -207,9 +214,6 @@ foc_imx53::
 
 foc_arndale::
 	@echo "SPECS = genode foc_arndale" > $(BUILD_DIR)/etc/specs.conf
-
-codezero_vpb926::
-	@echo "CODEZERO_DIR = $(GENODE_DIR)/repos/base-codezero/contrib" > $(BUILD_DIR)/etc/codezero.conf
 
 #
 # On all other platforms, the performance counter is assumed to be active by
@@ -241,6 +245,10 @@ hw_usb_armory::
 	@echo "SPECS = genode hw_usb_armory" > $(BUILD_DIR)/etc/specs.conf
 	@echo "SPECS += perf_counter" >> $(BUILD_DIR)/etc/specs.conf
 
+hw_wand_quad::
+	@echo "SPECS = genode hw_wand_quad" > $(BUILD_DIR)/etc/specs.conf
+	@echo "SPECS += perf_counter" >> $(BUILD_DIR)/etc/specs.conf
+
 hw_arndale::
 	@echo "SPECS = genode hw_arndale" > $(BUILD_DIR)/etc/specs.conf
 	@echo "SPECS += perf_counter" >> $(BUILD_DIR)/etc/specs.conf
@@ -258,6 +266,10 @@ hw_parallella::
 hw_odroid_xu::
 	@echo "SPECS = genode hw_odroid_xu" > $(BUILD_DIR)/etc/specs.conf
 	@echo "SPECS += perf_counter" >> $(BUILD_DIR)/etc/specs.conf
+
+hw_x86_64::
+	@echo "SPECS = genode hw_x86_64" > $(BUILD_DIR)/etc/specs.conf
+	@echo "SPECS += acpi" >> $(BUILD_DIR)/etc/specs.conf
 
 lx_hybrid_x86::
 	@echo "CROSS_DEV_PREFIX =" > $(BUILD_DIR)/etc/tools.conf

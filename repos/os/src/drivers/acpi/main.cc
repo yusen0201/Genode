@@ -82,14 +82,19 @@ namespace Irq {
 				if (!args.is_valid_string()) throw Root::Invalid_args();
 
 				long irq_number = Arg_string::find_arg(args.string(), "irq_number").long_value(-1);
+				long msi = Arg_string::find_arg(args.string(), "device_config_phys").long_value(0);
 
 				/* check for 'MADT' overrides */
 				unsigned mode;
-				irq_number = Acpi::override(irq_number, &mode);
+				long irq_legacy = Acpi::override(irq_number, &mode);
+				/* rewrite IRQ solely if this is not a MSI request */
+				if (!msi)
+					irq_number = irq_legacy;
 
 				/* allocate IRQ at parent*/
 				try {
-					Irq_connection irq(irq_number, _mode2trigger(mode), _mode2polarity(mode));
+					Irq_connection irq(irq_number, _mode2trigger(mode),
+					                   _mode2polarity(mode), msi);
 					irq.on_destruction(Irq_connection::KEEP_OPEN);
 					return irq.cap();
 				} catch (...) { throw Root::Unavailable(); }
@@ -147,9 +152,17 @@ namespace Pci {
 			void close(Genode::Session_capability session) {
 				Genode::Root_client(_pci_provider.root()).close(session); }
 
-			void upgrade(Genode::Session_capability, Upgrade_args const &) { }
+			void upgrade(Genode::Session_capability s, Upgrade_args const & u)
+			{
+				try { Genode::Root_client(_pci_provider.root()).upgrade(s, u); }
+				catch (...) { throw Invalid_args(); }
+			}
 	};
 }
+
+
+static Irq::Root irq_root;
+static Genode::Local_service local_irq("IRQ", &irq_root);
 
 
 class Pci_policy : public Genode::Slave_policy, public Pci::Provider
@@ -163,6 +176,16 @@ class Pci_policy : public Genode::Slave_policy, public Pci::Provider
 
 	protected:
 
+		Genode::Service *resolve_session_request(const char *service_name,
+		                                         const char *args) override
+		{
+			if (!Genode::strcmp(service_name, "IRQ"))
+				return &local_irq;
+
+			return Genode::Slave_policy::resolve_session_request(service_name,
+			                                                     args);
+		}
+
 		char const **_permitted_services() const
 		{
 			static char const *permitted_services[] = { "CPU", "CAP", "RM",
@@ -170,7 +193,7 @@ class Pci_policy : public Genode::Slave_policy, public Pci::Provider
 			                                            "ROM", "RAM", "SIGNAL",
 			                                            "IO_MEM", 0 };
 			return permitted_services;
-		};
+		}
 
 		/**
 		 * Parse ACPI tables and announce slave PCI service
@@ -178,7 +201,7 @@ class Pci_policy : public Genode::Slave_policy, public Pci::Provider
 		void _acpi_session()
 		{
 			Pci::Session_capability session;
-			const char *args = "ram_quota=4K";
+			const char *args = "label=\"acpi_drv\", ram_quota=16K";
 
 			try {
 				using namespace Genode;
@@ -190,7 +213,6 @@ class Pci_policy : public Genode::Slave_policy, public Pci::Provider
 
 			/* announce PCI/IRQ services to parent */
 			static Pci::Root pci_root(*this);
-			static Irq::Root irq_root;
 
 			Genode::env()->parent()->announce(_pci_ep.manage(&pci_root));
 			Genode::env()->parent()->announce(_irq_ep.manage(&irq_root));
@@ -265,7 +287,7 @@ int main(int argc, char **argv)
 	static Pci_policy     pci_policy(pci_ep, ep, irq_ep);
 
 	/* generate config file for pci_drv */
-	char buf[256];
+	char buf[1024];
 	Acpi::create_pci_config_file(buf, sizeof(buf));
 	pci_policy.configure(buf);
 

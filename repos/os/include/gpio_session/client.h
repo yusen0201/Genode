@@ -7,7 +7,7 @@
 
 /*
  * Copyright (C) 2012 Ksys Labs LLC
- * Copyright (C) 2012-2013 Genode Labs GmbH
+ * Copyright (C) 2012-2015 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU General Public License version 2.
@@ -19,22 +19,21 @@
 #include <gpio_session/capability.h>
 #include <base/rpc_client.h>
 
-namespace Gpio {
+namespace Gpio { struct Session_client; }
 
-	struct Session_client : Genode::Rpc_client<Session>
-	{
-		explicit Session_client(Session_capability session)
-		: Genode::Rpc_client<Session>(session) { }
 
-		void direction(Direction d)      { call<Rpc_direction>(d);       }
-		void write(bool level)           { call<Rpc_write>(level);       }
-		bool read()                      { return call<Rpc_read>();      }
-		void debouncing(unsigned int us) { call<Rpc_debouncing>(us);     }
-		void irq_type(Irq_type it)       { call<Rpc_irq_type>(it);       }
-		void irq_enable(bool enable)     { call<Rpc_irq_enable>(enable); }
-		void irq_sigh(Genode::Signal_context_capability cap) {
-			call<Rpc_irq_sigh>(cap); }
-	};
-}
+struct Gpio::Session_client : Genode::Rpc_client<Session>
+{
+	explicit Session_client(Session_capability session)
+	: Genode::Rpc_client<Session>(session) { }
+
+	void direction(Direction d)      override { call<Rpc_direction>(d);         }
+	void write(bool level)           override { call<Rpc_write>(level);         }
+	bool read()                      override { return call<Rpc_read>();        }
+	void debouncing(unsigned int us) override { call<Rpc_debouncing>(us);       }
+
+	Genode::Irq_session_capability irq_session(Irq_type type) override {
+		return call<Rpc_irq_session>(type); }
+};
 
 #endif /* _INCLUDE__GPIO_SESSION_H__CLIENT_H_ */

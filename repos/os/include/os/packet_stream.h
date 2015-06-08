@@ -58,7 +58,7 @@
  *   empty acknowledgement queue and delivers a 'ack_avail' signal.
  *
  * These conditions can be avoided by querying the state of the submit and
- * acknowledge buffers using the functions 'packet_avail',
+ * acknowledge buffers using the methods 'packet_avail',
  * 'ready_to_submit', 'ready_to_ack', and 'ack_avail'.
  *
  * If bidirectional data exchange between two processes is desired, two pairs
@@ -80,6 +80,33 @@
 #include <base/signal.h>
 #include <dataspace/client.h>
 #include <util/string.h>
+#include <util/construct_at.h>
+
+namespace Genode {
+
+	class Packet_descriptor;
+
+	template <typename, int> class Packet_descriptor_queue;
+	template <typename>      class Packet_descriptor_transmitter;
+	template <typename>      class Packet_descriptor_receiver;
+
+	class Packet_stream_base;
+
+	template <typename, unsigned, unsigned, typename>
+	struct Packet_stream_policy;
+
+	/**
+	 * Default configuration for packet-descriptor queues
+	 */
+	typedef Packet_stream_policy<Packet_descriptor, 64, 64, char>
+	        Default_packet_stream_policy;
+
+	template <typename POLICY = Default_packet_stream_policy>
+	class Packet_stream_source;
+
+	template <typename POLICY = Default_packet_stream_policy>
+	class Packet_stream_sink;
+}
 
 
 /**
@@ -88,7 +115,7 @@
  * A class used as 'PACKET_DESCRIPTOR' arguments to the 'Packet_stream_policy'
  * template must implement the interface of this class.
  */
-class Packet_descriptor
+class Genode::Packet_descriptor
 {
 	private:
 
@@ -127,7 +154,7 @@ class Packet_descriptor
  * This class is private to the packet-stream interface.
  */
 template <typename PACKET_DESCRIPTOR, int QUEUE_SIZE>
-class Packet_descriptor_queue
+class Genode::Packet_descriptor_queue
 {
 	private:
 
@@ -221,7 +248,7 @@ class Packet_descriptor_queue
  * This class is private to the packet-stream interface.
  */
 template <typename TX_QUEUE>
-class Packet_descriptor_transmitter
+class Genode::Packet_descriptor_transmitter
 {
 	private:
 
@@ -310,7 +337,7 @@ class Packet_descriptor_transmitter
  * This class is private to the packet-stream interface.
  */
 template <typename RX_QUEUE>
-class Packet_descriptor_receiver
+class Genode::Packet_descriptor_receiver
 {
 	private:
 
@@ -381,12 +408,9 @@ class Packet_descriptor_receiver
 
 
 /**
- * Helper class for 'Packet_stream_source' and 'Packet_stream_sink'
- * containing code shared between both classes.
- *
- * This class is private to the packet-stream interface.
+ * Common base of 'Packet_stream_source' and 'Packet_stream_sink'
  */
-class Packet_stream_base
+class Genode::Packet_stream_base
 {
 	public:
 
@@ -475,7 +499,7 @@ template <typename PACKET_DESCRIPTOR,
           unsigned SUBMIT_QUEUE_SIZE,
           unsigned ACK_QUEUE_SIZE,
           typename CONTENT_TYPE>
-struct Packet_stream_policy
+struct Genode::Packet_stream_policy
 {
 	typedef CONTENT_TYPE Content_type;
 
@@ -490,28 +514,10 @@ struct Packet_stream_policy
 
 
 /**
- * Default configuration for packet-descriptor queues
- */
-typedef Packet_stream_policy<Packet_descriptor, 64, 64, char>
-        Default_packet_stream_policy;
-
-
-/**
- * Placement new operator for constructing packet-descriptor queues
- *
- * The third argument is only there to let the compiler choose this overloaded
- * new operator rather than Genode's new operator.
- *
- * This operator should not be used outside the packet-stream interface.
- */
-inline void *operator new(Genode::size_t size, void *addr, Packet_stream_base *) { return addr; }
-
-
-/**
  * Originator of a packet stream
  */
-template <typename POLICY = Default_packet_stream_policy>
-class Packet_stream_source : private Packet_stream_base
+template <typename POLICY>
+class Genode::Packet_stream_source : private Packet_stream_base
 {
 	public:
 
@@ -556,10 +562,10 @@ class Packet_stream_source : private Packet_stream_base
 			_packet_alloc(packet_alloc),
 
 			/* construct packet-descriptor queues */
-			_submit_transmitter(new (_submit_queue_local_base(), this)
-			                    Submit_queue(Submit_queue::PRODUCER)),
-			_ack_receiver(new (_ack_queue_local_base(), this)
-			              Ack_queue(Ack_queue::CONSUMER))
+			_submit_transmitter(construct_at<Submit_queue>(_submit_queue_local_base(),
+			                                               Submit_queue::PRODUCER)),
+			_ack_receiver(construct_at<Ack_queue>(_ack_queue_local_base(),
+			                                      Ack_queue::CONSUMER))
 		{
 			/* initialize packet allocator */
 			_packet_alloc->add_range(_bulk_buffer_offset,
@@ -694,8 +700,8 @@ class Packet_stream_source : private Packet_stream_base
 /**
  * Receiver of a packet stream
  */
-template <typename POLICY = Default_packet_stream_policy>
-class Packet_stream_sink : private Packet_stream_base
+template <typename POLICY>
+class Genode::Packet_stream_sink : private Packet_stream_base
 {
 	public:
 
@@ -722,10 +728,10 @@ class Packet_stream_sink : private Packet_stream_base
 			Packet_stream_base(transport_ds, sizeof(Submit_queue), sizeof(Ack_queue)),
 
 			/* construct packet-descriptor queues */
-			_submit_receiver(new (_submit_queue_local_base(), this)
-			                  Submit_queue(Submit_queue::CONSUMER)),
-			_ack_transmitter(new (_ack_queue_local_base(), this)
-			                 Ack_queue(Ack_queue::PRODUCER))
+			_submit_receiver(construct_at<Submit_queue>(_submit_queue_local_base(),
+			                                            Submit_queue::CONSUMER)),
+			_ack_transmitter(construct_at<Ack_queue>(_ack_queue_local_base(),
+			                                         Ack_queue::PRODUCER))
 		{ }
 
 		/**
@@ -782,7 +788,7 @@ class Packet_stream_sink : private Packet_stream_base
 		/**
 		 * Get next packet from source
 		 *
-		 * This function blocks if no packets are available.
+		 * This method blocks if no packets are available.
 		 */
 		Packet_descriptor get_packet()
 		{
@@ -819,7 +825,7 @@ class Packet_stream_sink : private Packet_stream_base
 		/**
 		 * Tell the source that the processing of the specified packet is completed
 		 *
-		 * This function blocks if the acknowledgement queue is full.
+		 * This method blocks if the acknowledgement queue is full.
 		 */
 		void acknowledge_packet(Packet_descriptor packet)
 		{

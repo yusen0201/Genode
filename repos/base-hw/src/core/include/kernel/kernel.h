@@ -16,9 +16,18 @@
 #define _KERNEL__KERNEL_H_
 
 #include <pic.h>
-#include <kernel/pd.h>
+
+/**
+ * Main routine of every kernel pass
+ */
+extern "C" void kernel();
+
 
 namespace Kernel {
+
+	class Pd;
+	class Mode_transition_control;
+
 	Pd                      * core_pd();
 	Mode_transition_control * mtc();
 	Pic                     * pic();

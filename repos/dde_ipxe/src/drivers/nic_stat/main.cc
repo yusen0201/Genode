@@ -11,12 +11,13 @@
  * under the terms of the GNU General Public License version 2.
  */
 
-/* Genode */
+/* Genode include */
 #include <base/env.h>
 #include <base/sleep.h>
 #include <base/printf.h>
 #include <cap_session/connection.h>
 #include <nic/component.h>
+#include <os/server.h>
 
 #include <nic/stat.h>
 #include <nic/packet_allocator.h>
@@ -36,32 +37,36 @@ namespace Ipxe {
 
 			static Driver *instance;
 
-			static void dde_rx_handler(unsigned if_index,
-			                           const char *packet,
-			                           unsigned packet_len)
+		private:
+
+			Nic::Mac_address          _mac_addr;
+			Nic::Rx_buffer_alloc     &_alloc;
+			Nic::Driver_notification &_notify;
+
+			Timer::Connection _timer;
+			Nic::Measurement  _stat;
+
+			static void _rx_callback(unsigned    if_index,
+			                         const char *packet,
+			                         unsigned    packet_len)
 			{
 				instance->rx_handler_stat(packet, packet_len);
 			}
 
-		private:
-
-			Nic::Mac_address      _mac_addr;
-			Nic::Rx_buffer_alloc &_alloc;
-
-			Timer::Connection _timer;
-			Nic::Measurement _stat;
+			static void _link_callback() { instance->link_state_changed(); }
 
 		public:
 
-			Driver(Nic::Rx_buffer_alloc &alloc)
-			: _alloc(alloc), _stat(_timer)
+			Driver(Server::Entrypoint &ep, Nic::Rx_buffer_alloc &alloc,
+			       Nic::Driver_notification &notify)
+			: _alloc(alloc), _notify(notify), _stat(_timer)
 			{
 				PINF("--- init iPXE NIC");
-				int cnt = dde_ipxe_nic_init();
+				int cnt = dde_ipxe_nic_init(&ep);
 				PINF("    number of devices: %d", cnt);
 
-				PINF("--- init rx_callbacks");
-				dde_ipxe_nic_register_rx_callback(dde_rx_handler);
+				PINF("--- init callbacks");
+				dde_ipxe_nic_register_callbacks(_rx_callback, _link_callback);
 
 				dde_ipxe_nic_get_mac_addr(1, _mac_addr.addr);
 				PINF("--- get MAC address %02x:%02x:%02x:%02x:%02x:%02x",
@@ -90,12 +95,19 @@ namespace Ipxe {
 				_alloc.submit();
 			}
 
+			void link_state_changed() { _notify.link_state_changed(); }
+
 
 			/***************************
 			 ** Nic::Driver interface **
 			 ***************************/
 
 			Nic::Mac_address mac_address() { return _mac_addr; }
+
+			bool link_state() override
+			{
+				return dde_ipxe_nic_link_state(1);
+			}
 
 			void tx(char const *packet, Genode::size_t size)
 			{
@@ -109,57 +121,61 @@ namespace Ipxe {
 
 			void handle_irq(int) { /* not used */ }
 	};
-
-	class Driver_factory : public Nic::Driver_factory
-	{
-		Nic::Driver *create(Nic::Rx_buffer_alloc &alloc)
-		{
-			Driver::instance = new (Genode::env()->heap()) Ipxe::Driver(alloc);
-			return Driver::instance;
-		}
-
-		void destroy(Nic::Driver *)
-		{
-			Genode::destroy(Genode::env()->heap(), Driver::instance);
-			Driver::instance = 0;
-		}
-	};
-
 } /* namespace Ipxe */
 
 
 Ipxe::Driver * Ipxe::Driver::instance = 0;
 
 
-int main(int, char **)
+struct Main
 {
-	using namespace Genode;
+	Server::Entrypoint   &ep;
+	Genode::Sliced_heap   sliced_heap;
 
-	printf("--- iPXE NIC driver started ---\n");
+	struct Factory : public Nic::Driver_factory
+	{
+		Server::Entrypoint &ep;
 
-	/**
-	 * Factory used by 'Nic::Root' at session creation/destruction time
-	 */
-	static Ipxe::Driver_factory driver_factory;
+		Factory(Server::Entrypoint &ep) : ep(ep) { }
 
-	enum { STACK_SIZE = 2*sizeof(addr_t)*1024 };
-	static Cap_connection cap;
-	static Rpc_entrypoint ep(&cap, STACK_SIZE, "nic_ep");
+		Nic::Driver *create(Nic::Rx_buffer_alloc &alloc,
+							Nic::Driver_notification &notify)
+		{
+			Ipxe::Driver::instance = new (Genode::env()->heap()) Ipxe::Driver(ep, alloc, notify);
+			return Ipxe::Driver::instance;
+		}
 
-	static Nic::Root nic_root(&ep, env()->heap(), driver_factory);
-	env()->parent()->announce(ep.manage(&nic_root));
+		void destroy(Nic::Driver *)
+		{
+			Genode::destroy(Genode::env()->heap(), Ipxe::Driver::instance);
+			Ipxe::Driver::instance = 0;
+		}
+	} factory;
 
-/*
-    Genode::size_t           tx_buf_size = 64*1024;
-    Genode::size_t           rx_buf_size = 64*1024;
-	session("ram_quota=%zd, tx_buf_size=%zd, rx_buf_size=%zd",
-	        6*4096 + tx_buf_size + rx_buf_size,
-	        tx_buf_size, rx_buf_size))
-*/
-	nic_root.session("ram_quota=155648, tx_buf_size=65536, rx_buf_size=65536",
-	                 Affinity());
+	Nic::Root root;
 
-	sleep_forever();
-	return 0;
+	Main(Server::Entrypoint &ep)
+		:
+			ep(ep),
+			sliced_heap(Genode::env()->ram_session(), Genode::env()->rm_session()),
+			factory(ep),
+			root(&ep.rpc_ep(), &sliced_heap, factory)
+	{
+		PINF("--- iPXE NIC driver started ---\n");
+		Genode::env()->parent()->announce(ep.manage(root));
+
+		root.session("ram_quota=155648, tx_buf_size=65536, rx_buf_size=65536",
+	                 Genode::Affinity());
+	}
+};
+
+
+/************
+ ** Server **
+ ************/
+
+namespace Server {
+	char const *name()             { return "nic_drv_stat_ep";   }
+	size_t      stack_size()       { return 2*1024*sizeof(long); }
+	void construct(Entrypoint &ep) { static Main server(ep);     }
 }
-

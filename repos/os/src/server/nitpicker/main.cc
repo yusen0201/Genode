@@ -76,18 +76,18 @@ Framebuffer::Session *tmp_fb;
  ** Utilities **
  ***************/
 
-static void report_focus(Genode::Reporter &reporter, Session *focused_session)
+static void report_session(Genode::Reporter &reporter, Session *session)
 {
 	if (!reporter.is_enabled())
 		return;
 
 	Genode::Reporter::Xml_generator xml(reporter, [&] ()
 	{
-		if (focused_session) {
-			xml.attribute("label",  focused_session->label().string());
-			xml.attribute("domain", focused_session->domain_name().string());
+		if (session) {
+			xml.attribute("label",  session->label().string());
+			xml.attribute("domain", session->domain_name().string());
 
-			Color const color = focused_session->color();
+			Color const color = session->color();
 			char buf[32];
 			Genode::snprintf(buf, sizeof(buf), "#%02x%02x%02x",
 			                 color.r, color.g, color.b);
@@ -918,7 +918,7 @@ class Nitpicker::Session_component : public Genode::Rpc_object<Session>,
 			if (session)
 				session->release();
 
-			report_focus(_focus_reporter, session);
+			report_session(_focus_reporter, session);
 		}
 
 		void session_control(Label suffix, Session_control control) override
@@ -1045,7 +1045,7 @@ class Nitpicker::Root : public Genode::Root_component<Session_component>
 
 		void _upgrade_session(Session_component *s, const char *args)
 		{
-			size_t ram_quota = Arg_string::find_arg(args, "ram_quota").long_value(0);
+			size_t ram_quota = Arg_string::find_arg(args, "ram_quota").ulong_value(0);
 			s->upgrade_ram_quota(ram_quota);
 		}
 
@@ -1152,6 +1152,7 @@ struct Nitpicker::Main
 	Genode::Sliced_heap sliced_heap = { env()->ram_session(), env()->rm_session() };
 
 	Genode::Reporter pointer_reporter = { "pointer" };
+	Genode::Reporter hover_reporter   = { "hover" };
 	Genode::Reporter focus_reporter   = { "focus" };
 	Genode::Reporter xray_reporter    = { "xray" };
 
@@ -1226,15 +1227,16 @@ void Nitpicker::Main::handle_input(unsigned)
 
 	do {
 		Point       const old_pointer_pos     = user_state.pointer_pos();
+		::Session * const old_pointed_session = user_state.pointed_session();
 		::Session * const old_focused_session = user_state.Mode::focused_session();
 		bool        const old_kill_mode       = user_state.kill();
 		bool        const old_xray_mode       = user_state.xray();
 
 		/* handle batch of pending events */
-		if (input.is_pending())
-			import_input_events(ev_buf, input.flush(), user_state);
+		import_input_events(ev_buf, input.flush(), user_state);
 
 		Point       const new_pointer_pos     = user_state.pointer_pos();
+		::Session * const new_pointed_session = user_state.pointed_session();
 		::Session * const new_focused_session = user_state.Mode::focused_session();
 		bool        const new_kill_mode       = user_state.kill();
 		bool        const new_xray_mode       = user_state.xray();
@@ -1257,9 +1259,13 @@ void Nitpicker::Main::handle_input(unsigned)
 			});
 		}
 
+		/* report hover changes */
+		if (old_pointed_session != new_pointed_session)
+			report_session(hover_reporter, new_pointed_session);
+
 		/* report focus changes */
 		if (old_focused_session != new_focused_session)
-			report_focus(focus_reporter, new_focused_session);
+			report_session(focus_reporter, new_focused_session);
 
 		/* report kill mode */
 		if (old_kill_mode != new_kill_mode) {
@@ -1268,7 +1274,7 @@ void Nitpicker::Main::handle_input(unsigned)
 				report_kill_focus(focus_reporter);
 
 			if (!new_kill_mode)
-				report_focus(focus_reporter, new_focused_session);
+				report_session(focus_reporter, new_focused_session);
 		}
 
 		/*
@@ -1340,6 +1346,7 @@ void Nitpicker::Main::handle_config(unsigned)
 	} catch (...) { }
 
 	configure_reporter(pointer_reporter);
+	configure_reporter(hover_reporter);
 	configure_reporter(focus_reporter);
 	configure_reporter(xray_reporter);
 

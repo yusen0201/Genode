@@ -34,8 +34,8 @@ namespace Property_command {
 
 		struct Response
 		{
-			uint32_t const device_id;
-			uint32_t const state;
+			uint32_t const device_id = 0;
+			uint32_t const state     = 0;
 		};
 	};
 
@@ -57,8 +57,26 @@ namespace Property_command {
 
 		struct Response
 		{
-			uint32_t const device_id;
-			uint32_t const state;
+			uint32_t const device_id = 0;
+			uint32_t const state     = 0;
+		};
+	};
+
+	struct Get_clock_rate
+	{
+		static uint32_t opcode() { return 0x00030002; };
+
+		struct Request
+		{
+			uint32_t const clock_id;
+
+			Request(uint32_t clock_id) : clock_id(clock_id) { }
+		};
+
+		struct Response
+		{
+			uint32_t const clock_id = 0;
+			uint32_t const hz       = 0;
 		};
 	};
 

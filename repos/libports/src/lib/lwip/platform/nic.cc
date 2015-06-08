@@ -32,6 +32,13 @@ extern "C" {
 #include <nic/packet_allocator.h>
 #include <nic_session/connection.h>
 
+extern "C" {
+
+	static void  genode_netif_input(struct netif *netif);
+
+	void lwip_nic_link_state_changed(int state);
+}
+
 
 /*
  * Thread, that receives packets by the nic-session interface.
@@ -40,9 +47,33 @@ class Nic_receiver_thread : public Genode::Thread<8192>
 {
 	private:
 
+		typedef Nic::Packet_descriptor Packet_descriptor;
+
 		Nic::Connection  *_nic;       /* nic-session */
 		Packet_descriptor _rx_packet; /* actual packet received */
 		struct netif     *_netif;     /* LwIP network interface structure */
+
+		Genode::Signal_receiver  _sig_rec;
+
+		Genode::Signal_dispatcher<Nic_receiver_thread> _link_state_dispatcher;
+		Genode::Signal_dispatcher<Nic_receiver_thread> _rx_packet_avail_dispatcher;
+		Genode::Signal_dispatcher<Nic_receiver_thread> _rx_ready_to_ack_dispatcher;
+
+		void _handle_rx_packet_avail(unsigned)
+		{
+			while (_nic->rx()->packet_avail() && _nic->rx()->ready_to_ack()) {
+				_rx_packet = _nic->rx()->get_packet();
+				genode_netif_input(_netif);
+				_nic->rx()->acknowledge_packet(_rx_packet);
+			}
+		}
+
+		void _handle_rx_read_to_ack(unsigned) { _handle_rx_packet_avail(0); }
+
+		void _handle_link_state(unsigned)
+		{
+			lwip_nic_link_state_changed(_nic->link_state());
+		}
 
 		void _tx_ack(bool block = false)
 		{
@@ -57,7 +88,16 @@ class Nic_receiver_thread : public Genode::Thread<8192>
 	public:
 
 		Nic_receiver_thread(Nic::Connection *nic, struct netif *netif)
-		: Genode::Thread<8192>("nic-recv"), _nic(nic), _netif(netif) {}
+		:
+			Genode::Thread<8192>("nic-recv"), _nic(nic), _netif(netif),
+			_link_state_dispatcher(_sig_rec, *this, &Nic_receiver_thread::_handle_link_state),
+			_rx_packet_avail_dispatcher(_sig_rec, *this, &Nic_receiver_thread::_handle_rx_packet_avail),
+			_rx_ready_to_ack_dispatcher(_sig_rec, *this, &Nic_receiver_thread::_handle_rx_read_to_ack)
+		{
+			_nic->link_state_sigh(_link_state_dispatcher);
+			_nic->rx_channel()->sigh_packet_avail(_rx_packet_avail_dispatcher);
+			_nic->rx_channel()->sigh_ready_to_ack(_rx_ready_to_ack_dispatcher);
+		}
 
 		void entry();
 		Nic::Connection  *nic() { return _nic; };
@@ -93,9 +133,6 @@ class Nic_receiver_thread : public Genode::Thread<8192>
  */
 extern "C" {
 
-	static void  genode_netif_input(struct netif *netif);
-
-
 	/**
 	 * This function should do the actual transmission of the packet. The packet is
 	 * contained in the pbuf that is passed to the function. This pbuf
@@ -119,8 +156,8 @@ extern "C" {
 #if ETH_PAD_SIZE
 		pbuf_header(p, -ETH_PAD_SIZE); /* drop the padding word */
 #endif
-		Packet_descriptor tx_packet = th->alloc_tx_packet(p->tot_len);
-		char *tx_content            = th->content(tx_packet);
+		Nic::Packet_descriptor tx_packet = th->alloc_tx_packet(p->tot_len);
+		char *tx_content                 = th->content(tx_packet);
 
 		/*
 		 * Iterate through all pbufs and
@@ -154,11 +191,11 @@ extern "C" {
 	static struct pbuf *
 	low_level_input(struct netif *netif)
 	{
-		Nic_receiver_thread *th = reinterpret_cast<Nic_receiver_thread*>(netif->state);
-		Nic::Connection *nic    = th->nic();
-		Packet_descriptor rx_packet = th->rx_packet();
-		char *rx_content        = nic->rx()->packet_content(rx_packet);
-		u16_t len               = rx_packet.size();
+		Nic_receiver_thread   *th         = reinterpret_cast<Nic_receiver_thread*>(netif->state);
+		Nic::Connection       *nic        = th->nic();
+		Nic::Packet_descriptor rx_packet  = th->rx_packet();
+		char                  *rx_content = nic->rx()->packet_content(rx_packet);
+		u16_t                  len        = rx_packet.size();
 
 #if ETH_PAD_SIZE
 		len += ETH_PAD_SIZE; /* allow room for Ethernet padding */
@@ -190,8 +227,6 @@ extern "C" {
 			LINK_STATS_INC(link.drop);
 		}
 
-		/* Acknowledge the packet */
-		nic->rx()->acknowledge_packet(rx_packet);
 		return p;
 	}
 
@@ -293,11 +328,11 @@ void Nic_receiver_thread::entry()
 {
 	while(true)
 	{
-		/*
-		 * Block until we receive a packet,
-		 * then call input function.
-		 */
-		_rx_packet = _nic->rx()->get_packet();
-		genode_netif_input(_netif);
+		Genode::Signal sig = _sig_rec.wait_for_signal();
+		int num    = sig.num();
+
+		Genode::Signal_dispatcher_base *dispatcher;
+		dispatcher = dynamic_cast<Genode::Signal_dispatcher_base *>(sig.context());
+		dispatcher->dispatch(num);
 	}
 }

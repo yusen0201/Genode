@@ -16,9 +16,6 @@
 
 namespace Kernel
 {
-	Vm_ids * vm_ids() { return unmanaged_singleton<Vm_ids>(); }
-	Vm_pool * vm_pool() { return unmanaged_singleton<Vm_pool>(); }
-
 	/**
 	 * ARM's virtual interrupt controller cpu interface
 	 */
@@ -46,11 +43,12 @@ extern void *         _vt_vm_entry;
 extern void *         _vt_host_entry;
 extern Genode::addr_t _vt_vm_context_ptr;
 extern Genode::addr_t _vt_host_context_ptr;
+extern Genode::addr_t _mt_master_context_begin;
 
 
 struct Kernel::Vm_irq : Kernel::Irq
 {
-		Vm_irq(unsigned const irq) : Kernel::Irq(irq) {}
+		Vm_irq(unsigned const irq) : Kernel::Irq(irq, *cpu_pool()->executing_cpu()) {}
 
 	/**
 	 * A VM interrupt gets injected into the VM scheduled on the current CPU
@@ -62,7 +60,7 @@ struct Kernel::Vm_irq : Kernel::Irq
 		if (!vm)
 			PERR("VM timer interrupt while VM is not runnning!");
 		else
-			vm->inject_irq(_id());
+			vm->inject_irq(_irq_nr);
 	}
 };
 
@@ -181,10 +179,6 @@ struct Kernel::Virtual_timer
 
 void Kernel::prepare_hypervisor()
 {
-	Cpu * cpu = cpu_pool()->executing_cpu();
-	cpu->insert(&Virtual_timer::timer().irq);
-	cpu->insert(&Virtual_pic::pic().irq);
-
 	/* set hypervisor exception vector */
 	Cpu::hyp_exception_entry_at(&_vt_host_entry);
 
@@ -205,16 +199,37 @@ void Kernel::prepare_hypervisor()
 }
 
 
+using Vmid_allocator = Genode::Bit_allocator<256>;
+
+static Vmid_allocator &alloc()
+{
+	static Vmid_allocator * allocator = nullptr;
+	if (!allocator) {
+		allocator = unmanaged_singleton<Vmid_allocator>();
+
+		/* reserve VM ID 0 for the hypervisor */
+		unsigned id = allocator->alloc();
+		assert (id == 0);
+	}
+	return *allocator;
+}
+
+
 Kernel::Vm::Vm(void                   * const state,
                Kernel::Signal_context * const context,
                void                   * const table)
 :  Cpu_job(Cpu_priority::min, 0),
+  _id(alloc().alloc()),
   _state((Genode::Vm_state * const)state),
   _context(context),
-  _table(table) {
+  _table(table)
+{
 	affinity(cpu_pool()->primary_cpu());
 	Virtual_pic::pic().irq.enable();
 }
+
+
+Kernel::Vm::~Vm() { alloc().free(_id); }
 
 
 void Kernel::Vm::exception(unsigned const cpu_id)
@@ -224,6 +239,7 @@ void Kernel::Vm::exception(unsigned const cpu_id)
 	switch(_state->cpu_exception) {
 	case Genode::Cpu_state::INTERRUPT_REQUEST:
 	case Genode::Cpu_state::FAST_INTERRUPT_REQUEST:
+		_state->gic_irq = Genode::Board_base::VT_MAINTAINANCE_IRQ;
 		_interrupt(cpu_id);
 		break;
 	default:
@@ -241,7 +257,7 @@ void Kernel::Vm::proceed(unsigned const cpu_id)
 	/*
 	 * the following values have to be enforced by the hypervisor
 	 */
-	_state->vttbr = Cpu::Ttbr0::init((Genode::addr_t)_table, id());
+	_state->vttbr = Cpu::Ttbr0::init((Genode::addr_t)_table, _id);
 
 	/*
 	 * use the following report fields not needed for loading the context

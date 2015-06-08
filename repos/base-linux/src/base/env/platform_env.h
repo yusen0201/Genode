@@ -23,6 +23,7 @@
 
 /* Genode includes */
 #include <util/misc_math.h>
+#include <base/local_capability.h>
 #include <base/heap.h>
 #include <linux_cpu_session/client.h>
 
@@ -43,10 +44,10 @@ struct Genode::Expanding_cpu_session_client
 	Expanding_cpu_session_client(Genode::Capability<Linux_cpu_session> cap)
 	: Upgradeable_client<Genode::Linux_cpu_session_client>(cap) { }
 
-	Thread_capability create_thread(size_t, Name const &name, addr_t utcb)
+	Thread_capability create_thread(size_t weight, Name const &name, addr_t utcb)
 	{
 		return retry<Cpu_session::Out_of_metadata>(
-			[&] () { return Linux_cpu_session_client::create_thread(0, name, utcb); },
+			[&] () { return Linux_cpu_session_client::create_thread(weight, name, utcb); },
 			[&] () { upgrade_ram(8*1024); });
 	}
 };
@@ -307,10 +308,8 @@ namespace Genode {
 					 * as argument to 'Rm_session_mmap::attach'. It is not a
 					 * real capability.
 					 */
-					Dataspace_capability dataspace()
-					{
-						return Dataspace_capability::local_cap(this);
-					}
+					Dataspace_capability dataspace() {
+						return Local_capability<Dataspace>::local_cap(this); }
 			};
 
 		private:
@@ -354,6 +353,14 @@ namespace Genode {
 			Linux_cpu_session      *cpu_session()     { return &_cpu_session_client; }
 			Cpu_session_capability  cpu_session_cap() { return  _cpu_session_cap; }
 			Pd_session             *pd_session()      { return &_pd_session_client; }
+
+			/*
+			 * Support functions for implementing fork on Noux.
+			 *
+			 * Not supported on Linux.
+			 */
+			void reinit(Native_capability::Dst, long) { };
+			void reinit_main_thread(Rm_session_capability &) { };
 	};
 
 
@@ -412,7 +419,7 @@ namespace Genode {
 			 *
 			 * See the comment of '_fallback_sig_cap()' in 'env/env.cc'.
 			 */
-			constexpr static size_t  _emergency_ram_size() { return 4*1024; }
+			constexpr static size_t  _emergency_ram_size() { return 8*1024; }
 			Ram_dataspace_capability _emergency_ram_ds;
 
 
@@ -431,16 +438,6 @@ namespace Genode {
 			 * Destructor
 			 */
 			~Platform_env() { _parent().exit(0); }
-
-			/*
-			 * Support functions for implementing fork on Noux.
-			 *
-			 * Not supported on Linux.
-			 *
-			 * See the documentation in 'base/src/base/env/platform_env.h'
-			 */
-			void reinit(Native_capability::Dst, long);
-			void reinit_main_thread(Rm_session_capability &);
 
 
 			/*************************************

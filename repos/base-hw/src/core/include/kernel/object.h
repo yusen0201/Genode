@@ -1,11 +1,11 @@
 /*
- * \brief   Objects that are findable through unique IDs
- * \author  Martin Stein
+ * \brief   Kernel object identities and references
+ * \author  Stefan Kalkowski
  * \date    2012-11-30
  */
 
 /*
- * Copyright (C) 2012-2013 Genode Labs GmbH
+ * Copyright (C) 2012-2015 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU General Public License version 2.
@@ -16,221 +16,173 @@
 
 /* Genode includes */
 #include <util/avl_tree.h>
-#include <base/printf.h>
+#include <util/bit_allocator.h>
+#include <util/list.h>
 
 /* core includes */
-#include <assert.h>
+#include <kernel/interface.h>
+#include <kernel/kernel.h>
 
 namespace Kernel
 {
-	template <typename T> class Avl_tree : public Genode::Avl_tree<T> { };
-	template <typename T> class Avl_node : public Genode::Avl_node<T> { };
+	class Pd; /* forward declaration */
 
 	/**
-	 * Map unique sortable IDs to objects
-	 *
-	 * \param T  object type that inherits from Object_pool<T>::Item
+	 * Base class of all Kernel objects
 	 */
-	template <typename T>
-	class Object_pool;
-
-	/**
-	 * Manage allocation of a static set of IDs
-	 *
-	 * \param SIZE  amount of allocatable IDs
-	 */
-	template <unsigned SIZE>
-	class Id_allocator;
-
-	/**
-	 * Make all objects of a deriving class findable through unique IDs
-	 *
-	 * \param T              object type
-	 * \param MAX_INSTANCES  max amount of coincidently living objects
-	 * \param ID_ALLOC       accessor function of object-name allocator
-	 * \param POOL           accessor function of object pool
-	 *
-	 * FIXME: Most of the bother with template parameters regarding ID
-	 *        allocator and object pool is caused by the use of
-	 *        unsynchronized singletons. By avoiding the use of
-	 *        unsynchronized singletons one can at least remove
-	 *        ID_ALLOC_T.
-	 */
-	template <typename T, unsigned MAX_INSTANCES, typename ID_ALLOC_T,
-	          ID_ALLOC_T * (*ID_ALLOC)(), Kernel::Object_pool<T> * (* POOL)()>
-
 	class Object;
+
+	/**
+	 * An object identity helps to distinguish different capability owners
+	 * that reference a Kernel object
+	 */
+	class Object_identity;
+
+	/**
+	 * An object identity reference is the in-kernel representation
+	 * of a PD local capability. It references an object identity and is
+	 * associated with a protection domain.
+	 */
+	class Object_identity_reference;
+
+	/**
+	 * A tree of object identity references to retrieve the capabilities
+	 * of one PD fastly.
+	 */
+	class Object_identity_reference_tree;
+
+	using Object_identity_reference_list
+		= Genode::List<Object_identity_reference>;
+
+	/**
+	 * This class represents kernel object's identities including the
+	 * corresponding object identity reference for core
+	 */
+	template <typename T> class Core_object_identity;
+
+	/**
+	 * This class represents a kernel object, it's identity, and the
+	 * corresponding object identity reference for core
+	 */
+	template <typename T> class Core_object;
 }
 
-template <typename T>
-class Kernel::Object_pool
+
+struct Kernel::Object
 {
-	public:
-
-		/**
-		 * Enable a deriving class T to be inserted into an Object_pool<T>
-		 */
-		class Item;
-
-		/**
-		 * Insert 'object' into pool
-		 */
-		void insert(T * const object) { _tree.insert(object); }
-
-		/**
-		 * Remove 'object' from pool
-		 */
-		void remove(T * const object) { _tree.remove(object); }
-
-		/**
-		 * Return object with ID 'id', or 0 if such an object doesn't exist
-		 */
-		T * object(unsigned const id) const
-		{
-			Item * const root = _tree.first();
-			if (!root) { return 0; }
-			return static_cast<T *>(root->find(id));
-		}
-
-	private:
-
-		Avl_tree<Item> _tree;
+	virtual ~Object() { }
 };
 
-template <typename T>
-class Kernel::Object_pool<T>::Item : public Avl_node<Item>
-{
-	protected:
 
-		unsigned _id;
+class Kernel::Object_identity
+: public Kernel::Object_identity_reference_list
+{
+	private:
+
+		Object & _object;
 
 	public:
 
-		/**
-		 * Constructor
-		 */
-		Item(unsigned const id) : _id(id) { }
+		Object_identity(Object & object);
+		~Object_identity();
 
-		/**
-		 * Find entry with 'object_id' within this AVL subtree
-		 */
-		Item * find(unsigned const object_id)
-		{
-			if (object_id == id()) { return this; }
-			Item * const subtree = Avl_node<Item>::child(object_id > id());
-			if (!subtree) { return 0; }
-			return subtree->find(object_id);
-		}
+		template <typename KOBJECT>
+		KOBJECT * object() { return dynamic_cast<KOBJECT*>(&_object); }
+};
 
-		/**
-		 * ID of this object
-		 */
-		unsigned id() const { return _id; }
+
+class Kernel::Object_identity_reference
+: public Genode::Avl_node<Kernel::Object_identity_reference>,
+  public Genode::List<Kernel::Object_identity_reference>::Element
+{
+	private:
+
+		capid_t          _capid;
+		Object_identity *_identity;
+		Pd              &_pd;
+
+	public:
+
+		Object_identity_reference(Object_identity *oi, Pd &pd);
+		~Object_identity_reference();
+
+		/***************
+		 ** Accessors **
+		 ***************/
+
+		template <typename KOBJECT>
+		KOBJECT * object() {
+			return _identity ? _identity->object<KOBJECT>() : nullptr; }
+
+		Object_identity_reference * factory(void * dst, Pd &pd);
+
+		Pd &    pd()     { return _pd;    }
+		capid_t capid()  { return _capid; }
+
+		void invalidate();
 
 
 		/************************
-		 * 'Avl_node' interface *
+		 ** Avl_node interface **
 		 ************************/
 
-		bool higher(Item * i) const { return i->id() > id(); }
+		bool higher(Object_identity_reference * oir) const {
+			return oir->_capid > _capid; }
+
+
+		/**********************
+		 ** Lookup functions **
+		 **********************/
+
+		Object_identity_reference * find(Pd * pd);
+		Object_identity_reference * find(capid_t capid);
 };
 
-template <unsigned SIZE>
-class Kernel::Id_allocator
-{
-	private:
 
-		enum {
-			MIN = 1,
-			MAX = MIN + SIZE - 1
-		};
-
-		bool     _free[MAX + 1];
-		unsigned _free_id;
-
-		/**
-		 * Return wether 'id' is a valid ID
-		 */
-		bool _valid_id(unsigned const id) const
-		{
-			return id >= MIN && id <= MAX;
-		}
-
-	public:
-
-		/**
-		 * Constructor
-		 */
-		Id_allocator() : _free_id(MIN)
-		{
-			/* free all IDs */
-			for (unsigned i = MIN; i <= MAX; i++) { _free[i] = 1; }
-		}
-
-		/**
-		 * Allocate a free ID
-		 *
-		 * \return  ID that has been allocated by the call
-		 */
-		unsigned alloc()
-		{
-			/* FIXME: let userland donate RAM to avoid out of mem */
-			if (!_valid_id(_free_id)) {
-				PERR("failed to allocate ID");
-				while (1) { }
-			}
-			/* allocate _free_id */
-			_free[_free_id] = 0;
-			unsigned const id = _free_id;
-
-			/* update _free_id */
-			_free_id++;
-			for (; _free_id <= MAX && !_free[_free_id]; _free_id++) { }
-			return id;
-		}
-
-		/**
-		 * Free ID 'id'
-		 */
-		void free(unsigned const id)
-		{
-			assert(_valid_id(id));
-			_free[id] = 1;
-			if (id < _free_id) { _free_id = id; }
-		}
-};
-
-template <typename T, unsigned MAX_INSTANCES, typename ID_ALLOC_T,
-          ID_ALLOC_T * (* ID_ALLOC)(), Kernel::Object_pool<T> * (* POOL)()>
-
-class Kernel::Object : public Object_pool<T>::Item
+class Kernel::Object_identity_reference_tree
+: public Genode::Avl_tree<Kernel::Object_identity_reference>
 {
 	public:
 
-		typedef Object_pool<T> Pool;
+		Object_identity_reference * find(capid_t id);
 
-		/**
-		 * Map of unique IDs to objects of T
-		 */
-		static Pool * pool() { return POOL(); }
-
-	protected:
-
-		/**
-		 * Constructor
-		 */
-		Object() : Pool::Item(ID_ALLOC()->alloc())
+		template <typename KOBJECT>
+		KOBJECT * find(capid_t id)
 		{
-			POOL()->insert(static_cast<T *>(this));
+			Object_identity_reference * oir = find(id);
+			return (oir) ? oir->object<KOBJECT>() : nullptr;
 		}
+};
 
-		/**
-		 * Destructor
-		 */
-		~Object()
-		{
-			POOL()->remove(static_cast<T *>(this));
-			ID_ALLOC()->free(Pool::Item::id());
+
+template <typename T>
+class Kernel::Core_object_identity : public Object_identity,
+                                     public Object_identity_reference
+{
+	public:
+
+		Core_object_identity(T & object)
+		: Object_identity(object),
+		  Object_identity_reference(this, *core_pd()) { }
+
+		virtual void destroy() { this->~Object_identity(); }
+
+		capid_t core_capid() { return capid(); }
+};
+
+
+template <typename T>
+class Kernel::Core_object : public T, public Kernel::Core_object_identity<T>
+{
+	public:
+
+		template <typename... ARGS>
+		Core_object(ARGS &&... args)
+		: T(args...), Core_object_identity<T>(*static_cast<T*>(this)) { }
+
+		void destroy() {
+			Core_object_identity<T>::destroy();
+			this->~T();
 		}
 };
 

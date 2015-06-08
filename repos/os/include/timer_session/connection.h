@@ -17,64 +17,75 @@
 #include <timer_session/client.h>
 #include <base/connection.h>
 
-namespace Timer {
+namespace Timer { class Connection; }
 
-	class Connection : public Genode::Connection<Session>, public Session_client
-	{
-		private:
 
-			Lock                      _lock;
-			Signal_receiver           _sig_rec;
-			Signal_context            _default_sigh_ctx;
-			Signal_context_capability _default_sigh_cap;
-			Signal_context_capability _custom_sigh_cap;
+class Timer::Connection : public Genode::Connection<Session>, public Session_client
+{
+	private:
 
-		public:
+		Genode::Lock                      _lock;
+		Genode::Signal_receiver           _sig_rec;
+		Genode::Signal_context            _default_sigh_ctx;
+		Genode::Signal_context_capability _default_sigh_cap;
+		Genode::Signal_context_capability _custom_sigh_cap;
 
-			Connection()
-			:
-				Genode::Connection<Session>(session("ram_quota=8K")),
-				Session_client(cap()),
-				_default_sigh_cap(_sig_rec.manage(&_default_sigh_ctx))
-			{
-				/* register default signal handler */
-				Session_client::sigh(_default_sigh_cap);
-			}
+	public:
 
-			~Connection() { _sig_rec.dissolve(&_default_sigh_ctx); }
+		Connection()
+		:
+			Genode::Connection<Session>(session("ram_quota=8K")),
+			Session_client(cap()),
+			_default_sigh_cap(_sig_rec.manage(&_default_sigh_ctx))
+		{
+			/* register default signal handler */
+			Session_client::sigh(_default_sigh_cap);
+		}
 
+		~Connection() { _sig_rec.dissolve(&_default_sigh_ctx); }
+
+		/*
+		 * Intercept 'sigh' to keep track of customized signal handlers
+		 */
+		void sigh(Signal_context_capability sigh)
+		{
+			_custom_sigh_cap = sigh;
+			Session_client::sigh(_custom_sigh_cap);
+		}
+
+		void usleep(unsigned us)
+		{
 			/*
-			 * Intercept 'sigh' to keep track of customized signal handlers
+			 * Omit the interaction with the timer driver for the corner case
+			 * of not sleeping at all. This corner case may be triggered when
+			 * polling is combined with sleeping (as some device drivers do).
+			 * If we passed the sleep operation to the timer driver, the
+			 * timer would apply its policy about a minimum sleep time to
+			 * the sleep operation, which is not desired when polling.
 			 */
-			void sigh(Signal_context_capability sigh)
-			{
-				_custom_sigh_cap = sigh;
+			if (us == 0)
+				return;
+
+			/* serialize sleep calls issued by different threads */
+			Genode::Lock::Guard guard(_lock);
+
+			/* temporarily install to the default signal handler */
+			if (_custom_sigh_cap.valid())
+				Session_client::sigh(_default_sigh_cap);
+
+			/* trigger timeout at default signal handler */
+			trigger_once(us);
+			_sig_rec.wait_for_signal();
+
+			/* revert custom signal handler if registered */
+			if (_custom_sigh_cap.valid())
 				Session_client::sigh(_custom_sigh_cap);
-			}
+		}
 
-			void usleep(unsigned us)
-			{
-				/* serialize sleep calls issued by different threads */
-				Lock::Guard guard(_lock);
-
-				/* temporarily install to the default signal handler */
-				if (_custom_sigh_cap.valid())
-					Session_client::sigh(_default_sigh_cap);
-
-				/* trigger timeout at default signal handler */
-				trigger_once(us);
-				_sig_rec.wait_for_signal();
-
-				/* revert custom signal handler if registered */
-				if (_custom_sigh_cap.valid())
-					Session_client::sigh(_custom_sigh_cap);
-			}
-
-			void msleep(unsigned ms)
-			{
-				usleep(1000*ms);
-			}
-	};
-}
+		void msleep(unsigned ms)
+		{
+			usleep(1000*ms);
+		}
+};
 
 #endif /* _INCLUDE__TIMER_SESSION__CONNECTION_H_ */

@@ -61,7 +61,7 @@ Device drivers
 
 Device drivers usually reside in the 'src/drivers' subdirectory of source-code
 repositories. The most predominant repositories hosting device drivers are
-'os', 'linux_drivers', 'dde_ipxe', 'dde_linux'.
+'os', 'dde_ipxe', 'dde_linux'.
 
 
 Platform devices
@@ -73,8 +73,14 @@ Platform devices
   Implements the PCI-session interface using the PCI controller as found on
   x86 PC hardware. Using this interface, a client can probe for a particular
   device and request information about physical device resources (using the
-  'pci_device' interface). These information are subsequently used to request
-  respective IO_MEM, IRQ, and IO_PORT sessions at core.
+  'pci_device' interface). I/O resources for MMIO regions, I/O ports, and
+  interrupts can be requested by the provided PCI device abstraction.
+
+:'os/src/drivers/acpi':
+  On x86 platforms that use the APIC (namely Fiasco.OC, NOVA, and hw_x86_64)
+  this simple ACPI parser traverses the ACPI tables and updates interrupt line
+  information of PCI devices within the PCI config space. It uses the pci_drv as
+  a utility started as a child and exports its interface.
 
 
 UART devices
@@ -167,7 +173,6 @@ provided by the kernel, or a pseudo time source (busy):
 
 :'nova':      NOVA kernel semaphores as time source
 :'codezero':  busy time source
-:'okl4_arm':  busy time source
 :'okl4_x86':  PIT as time source
 :'foc':       IPC timeout as time source
 :'fiasco':    IPC timeout as time source
@@ -184,13 +189,10 @@ All audio-output drivers implement the audio session interface defined at
 :'os/src/drivers/audio_out/linux':
   Uses ALSA as back-end on the Linux base platform.
 
-:'dde_oss/src/drivers/oss':
-  Sound drivers for the most common PC sound hardware, ported from the
-  Open Sound System project.
-
-:'linux_drivers/src/drivers/audio_out':
-  Sound drivers for the most common PC sound hardware, ported from the Linux
-  kernel.
+:'dde_bsd/src/drivers/audio_out':
+  Sound drivers ported from OpenBSD. Currently, the repository
+  includes support for Intel HD Audio as well as for Ensoniq AudioPCI
+  (ES1370) compatible sound cards.
 
 
 Block drivers
@@ -198,9 +200,6 @@ Block drivers
 
 All block drivers implement the block-session interface defined at
 'os/include/block_session/'.
-
-:'os/src/drivers/atapi':
-  Driver for ATAPI CD-ROM devices on x86 PCs.
 
 :'os/src/drivers/sd_card/pl180':
   Driver for SD-cards connected via the PL180 device as found on the PBX-A9
@@ -212,13 +211,20 @@ All block drivers implement the block-session interface defined at
 :'os/src/drivers/sd_card/exynos5':
   Driver for SD-cards and eMMC connected to Exynos-5-based platforms.
 
-:'linux_drivers/src/drivers/usb':
+:'os/src/drivers/sd_card/imx53':
+  Driver for SD-cards connected to the Freescale i.MX53 platform like the
+  Quick Start Board or the USB armory device.
+
+:'os/src/drivers/sd_card/rpi':
+  Driver for SD-cards connected to the Raspberry Pi.
+
+:'dde_linux/src/drivers/usb':
   USB driver that makes USB storage devices available as block sessions.
   For an example of using this driver, refer to the run script at
-  'linux_drivers/run/usb_storage'.
+  'dde_linux/run/usb_storage'.
 
 :'os/src/drivers/ahci':
-  Driver for SATA disks on x86 PCs.
+  Driver for SATA disks and CD-ROMs on x86 PCs.
 
 
 Network interface drivers
@@ -239,8 +245,9 @@ defined at 'os/include/nic_session'.
   Device drivers ported from the iPXE project. Supported devices are Intel
   E1000 and pcnet32.
 
-:'linux_drivers/src/drivers/madwifi':
-  The MadWifi wireless stack ported from the Linux kernel.
+:'dde_linux/src/drivers/wifi':
+  The wifi_drv component is a port of the Linux mac802.11 stack, including the
+  iwlwifi driver. It enables the use of Intel Wireless 6xxx and 7xxx cards.
 
 :'dde_linux/src/drivers/usb':
   For the OMAP4 platform, the USB driver contains the networking driver.
@@ -324,10 +331,6 @@ Separate components:
   Provides each file contained in a tar file obtained via Genode's ROM session
   as separate ROM session.
 
-:'os/src/server/fs_rom':
-  Provides files stored in a file system as individual ROM sessions. Please
-  refer to 'os/src/server/fs_rom' for more information.
-
 :'os/src/server/iso9660':
   Provides each file of an ISO9660 file system accessed via a block session as
   separate ROM session.
@@ -398,6 +401,7 @@ Separate components:
   A ROM service that translates the 'File_system' session interface to the
   'ROM' session' interface. Each request for a ROM file is handled by looking
   up an equally named file on the file system.
+  Please refer to 'os/src/server/fs_rom' for more information.
 
 :'os/src/server/dynamic_rom':
   A simple ROM service that provides ROM modules that change in time according
@@ -457,9 +461,9 @@ Libraries:
 :'libports/lib/mk/stdcxx':
   Standard C++ library
 
-:'libports/lib/mk/gallium' + 'linux_drivers/lib/mk/gpu_i915_drv':
+:'libports/lib/mk/gallium':
   Translates the OpenGL API to a framebuffer session using the MESA OpenGL
-  stack and the Intel GEM GPU driver.
+  stack
 
 :'libports/lib/mk/pthread':
   Subset of the POSIX thread and semaphore API.
@@ -482,9 +486,6 @@ Libraries:
 
 :'libports/lib/mk/lua':
   Runtime for the Lua scripting language.
-
-:'qt4':
-  Qt4 framework, using nitpicker session and NIC session as back end.
 
 :'libports/lib/mk/qt5_*':
   Qt5 framework, using nitpicker session and NIC session as back end.
@@ -520,20 +521,17 @@ located in their respective directory.
   Example program for using OpenGL via the Gallium3D graphics stack.
 
 :'ports/src/app/arora':
-  Arora is a Qt4-based web browser using the Webkit engine.
+  Arora is a Qt-based web browser using the Webkit engine.
 
 :'ports/src/app/gdb_monitor':
   Application that allows the debugging of a process via GDB over a remote
   connection.
 
-:'qt4/src/app/qt_launchpad':
-  Graphical application starter implemented using Qt4.
+:'libports/src/app/qt5/qt_launchpad':
+  Graphical application starter implemented using Qt.
 
-:'qt4/src/app/examples/':
-  Several example applications that come with Qt4.
-
-:'libports/src/app/qt5':
-  Qt5 examples including qt_launchpad and qt_avplay.
+:'libports/src/app/qt5/examples/':
+  Several example applications that come with Qt.
 
 :'os/src/app/xvfb':
   Is a proxy application that enables the integration of a virtual X server

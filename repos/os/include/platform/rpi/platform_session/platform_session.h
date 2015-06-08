@@ -34,7 +34,7 @@ struct Platform::Session : Genode::Session
 	 *
 	 * The 'info' argument serves as both input and output parameter. As input,
 	 * it describes the desired properties of the framebuffer. In return, the
-	 * function delivers the values that were actually taken into effect.
+	 * method delivers the values that were actually taken into effect.
 	 */
 	virtual void setup_framebuffer(Framebuffer_info &info) = 0;
 
@@ -60,6 +60,13 @@ struct Platform::Session : Genode::Session
 	 */
 	virtual void power_state(Power, bool enable) = 0;
 
+	enum Clock { CLOCK_EMMC = 1 };
+
+	/**
+	 * Request clock rate
+	 */
+	virtual uint32_t clock_rate(Clock) = 0;
+
 
 	/*********************
 	 ** RPC declaration **
@@ -68,9 +75,10 @@ struct Platform::Session : Genode::Session
 	GENODE_RPC(Rpc_setup_framebuffer, void, setup_framebuffer, Framebuffer_info &);
 	GENODE_RPC(Rpc_get_power_state, bool, power_state, Power);
 	GENODE_RPC(Rpc_set_power_state, void, power_state, Power, bool);
+	GENODE_RPC(Rpc_get_clock_rate, uint32_t, clock_rate, Clock);
 
 	GENODE_RPC_INTERFACE(Rpc_setup_framebuffer, Rpc_set_power_state,
-	                     Rpc_get_power_state);
+	                     Rpc_get_power_state, Rpc_get_clock_rate);
 };
 
 #endif /* _INCLUDE__PLATFORM_SESSION__PLATFORM_SESSION_H_ */

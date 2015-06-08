@@ -73,18 +73,21 @@ Platform_thread::~Platform_thread()
 		Pager_capability cap = reinterpret_cap_cast<Pager_object>(object->Object_pool<Pager_object>::Entry::cap());
 		rm->remove_client(cap);
 	}
-	/* destroy object at the kernel */
-	Kernel::bin_thread(_id);
 }
+
+
+void Platform_thread::quota(size_t const quota) {
+	Kernel::thread_quota(kernel_object(), quota); }
 
 
 Platform_thread::Platform_thread(const char * const label,
                                  Native_utcb * utcb)
-: _pd(Kernel::core_pd()->platform_pd()),
-  _rm_client(0),
+: Kernel_object<Kernel::Thread>(true, Kernel::Cpu_priority::max, 0, _label),
+  _pd(Kernel::core_pd()->platform_pd()),
+  _rm_client(nullptr),
   _utcb_core_addr(utcb),
   _utcb_pd_addr(utcb),
-  _main_thread(0)
+  _main_thread(false)
 {
 	strncpy(_label, label, LABEL_MAX_LEN);
 
@@ -96,28 +99,18 @@ Platform_thread::Platform_thread(const char * const label,
 	}
 	map_local((addr_t)utcb_phys, (addr_t)_utcb_core_addr,
 	          sizeof(Native_utcb) / get_page_size());
-
-	/* set-up default start-info */
-	_utcb_core_addr->core_start_info()->init(Cpu::primary_id());
-
-	/* create kernel object */
-	constexpr unsigned prio = Kernel::Cpu_priority::max;
-	_id = Kernel::new_thread(_kernel_thread, prio, 0, _label);
-	if (!_id) {
-		PERR("failed to create kernel object");
-		throw Cpu_session::Thread_creation_failed();
-	}
 }
 
 
-Platform_thread::Platform_thread(size_t quota, const char * const label,
+Platform_thread::Platform_thread(size_t const quota,
+                                 const char * const label,
                                  unsigned const virt_prio,
                                  addr_t const utcb)
-:
-	_pd(nullptr),
-	_rm_client(0),
-	_utcb_pd_addr((Native_utcb *)utcb),
-	_main_thread(0)
+: Kernel_object<Kernel::Thread>(true, _priority(virt_prio), 0, _label),
+  _pd(nullptr),
+  _rm_client(nullptr),
+  _utcb_pd_addr((Native_utcb *)utcb),
+  _main_thread(false)
 {
 	strncpy(_label, label, LABEL_MAX_LEN);
 
@@ -135,16 +128,6 @@ Platform_thread::Platform_thread(size_t quota, const char * const label,
 		throw Cpu_session::Out_of_metadata();
 	}
 	_utcb_core_addr = (Native_utcb *)core_env()->rm_session()->attach(_utcb);
-
-	/* create kernel object */
-	constexpr unsigned max_prio = Kernel::Cpu_priority::max;
-	auto const phys_prio = Cpu_session::scale_priority(max_prio, virt_prio);
-	quota = _generic_to_platform_quota(quota);
-	_id = Kernel::new_thread(_kernel_thread, phys_prio, quota, _label);
-	if (!_id) {
-		PERR("failed to create kernel object");
-		throw Cpu_session::Thread_creation_failed();
-	}
 }
 
 
@@ -178,7 +161,7 @@ int Platform_thread::start(void * const ip, void * const sp)
 {
 	/* attach UTCB in case of a main thread */
 	if (_main_thread) {
-		_utcb_pd_addr = UTCB_MAIN_THREAD;
+		_utcb_pd_addr = utcb_main_thread();
 		if (!_rm_client) {
 			PERR("invalid RM client");
 			return -1;
@@ -193,23 +176,33 @@ int Platform_thread::start(void * const ip, void * const sp)
 	/* initialize thread registers */
 	typedef Kernel::Thread_reg_id Reg_id;
 	enum { WRITES = 2 };
-	addr_t * write_regs = (addr_t *)Thread_base::myself()->utcb()->base();
+	addr_t * write_regs = (addr_t*) Thread_base::myself()->utcb()->base();
 	write_regs[0] = Reg_id::IP;
 	write_regs[1] = Reg_id::SP;
 	addr_t values[] = { (addr_t)ip, (addr_t)sp };
-	if (Kernel::access_thread_regs(id(), 0, WRITES, values)) {
+	if (Kernel::access_thread_regs(kernel_object(), 0, WRITES, values)) {
 		PERR("failed to initialize thread registers");
 		return -1;
 	}
 
 	/* start executing new thread */
-	unsigned const cpu =
-		_location.valid() ? _location.xpos() : Cpu::primary_id();
-	_utcb_core_addr->start_info()->init(_id, _utcb);
-	if (Kernel::start_thread(_id, cpu, _pd->id(), _utcb_core_addr)) {
-		PERR("failed to start thread");
+	if (!_pd) {
+		PWRN("No protection domain associated!");
 		return -1;
 	}
+
+	unsigned const cpu =
+		_location.valid() ? _location.xpos() : Cpu::primary_id();
+
+	Native_utcb * utcb = Thread_base::myself()->utcb();
+
+	/* reset capability counter */
+	utcb->cap_cnt(0);
+	utcb->cap_add(_pd->parent().dst());
+	utcb->cap_add(_utcb.dst());
+	utcb->cap_add(_cap.dst());
+	Kernel::start_thread(kernel_object(), cpu, _pd->kernel_pd(),
+	                     _utcb_core_addr);
 	return 0;
 }
 
@@ -220,7 +213,8 @@ void Platform_thread::pager(Pager_object * const pager)
 	if (pager) {
 		unsigned const sc_id = pager->signal_context_id();
 		if (sc_id) {
-			if (!Kernel::route_thread_event(id(), Event_id::FAULT, sc_id)) {
+			if (!Kernel::route_thread_event(kernel_object(), Event_id::FAULT,
+			                                sc_id)) {
 				_rm_client = dynamic_cast<Rm_client *>(pager);
 				return;
 			}
@@ -228,7 +222,7 @@ void Platform_thread::pager(Pager_object * const pager)
 		PERR("failed to attach signal context to fault");
 		return;
 	} else {
-		if (!Kernel::route_thread_event(id(), Event_id::FAULT, 0)) {
+		if (!Kernel::route_thread_event(kernel_object(), Event_id::FAULT, 0)) {
 			_rm_client = 0;
 			return;
 		}
@@ -255,11 +249,12 @@ Thread_state Platform_thread::state()
 	static addr_t const * const src = cpu_state_regs();
 	static size_t const length = cpu_state_regs_length();
 	static size_t const size = length * sizeof(src[0]);
-	void  * dst = Thread_base::myself()->utcb()->base();
+	void  * dst = (void*)Thread_base::myself()->utcb()->base();
 	Genode::memcpy(dst, src, size);
 	Thread_state thread_state;
 	Cpu_state * const cpu_state = static_cast<Cpu_state *>(&thread_state);
-	if (Kernel::access_thread_regs(id(), length, 0, (addr_t *)cpu_state)) {
+	if (Kernel::access_thread_regs(kernel_object(), length, 0,
+	                               (addr_t *)cpu_state)) {
 		throw Cpu_session::State_access_failed();
 	}
 	return thread_state;
@@ -271,10 +266,11 @@ void Platform_thread::state(Thread_state thread_state)
 	static addr_t const * const src = cpu_state_regs();
 	static size_t const length = cpu_state_regs_length();
 	static size_t const size = length * sizeof(src[0]);
-	void  * dst = Thread_base::myself()->utcb()->base();
+	void  * dst = (void*)Thread_base::myself()->utcb()->base();
 	Genode::memcpy(dst, src, size);
 	Cpu_state * const cpu_state = static_cast<Cpu_state *>(&thread_state);
-	if (Kernel::access_thread_regs(id(), 0, length, (addr_t *)cpu_state)) {
+	if (Kernel::access_thread_regs(kernel_object(), 0, length,
+	                               (addr_t *)cpu_state)) {
 		throw Cpu_session::State_access_failed();
 	}
 };

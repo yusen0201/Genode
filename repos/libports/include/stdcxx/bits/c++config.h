@@ -59,6 +59,14 @@
 # endif
 #endif
 
+#ifndef _GLIBCXX_THROW_OR_ABORT
+# if __EXCEPTIONS
+#  define _GLIBCXX_THROW_OR_ABORT(_EXC) (throw (_EXC))
+# else
+#  define _GLIBCXX_THROW_OR_ABORT(_EXC) (__builtin_abort())
+# endif
+#endif
+
 // Macros for visibility attributes.
 //   _GLIBCXX_HAVE_ATTRIBUTE_VISIBILITY
 //   _GLIBCXX_VISIBILITY
@@ -83,6 +91,11 @@
 # define _GLIBCXX_DEPRECATED __attribute__ ((__deprecated__))
 #else
 # define _GLIBCXX_DEPRECATED
+#endif
+
+// Macros for ABI tag attributes.
+#ifndef _GLIBCXX_ABI_TAG_CXX11
+# define _GLIBCXX_ABI_TAG_CXX11 __attribute ((__abi_tag__ ("cxx11")))
 #endif
 
 #if __cplusplus
@@ -1210,12 +1223,12 @@ namespace std
 
 /* Define if C99 functions or macros from <wchar.h>, <math.h>, <complex.h>,
    <stdio.h>, and <stdlib.h> can be used or exposed. */
-/* #undef _GLIBCXX_USE_C99 */
+#define _GLIBCXX_USE_C99 1
 
 /* Define if C99 functions in <complex.h> should be used in <complex>. Using
    compiler builtins for these functions requires corresponding C99 library
    functions to be present. */
-/* #undef _GLIBCXX_USE_C99_COMPLEX */
+#define _GLIBCXX_USE_C99_COMPLEX 1
 
 /* Define if C99 functions in <complex.h> should be used in <tr1/complex>.
    Using compiler builtins for these functions requires corresponding C99
@@ -1248,7 +1261,7 @@ namespace std
 
 /* Define if C99 types in <stdint.h> should be imported in <tr1/cstdint> in
    namespace std::tr1. */
-#define _GLIBCXX_USE_C99_STDINT_TR1 1
+/* #undef GLIBCXX_USE_C99_STDINT_TR1 */
 
 /* Defined if clock_gettime has monotonic clock support. */
 /* #undef _GLIBCXX_USE_CLOCK_MONOTONIC */

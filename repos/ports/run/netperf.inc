@@ -14,7 +14,9 @@ if {[have_spec hw_odroid_xu]} {
 	exit 0
 }
 
-set use_usb_driver      [expr [have_spec omap4] || [have_spec platform_arndale] || [have_spec platform_rpi]]
+if {![info exists use_usb_driver]} {
+	set use_usb_driver      [expr [have_spec omap4] || [have_spec platform_arndale] || [have_spec platform_rpi]]
+}
 set use_nic_driver      [expr !$use_usb_driver && ![have_spec platform_imx53] && !$use_wifi_driver]
 set use_platform_driver [expr [have_spec platform_arndale] || [have_spec platform_imx53] || [have_spec platform_rpi]]
 
@@ -232,9 +234,14 @@ append_if [have_spec acpi] config {
 			<service name="PCI"/>
 			<service name="IRQ" />
 		</provides>
+		<config>
+			<policy label="acpi_drv"> <pci class="ALL"/> </policy>
+			<policy label="nic_drv"> <pci class="ETHERNET"/> </policy>
+			<policy label="wifi_drv"> <pci class="WIFI"/> </policy>
+			<policy label="usb_drv"> <pci class="USB"/> </policy>
+		</config>
 		<route>
-			<service name="PCI"> <any-child /> </service>
-			<any-service> <parent/> <any-child /> </any-service>
+			<any-service> <parent/> </any-service>
 		</route>
 	</start>}
 
@@ -242,6 +249,11 @@ append_if [expr ![have_spec acpi] && [have_spec pci]] config {
 	<start name="pci_drv">
 		<resource name="RAM" quantum="3M" constrain_phys="yes"/>
 		<provides> <service name="PCI"/> </provides>
+		<config>
+			<policy label="nic_drv"> <pci class="ETHERNET"/> </policy>
+			<policy label="wifi_drv"> <pci class="WIFI"/> </policy>
+			<policy label="usb_drv"> <pci class="USB"/> </policy>
+		</config>
 	</start> }
 
 append config {
@@ -324,7 +336,12 @@ append_if [have_spec lan9118] qemu_args " -net nic,model=lan9118 "
 
 append qemu_args " -net user -redir tcp:12865::12865 -redir tcp:49153::49153 "
 
-run_genode_until {.*and family AF_INET.*} 30
+if {[have_spec linux]} {
+	run_genode_until {.*family AF_INET.*\n} 60
+} else {
+	run_genode_until $ip_match_string 60
+}
+
 set serial_id [output_spawn_id]
 
 set force_ports ""
@@ -337,6 +354,9 @@ if {[have_include "power_on/qemu"]} {
 	regexp $ip_match_string $output all ip_addr
 	puts ""
 }
+
+# give the TCP/IP stack some time to settle down
+sleep 3
 
 # start netperf client connecting to netperf server running native on Genode
 foreach netperf_test $netperf_tests {

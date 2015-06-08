@@ -251,7 +251,7 @@ struct Dma_object : Memory_object_base
  ** Linux interface **
  *********************/
 
-static Pci::Device_capability pci_device_cap;
+extern "C" { Pci::Device_capability pci_device_cap; }
 static Pci::Connection *pci()
 {
 	static Pci::Connection _pci;
@@ -293,21 +293,16 @@ extern "C" int pci_register_driver(struct pci_driver *drv)
 		while (cap.valid()) {
 			Pci_driver *pci_drv = 0;
 			try {
-				/*
-				 * Assign cap already here, since for probing already DMA
-				 * buffer is required and allocated by
-				 * Genode::Mem::alloc_dma_buffer(size_t size)
-				 */
 				pci_device_cap = cap;
-
-				/* trigger that the device get be assigned to the wifi driver */
-				pci()->config_extended(cap);
 
 				/* probe device */
 				pci_drv = new (env()->heap()) Pci_driver(drv, cap, id);
 				pci()->on_destruction(Pci::Connection::KEEP_OPEN);
 				found++;
 
+			} catch (Pci::Device::Quota_exceeded) {
+				Genode::env()->parent()->upgrade(pci()->cap(), "ram_quota=4096");
+				continue;
 			} catch (...) {
 				destroy(env()->heap(), pci_drv);
 				pci_drv = 0;
@@ -356,17 +351,21 @@ extern "C" void *pci_ioremap_bar(struct pci_dev *dev, int bar)
 {
 	using namespace Genode;
 
+	if (bar >= DEVICE_COUNT_RESOURCE || bar < 0)
+		return 0;
+
 	size_t start = pci_resource_start(dev, bar);
 	size_t size  = pci_resource_len(dev, bar);
 
 	if (!start)
 		return 0;
 
-	Io_mem_connection *io_mem;
+	Io_mem_session_client *io_mem;
 	try {
-		io_mem = new (env()->heap()) Io_mem_connection(start, size, 0);
+		Pci::Device_client device(pci_device_cap);
+		io_mem = new (env()->heap()) Io_mem_session_client(device.io_mem(device.phys_bar_to_virt(bar)));
 	} catch (...) {
-		PERR("Failed to request I/O memory: [%zx,%lx)", start, start + size);
+		PERR("Failed to request I/O memory: [%zx,%zx)", start, start + size);
 		return 0;
 	}
 
@@ -449,7 +448,7 @@ extern "C" int pcie_capability_read_word(struct pci_dev *pdev, int pos, u16 *val
 void Ram_object::free() { Genode::env()->ram_session()->free(ram_cap()); }
 
 
-void Dma_object::free() { pci()->free_dma_buffer(pci_device_cap, ram_cap()); }
+void Dma_object::free() { pci()->free_dma_buffer(ram_cap()); }
 
 
 Genode::Ram_dataspace_capability
@@ -463,7 +462,12 @@ Lx::backend_alloc(Genode::addr_t size, Genode::Cache_attribute cached)
 		cap = env()->ram_session()->alloc(size);
 		o = new (env()->heap())	Ram_object(cap);
 	} else {
-		cap = pci()->alloc_dma_buffer(pci_device_cap, size);
+		/* transfer quota to pci driver, otherwise it will give us a exception */
+		char buf[32];
+		Genode::snprintf(buf, sizeof(buf), "ram_quota=%ld", size);
+		Genode::env()->parent()->upgrade(pci()->cap(), buf);
+
+		cap = pci()->alloc_dma_buffer(size);
 		o = new (env()->heap()) Dma_object(cap);
 	}
 

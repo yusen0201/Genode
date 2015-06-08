@@ -17,187 +17,45 @@
  */
 
 /*
- * Copyright (C) 2011-2013 Genode Labs GmbH
+ * Copyright (C) 2011-2015 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU General Public License version 2.
  */
 
 /* core includes */
+#include <kernel/lock.h>
 #include <kernel/pd.h>
+#include <kernel/kernel.h>
+#include <kernel/test.h>
 #include <platform_pd.h>
 #include <trustzone.h>
 #include <timer.h>
 #include <pic.h>
-#include <map_local.h>
+#include <platform_thread.h>
 
 /* base includes */
 #include <unmanaged_singleton.h>
 #include <base/native_types.h>
 
 /* base-hw includes */
-#include <kernel/irq.h>
 #include <kernel/perf_counter.h>
+
 using namespace Kernel;
 
-extern Genode::Native_thread_id _main_thread_id;
-extern "C" void CORE_MAIN();
 extern void * _start_secondary_cpus;
-extern int _prog_img_beg;
-extern int _prog_img_end;
 
-Genode::Native_utcb * _main_thread_utcb;
+static_assert(sizeof(Genode::sizet_arithm_t) >= 2 * sizeof(size_t),
+	"Bad result type for size_t arithmetics.");
 
-namespace Kernel
-{
-	/* import Genode types */
-	typedef Genode::Core_thread_id Core_thread_id;
-
-	Pd_ids * pd_ids() { return unmanaged_singleton<Pd_ids>(); }
-	Thread_ids * thread_ids() { return unmanaged_singleton<Thread_ids>(); }
-	Signal_context_ids * signal_context_ids() { return unmanaged_singleton<Signal_context_ids>(); }
-	Signal_receiver_ids * signal_receiver_ids() { return unmanaged_singleton<Signal_receiver_ids>(); }
-
-	Pd_pool * pd_pool() { return unmanaged_singleton<Pd_pool>(); }
-	Thread_pool * thread_pool() { return unmanaged_singleton<Thread_pool>(); }
-	Signal_context_pool * signal_context_pool() { return unmanaged_singleton<Signal_context_pool>(); }
-	Signal_receiver_pool * signal_receiver_pool() { return unmanaged_singleton<Signal_receiver_pool>(); }
-
-	/**
-	 * Hook that enables automated testing of kernel internals
-	 */
-	void test();
-
-	/**
-	 * Static kernel PD that describes core
-	 */
-	Pd * core_pd()
-	{
-		typedef Early_translations_slab      Slab;
-		typedef Early_translations_allocator Allocator;
-		typedef Genode::Translation_table    Table;
-
-		constexpr addr_t table_align = 1 << Table::ALIGNM_LOG2;
-
-		struct Core_pd : Platform_pd, Pd
-		{
-			/**
-			 * Establish initial one-to-one mappings for core/kernel.
-			 * This function avoids to take the core-pd's translation table
-			 * lock in contrast to normal translation insertions to
-			 * circumvent strex/ldrex problems in early bootstrap code
-			 * on some ARM SoCs.
-			 *
-			 * \param start   physical/virtual start address of area
-			 * \param end     physical/virtual end address of area
-			 * \param io_mem  true if it should be marked as device memory
-			 */
-			void map(addr_t start, addr_t end, bool io_mem)
-			{
-				using namespace Genode;
-
-				Translation_table *tt = Platform_pd::translation_table();
-				const Page_flags flags =
-					Page_flags::apply_mapping(true, io_mem ? UNCACHED : CACHED,
-					                          io_mem);
-
-				start = trunc_page(start);
-				size_t size  = round_page(end) - start;
-
-				try {
-					tt->insert_translation(start, start, size, flags, page_slab());
-				} catch(Page_slab::Out_of_slabs) {
-					PERR("Not enough page slabs");
-				} catch(Allocator::Out_of_memory) {
-					PERR("Translation table needs to much RAM");
-				} catch(...) {
-					PERR("Invalid mapping %p -> %p (%zx)", (void*)start,
-					     (void*)start, size);
-				}
-			}
-
-			/**
-			 * Constructor
-			 */
-			Core_pd(Table * const table, Slab * const slab)
-			: Platform_pd(table, slab), Pd(table, this)
-			{
-				using namespace Genode;
-
-				Platform_pd::_id = Pd::id();
-
-				/* map exception vector for core */
-				Kernel::mtc()->map(table, slab);
-
-				/* map core's program image */
-				map((addr_t)&_prog_img_beg, (addr_t)&_prog_img_end, false);
-
-				/* map core's mmio regions */
-				Native_region * r = Platform::_core_only_mmio_regions(0);
-				for (unsigned i = 0; r;
-				     r = Platform::_core_only_mmio_regions(++i))
-					map(r->base, r->base + r->size, true);
-			}
-		};
-
-		Allocator * const alloc = unmanaged_singleton<Allocator>();
-		Table     * const table = unmanaged_singleton<Table, table_align>();
-		Slab      * const slab  = unmanaged_singleton<Slab, Slab::ALIGN>(alloc);
-		return unmanaged_singleton<Core_pd>(table, slab);
-	}
-
-	/**
-	 * Return wether interrupt 'irq' is private to the kernel
-	 */
-	bool private_interrupt(unsigned const irq)
-	{
-		for (unsigned i = 0; i < NR_OF_CPUS; i++)
-			if (irq == Timer::interrupt_id(i)) return true;
-		if (irq == Pic::IPI) return true;
-		return false;
-	}
+Lock & Kernel::data_lock() { return *unmanaged_singleton<Kernel::Lock>(); }
 
 
-	/**
-	 * Get attributes of the mode transition region in every PD
-	 */
-	addr_t mode_transition_base() { return mtc()->VIRT_BASE; }
-	size_t mode_transition_size() { return mtc()->SIZE; }
-
-	/**
-	 * Get attributes of the kernel objects
-	 */
-	size_t thread_size()          { return sizeof(Thread); }
-	size_t signal_context_size()  { return sizeof(Signal_context); }
-	size_t signal_receiver_size() { return sizeof(Signal_receiver); }
-	unsigned pd_alignm_log2() { return Genode::Translation_table::ALIGNM_LOG2; }
-	size_t pd_size() { return sizeof(Genode::Translation_table) + sizeof(Pd); }
-
-	enum { STACK_SIZE = 64 * 1024 };
-
-	/**
-	 * Return lock that guards all kernel data against concurrent access
-	 */
-	Lock & data_lock()
-	{
-		static Lock s;
-		return s;
-	}
-
-	addr_t   core_tt_base;
-	unsigned core_pd_id;
-}
+Pd * Kernel::core_pd() {
+	return unmanaged_singleton<Genode::Core_platform_pd>()->kernel_pd(); }
 
 
 Pic * Kernel::pic() { return unmanaged_singleton<Pic>(); }
-
-
-/**
- * Enable kernel-entry assembly to get an exclusive stack for every CPU
- */
-unsigned kernel_stack_size = Kernel::STACK_SIZE;
-char     kernel_stack[NR_OF_CPUS][Kernel::STACK_SIZE]
-         __attribute__((aligned(16)));
 
 
 /**
@@ -212,8 +70,7 @@ extern "C" void init_kernel_up()
 	 */
 
 	/* calculate in advance as needed later when data writes aren't allowed */
-	core_tt_base = (addr_t) core_pd()->translation_table();
-	core_pd_id   = core_pd()->id();
+	core_pd();
 
 	/* initialize all CPU objects */
 	cpu_pool();
@@ -231,35 +88,7 @@ extern "C" void init_kernel_up()
  */
 void init_kernel_mp_primary()
 {
-	/* get stack memory that fullfills the constraints for core stacks */
-	enum {
-		STACK_ALIGNM = 1 << Genode::CORE_STACK_ALIGNM_LOG2,
-		STACK_SIZE   = DEFAULT_STACK_SIZE,
-	};
-	static_assert(STACK_SIZE <= STACK_ALIGNM - sizeof(Core_thread_id),
-	              "stack size does not fit stack alignment of core");
-	static char s[STACK_SIZE] __attribute__((aligned(STACK_ALIGNM)));
-
-	/* provide thread ident at the aligned base of the stack */
-	*(Core_thread_id *)s = 0;
-
-	/* start thread with stack pointer at the top of stack */
-	static Native_utcb utcb;
-	static Thread t(Cpu_priority::max, 0, "core");
-	_main_thread_id = t.id();
-	_main_thread_utcb = &utcb;
-	_main_thread_utcb->start_info()->init(t.id(), Genode::Native_capability());
-	t.ip = (addr_t)CORE_MAIN;;
-	t.sp = (addr_t)s + STACK_SIZE;
-	t.init(cpu_pool()->primary_cpu(), core_pd(), &utcb, 1);
-
-	/* initialize user interrupt objects */
-	static Genode::uint8_t _irqs[Pic::NR_OF_IRQ * sizeof(User_irq)];
-	for (unsigned i = 0; i < Pic::NR_OF_IRQ; i++) {
-		if (private_interrupt(i)) { continue; }
-		new (&_irqs[i * sizeof(User_irq)]) User_irq(i);
-	}
-	/* kernel initialization finished */
+	Core_thread::singleton();
 	Genode::printf("kernel initialized\n");
 	test();
 }
@@ -288,7 +117,7 @@ extern "C" void init_kernel_mp()
 	Cpu::init_phys_kernel();
 
 	/* switch to core address space */
-	Cpu::init_virt_kernel(core_tt_base, core_pd_id);
+	Cpu::init_virt_kernel(core_pd());
 
 	/*
 	 * Now it's safe to use 'cmpxchg'
@@ -324,20 +153,8 @@ extern "C" void init_kernel_mp()
 }
 
 
-/**
- * Main routine of every kernel pass
- */
 extern "C" void kernel()
 {
 	data_lock().lock();
 	cpu_pool()->cpu(Cpu::executing_id())->exception();
-}
-
-
-Kernel::Cpu_context::Cpu_context(Genode::Translation_table * const table)
-{
-	_init(STACK_SIZE, (addr_t)table);
-	sp = (addr_t)kernel_stack;
-	ip = (addr_t)kernel;
-	core_pd()->admit(this);
 }

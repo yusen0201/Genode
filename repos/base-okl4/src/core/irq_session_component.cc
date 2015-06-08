@@ -12,10 +12,13 @@
  * under the terms of the GNU General Public License version 2.
  */
 
-#include <irq_proxy.h>
+/* Genode includes */
+#include <base/printf.h>
+#include <util/arg_string.h>
 
 /* core includes */
 #include <irq_root.h>
+#include <irq_session_component.h>
 
 /* OKL4 includes */
 namespace Okl4 { extern "C" {
@@ -30,10 +33,8 @@ using namespace Okl4;
 using namespace Genode;
 
 
-/**
- * Proxy class with generic thread
- */
-typedef Irq_proxy<Thread<0x1000> > Proxy;
+/* bit to use for IRQ notifications */
+enum { IRQ_NOTIFY_BIT = 13 };
 
 
 /* XXX move this functionality to a central place instead of duplicating it */
@@ -45,133 +46,133 @@ static inline Okl4::L4_ThreadId_t thread_get_my_global_id()
 }
 
 
-/**
- * Platform-specific proxy code
- */
-class Irq_proxy_component : public Proxy
+bool Irq_object::_associate()
 {
-	protected:
+	/* allow roottask (ourself) to handle the interrupt */
+	L4_LoadMR(0, _irq);
+	int ret = L4_AllowInterruptControl(L4_rootspace);
+	if (ret != 1) {
+		PERR("L4_AllowInterruptControl returned %d, error code=%ld\n",
+		     ret, L4_ErrorCode());
+		return false;
+	}
 
-		bool _associate()
-		{
-			/* allow roottask (ourself) to handle the interrupt */
-			L4_LoadMR(0, _irq_number);
-			int ret = L4_AllowInterruptControl(L4_rootspace);
-			if (ret != 1) {
-				PERR("L4_AllowInterruptControl returned %d, error code=%ld\n",
-				     ret, L4_ErrorCode());
-				return false;
-			}
+	/*
+	 * Note: 'L4_Myself()' does not work for the thread argument of
+	 *       'L4_RegisterInterrupt'. We have to specify our global ID.
+	 */
+	L4_LoadMR(0, _irq);
+	ret = L4_RegisterInterrupt(thread_get_my_global_id(), IRQ_NOTIFY_BIT, 0, 0);
+	if (ret != 1) {
+		PERR("L4_RegisterInterrupt returned %d, error code=%ld\n",
+		     ret, L4_ErrorCode());
+		return false;
+	}
 
-			/* bit to use for IRQ notifications */
-			enum { IRQ_NOTIFY_BIT = 13 };
+	return true;
+}
 
-			/*
-			 * Note: 'L4_Myself()' does not work for the thread argument of
-			 *       'L4_RegisterInterrupt'. We have to specify our global ID.
-			 */
-			L4_LoadMR(0, _irq_number);
-			ret = L4_RegisterInterrupt(thread_get_my_global_id(), IRQ_NOTIFY_BIT, 0, 0);
-			if (ret != 1) {
-				PERR("L4_RegisterInterrupt returned %d, error code=%ld\n",
-				     ret, L4_ErrorCode());
-				return false;
-			}
 
-			/* prepare ourself to receive asynchronous IRQ notifications */
-			L4_Set_NotifyMask(1 << IRQ_NOTIFY_BIT);
-			L4_Accept(L4_NotifyMsgAcceptor);
+void Irq_object::_wait_for_irq()
+{
+	/* prepare ourself to receive asynchronous IRQ notifications */
+	L4_Set_NotifyMask(1 << IRQ_NOTIFY_BIT);
+	L4_Accept(L4_NotifyMsgAcceptor);
 
-			return true;
-		}
+	/* wait for asynchronous interrupt notification */
+	L4_ThreadId_t partner = L4_nilthread;
+	L4_ReplyWait(partner, &partner);
+}
 
-		void _wait_for_irq()
-		{
-			/* wait for asynchronous interrupt notification */
-			L4_ThreadId_t partner = L4_nilthread;
-			L4_ReplyWait(partner, &partner);
-		}
 
-		void _ack_irq()
-		{
-			L4_LoadMR(0, _irq_number);
-			L4_AcknowledgeInterrupt(0, 0);
-		}
+void Irq_object::start()
+{
+	::Thread_base::start();
+	_sync_bootup.lock();
+}
 
-	public:
 
-		Irq_proxy_component(long irq_number) : Irq_proxy(irq_number)
-		{
-			_start();
-		}
-};
+void Irq_object::entry()
+{
+	if (!_associate())
+		PERR("Could not associate with IRQ 0x%x", _irq);
+
+	/* thread is up and ready */
+	_sync_bootup.unlock();
+
+	/* wait for first ack_irq */
+	_sync_ack.lock();
+
+	while (true) {
+
+		L4_LoadMR(0, _irq);
+		L4_AcknowledgeInterrupt(0, 0);
+
+		_wait_for_irq();
+
+		if (!_sig_cap.valid())
+			continue;
+
+		Genode::Signal_transmitter(_sig_cap).submit(1);
+
+		_sync_ack.lock();
+	}
+}
+
+
+Irq_object::Irq_object(unsigned irq)
+:
+	Thread<4096>("irq"),
+	_sync_ack(Lock::LOCKED), _sync_bootup(Lock::LOCKED),
+	_irq(irq)
+{ }
 
 
 /***************************
  ** IRQ session component **
  ***************************/
 
-bool Irq_session_component::Irq_control_component::associate_to_irq(unsigned irq)
-{
-	return true;
-}
 
-
-void Irq_session_component::wait_for_irq()
-{
-	/* block at interrupt proxy */
-	Proxy *p = Proxy::get_irq_proxy<Irq_proxy_component>(_irq_number);
-	if (!p) {
-		PERR("Expected to find IRQ proxy for IRQ %02x", _irq_number);
-		return;
-	}
-
-	p->wait_for_irq();
-
-	/* interrupt ocurred and proxy woke us up */
-}
-
-
-Irq_session_component::Irq_session_component(Cap_session     *cap_session,
-                                             Range_allocator *irq_alloc,
+Irq_session_component::Irq_session_component(Range_allocator *irq_alloc,
                                              const char      *args)
 :
+	_irq_number(Arg_string::find_arg(args, "irq_number").long_value(-1)),
 	_irq_alloc(irq_alloc),
-	_ep(cap_session, STACK_SIZE, "irqctrl"),
-	_irq_attached(false),
-	_control_client(Capability<Irq_session_component::Irq_control>())
+	_irq_object(_irq_number)
 {
-	/*
-	 * XXX Removed irq_shared argument as this is the default now. If we need
-	 * exclusive later on, we should add this as new argument.
-	 */
+	long msi = Arg_string::find_arg(args, "device_config_phys").long_value(0);
+	if (msi)
+		throw Root::Unavailable();
 
-	long irq_number = Arg_string::find_arg(args, "irq_number").long_value(-1);
-	if (irq_number == -1) {
-		PERR("invalid IRQ number requested");
-
+	if (!irq_alloc || irq_alloc->alloc_addr(1, _irq_number).is_error()) {
+		PERR("Unavailable IRQ 0x%x requested", _irq_number);
 		throw Root::Unavailable();
 	}
 
-	/* check if IRQ thread was started before */
-	Proxy *irq_proxy = Proxy::get_irq_proxy<Irq_proxy_component>(irq_number, irq_alloc);
-	if (!irq_proxy) {
-		PERR("unavailable IRQ %lx requested", irq_number);
-
-		throw Root::Unavailable();
-	}
-
-	irq_proxy->add_sharer();
-	_irq_number = irq_number;
-
-	/* initialize capability */
-	_irq_cap = _ep.manage(this);
+	_irq_object.start();
 }
 
 
 Irq_session_component::~Irq_session_component()
 {
-	PERR("not yet implemented");
-	/* TODO del_sharer() resp. put_sharer() */
+	PDBG("Not yet implemented!");
 }
 
+
+void Irq_session_component::ack_irq()
+{
+	_irq_object.ack_irq();
+}
+
+
+void Irq_session_component::sigh(Genode::Signal_context_capability cap)
+{
+	_irq_object.sigh(cap);
+}
+
+
+Genode::Irq_session::Info Irq_session_component::info()
+{
+	/* no MSI support */
+	return { .type = Genode::Irq_session::Info::Type::INVALID };
+}

@@ -305,7 +305,9 @@ static const char *get_env(const char *key)
  ** PD session interface **
  **************************/
 
-Pd_session_component::Pd_session_component(Rpc_entrypoint *ep, const char *args)
+Pd_session_component::Pd_session_component(Rpc_entrypoint * ep,
+                                           Allocator      * md_alloc,
+                                           const char     * args)
 :
 	_pid(0), _uid(0), _gid(0), _ds_ep(ep)
 {
@@ -374,7 +376,9 @@ void Pd_session_component::start(Capability<Dataspace> binary)
 		return; /* XXX reflect error to client */
 	}
 
-	const char *filename = ds->fname().buf;
+	/* we need 's' on stack to make it an lvalue with an lvalue member we use the pointer to */
+	Linux_dataspace::Filename s = ds->fname();
+	const char *filename = s.buf;
 
 	/*
 	 * In order to be executable via 'execve', a program must be represented as

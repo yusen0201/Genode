@@ -1,11 +1,12 @@
 /*
  * \brief  Backend for IRQ sessions served by core
  * \author Martin Stein
+ * \author Reto Buerki
  * \date   2012-02-12
  */
 
 /*
- * Copyright (C) 2012-2013 Genode Labs GmbH
+ * Copyright (C) 2012-2015 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU General Public License version 2.
@@ -21,48 +22,60 @@
 
 using namespace Genode;
 
-/**
- * On other platforms, every IRQ session component creates its entrypoint.
- * However, on base-hw this isn't necessary as users can wait for their
- * interrupts directly. Instead of replacing cores generic irq_root.h and
- * main.cc with base-hw specific versions, we simply use a local singleton.h
- */
-static Rpc_entrypoint * irq_session_ep()
+
+unsigned Irq_session_component::_find_irq_number(const char * const args)
 {
-	enum { STACK_SIZE = 2048 };
-	static Rpc_entrypoint
-		_ep(core_env()->cap_session(), STACK_SIZE, "irq_session_ep");
-	return &_ep;
+	return Arg_string::find_arg(args, "irq_number").long_value(-1);
 }
 
-void Irq_session_component::wait_for_irq() { PERR("not implemented"); }
 
-Irq_signal Irq_session_component::signal() { return _signal; }
+void Irq_session_component::ack_irq()
+{
+	using Kernel::User_irq;
+	if (!_sig_cap.valid()) { return; }
+	User_irq * const kirq = reinterpret_cast<User_irq*>(&_kernel_object);
+	Kernel::ack_irq(kirq);
+}
 
-Irq_session_component::~Irq_session_component() { PERR("not implemented"); }
+
+void Irq_session_component::sigh(Signal_context_capability cap)
+{
+	if (_sig_cap.valid()) {
+		PWRN("signal handler already registered for IRQ %u", _irq_number);
+		return;
+	}
+
+	_sig_cap = cap;
+
+	if (Kernel::new_irq((addr_t)&_kernel_object, _irq_number, _sig_cap.dst()))
+		PWRN("invalid signal handler for IRQ %u", _irq_number);
+}
 
 
-Irq_session_component::Irq_session_component(Cap_session * const     cap_session,
-                                             Range_allocator * const irq_alloc,
-                                             const char * const      args)
+Irq_session_component::~Irq_session_component()
+{
+	using namespace Kernel;
+
+	User_irq * kirq = reinterpret_cast<User_irq*>(&_kernel_object);
+	_irq_alloc->free((void *)(addr_t)static_cast<Kernel::Irq*>(kirq)->irq_number());
+	if (_sig_cap.valid())
+		Kernel::delete_irq(kirq);
+}
+
+
+Irq_session_component::Irq_session_component(Range_allocator * const irq_alloc,
+                                             const char      * const      args)
 :
+	_irq_number(Platform::irq(_find_irq_number(args))),
 	_irq_alloc(irq_alloc)
 {
-	/* check arguments */
-	bool shared = Arg_string::find_arg(args, "irq_shared").bool_value(false);
-	if (shared) {
-		PERR("shared interrupts not supported");
-		throw Root::Invalid_args();
-	}
+	long const msi = Arg_string::find_arg(args, "device_config_phys").long_value(0);
+	if (msi)
+		throw Root::Unavailable();
+
 	/* allocate interrupt */
-	long irq_number = Arg_string::find_arg(args, "irq_number").long_value(-1);
-	bool error = irq_number < 0 || !_irq_alloc;
-	error |= _irq_alloc->alloc_addr(1, irq_number).is_error();
-	if (error) {
+	if (_irq_alloc->alloc_addr(1, _irq_number).is_error()) {
 		PERR("unavailable interrupt requested");
 		throw Root::Invalid_args();
 	}
-	/* make interrupt accessible */
-	_signal = Kernel::User_irq::signal(irq_number);
-	_cap    = Irq_session_capability(irq_session_ep()->manage(this));
 }

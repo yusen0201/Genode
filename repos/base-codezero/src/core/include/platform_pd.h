@@ -14,6 +14,9 @@
 #ifndef _CORE__INCLUDE__PLATFORM_PD_H_
 #define _CORE__INCLUDE__PLATFORM_PD_H_
 
+/* Genode includes */
+#include <base/allocator.h>
+
 /* core includes */
 #include <platform_thread.h>
 #include <address_space.h>
@@ -42,12 +45,18 @@ namespace Genode {
 			 * Constructors
 			 */
 			Platform_pd(bool core);
-			Platform_pd(char const *, signed pd_id = -1, bool create = true);
+			Platform_pd(Allocator * md_alloc, char const *,
+			            signed pd_id = -1, bool create = true);
 
 			/**
 			 * Destructor
 			 */
 			~Platform_pd();
+
+			/**
+			 * Register quota donation at allocator guard
+			 */
+			void upgrade_ram_quota(size_t ram_quota) { }
 
 			/**
 			 * Bind thread to protection domain

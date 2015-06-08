@@ -17,10 +17,12 @@
 #include <irq_session/client.h>
 #include <base/connection.h>
 
-namespace Genode {
+namespace Genode { struct Irq_connection; }
 
-	struct Irq_connection : Connection<Irq_session>, Irq_session_client
-	{
+struct Genode::Irq_connection : Connection<Irq_session>, Irq_session_client
+{
+	public:
+
 		/**
 		 * Constructor
 		 *
@@ -30,14 +32,15 @@ namespace Genode {
 		 */
 		Irq_connection(unsigned irq,
 		               Irq_session::Trigger  trigger  = Irq_session::TRIGGER_UNCHANGED,
-		               Irq_session::Polarity polarity = Irq_session::POLARITY_UNCHANGED)
+		               Irq_session::Polarity polarity = Irq_session::POLARITY_UNCHANGED,
+		               Genode::addr_t device_config_phys = 0)
 		:
 			Connection<Irq_session>(
-				session("ram_quota=4K, irq_number=%u, irq_trigger=%u, irq_polarity=%u",
-				        irq, trigger, polarity)),
+				session("ram_quota=4K, irq_number=%u, irq_trigger=%u, "
+				        " irq_polarity=%u, device_config_phys=0x%lx",
+				        irq, trigger, polarity, device_config_phys)),
 			Irq_session_client(cap())
 		{ }
-	};
-}
+};
 
 #endif /* _INCLUDE__IRQ_SESSION__CONNECTION_H_ */

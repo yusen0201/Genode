@@ -1,10 +1,7 @@
 /*
- * \brief  Environment of a process
+ * \brief  Environment of a component
  * \author Norman Feske
  * \date   2006-07-01
- *
- * The environment of a Genode process is defined by its parent and initialized
- * on startup.
  */
 
 /*
@@ -19,6 +16,7 @@
 
 #include <parent/capability.h>
 #include <parent/parent.h>
+#include <rm_session/capability.h>
 #include <rm_session/rm_session.h>
 #include <ram_session/ram_session.h>
 #include <cpu_session/cpu_session.h>
@@ -30,60 +28,94 @@
 
 namespace Genode {
 
-	class Env
-	{
-		public:
-
-			virtual ~Env() { }
-
-			/**
-			 * Communication channel to our parent
-			 */
-			virtual Parent *parent() = 0;
-
-			/**
-			 * RAM session for the program
-			 *
-			 * The RAM Session represents a quota of memory that is
-			 * available to the program. Quota can be used to allocate
-			 * RAM-Dataspaces.
-			 */
-			virtual Ram_session *ram_session() = 0;
-			virtual Ram_session_capability ram_session_cap() = 0;
-
-			/**
-			 * CPU session for the program
-			 *
-			 * This session is used to create threads.
-			 */
-			virtual Cpu_session *cpu_session() = 0;
-			virtual Cpu_session_capability cpu_session_cap() = 0;
-
-			/**
-			 * Region manager session of the program
-			 */
-			virtual Rm_session *rm_session() = 0;
-
-			/**
-			 * Pd session of the program
-			 */
-			virtual Pd_session *pd_session() = 0;
-
-			/**
-			 * Heap backed by the ram_session of the environment.
-			 */
-			virtual Allocator *heap() = 0;
-	};
-
-	extern Env *env();
+	struct Env;
 
 	/**
-	 * Return parent capability
-	 *
-	 * Platforms have to implement this function for environment
-	 * initialization.
+	 * Return the interface to the component's environment
 	 */
-	Parent_capability parent_cap();
+	extern Env *env();
 }
+
+
+/**
+ * Component runtime environment
+ *
+ * The environment of a Genode component is defined by its parent. The 'Env'
+ * class allows the component to interact with its environment. It is
+ * initialized at the startup of the component.
+ */
+struct Genode::Env
+{
+	virtual ~Env() { }
+
+	/**
+	 * Communication channel to our parent
+	 */
+	virtual Parent *parent() = 0;
+
+	/**
+	 * RAM session of the component
+	 *
+	 * The RAM Session represents a budget of memory (quota) that is
+	 * available to the component. This budget can be used to allocate
+	 * RAM dataspaces.
+	 */
+	virtual Ram_session *ram_session() = 0;
+	virtual Ram_session_capability ram_session_cap() = 0;
+
+	/**
+	 * CPU session of the component
+	 *
+	 * This session is used to create the threads of the component.
+	 */
+	virtual Cpu_session *cpu_session() = 0;
+	virtual Cpu_session_capability cpu_session_cap() = 0;
+
+	/**
+	 * Region-manager session of the component as created by the parent
+	 */
+	virtual Rm_session *rm_session() = 0;
+
+	/**
+	 * PD session of the component as created by the parent
+	 */
+	virtual Pd_session *pd_session() = 0;
+
+	/**
+	 * Heap backed by the RAM session of the environment
+	 */
+	virtual Allocator *heap() = 0;
+
+	/**
+	 * Reload parent capability and reinitialize environment resources
+	 *
+	 * This function is solely used for implementing fork semantics.
+	 * After forking a process, the new child process is executed
+	 * within a copy of the address space of the forking process.
+	 * Thereby, the new process inherits the original 'env' object of
+	 * the forking process, which is meaningless in the context of the
+	 * new process. By calling this function, the new process is able
+	 * to reinitialize its 'env' with meaningful capabilities obtained
+	 * via its updated parent capability.
+	 *
+	 * \noapi
+	 */
+	virtual void reinit(Native_capability::Dst, long) = 0;
+
+	/**
+	 * Reinitialize main-thread object
+	 *
+	 * \param context_area_rm  new RM session of the context area
+	 *
+	 * This function is solely used for implementing fork semantics
+	 * as provided by the Noux environment.
+	 *
+	 * \noapi
+	 */
+	virtual void reinit_main_thread(Rm_session_capability &) = 0;
+
+};
+
+
 
 #endif /* _INCLUDE__BASE__ENV_H_ */

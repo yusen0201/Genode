@@ -17,21 +17,23 @@
 #include <pd_session/client.h>
 #include <base/connection.h>
 
-namespace Genode {
+namespace Genode { struct Pd_connection; }
 
-	struct Pd_connection : Connection<Pd_session>, Pd_session_client
-	{
-		/**
-		 * Constructor
-		 *
-		 * \param label  session label
-		 */
-		Pd_connection(char const *label = "", Native_pd_args const *pd_args = 0)
-		:
-			Connection<Pd_session>(session("ram_quota=4K, label=\"%s\"", label)),
-			Pd_session_client(cap())
-		{ }
-	};
-}
+
+struct Genode::Pd_connection : Connection<Pd_session>, Pd_session_client
+{
+	enum { RAM_QUOTA = 4*1024 };
+
+	/**
+	 * Constructor
+	 *
+	 * \param label  session label
+	 */
+	Pd_connection(char const *label = "", Native_pd_args const *pd_args = 0)
+	: Connection<Pd_session>(session("ram_quota=%u, label=\"%s\"",
+	                                 RAM_QUOTA, label)),
+		Pd_session_client(cap())
+	{ }
+};
 
 #endif /* _INCLUDE__PD_SESSION__CONNECTION_H_ */

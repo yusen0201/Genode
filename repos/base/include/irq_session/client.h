@@ -1,6 +1,7 @@
 /*
  * \brief  Client-side IRQ session interface
  * \author Christian Helmuth
+ * \author Martin Stein
  * \date   2007-09-13
  */
 
@@ -14,18 +15,37 @@
 #ifndef _INCLUDE__IRQ_SESSION__CLIENT_H_
 #define _INCLUDE__IRQ_SESSION__CLIENT_H_
 
+/* Genode includes */
 #include <irq_session/capability.h>
 #include <base/rpc_client.h>
 
-namespace Genode {
+namespace Genode { struct Irq_session_client; }
 
-	struct Irq_session_client : Rpc_client<Irq_session>
-	{
-		explicit Irq_session_client(Irq_session_capability session)
-		: Rpc_client<Irq_session>(session) { }
+/**
+ * Client-side IRQ session interface
+ */
+struct Genode::Irq_session_client : Rpc_client<Irq_session>
+{
+	/**
+	 * Constructor
+	 *
+	 * \param session  pointer to the session backend
+	 */
+	explicit Irq_session_client(Irq_session_capability const & session)
+	:
+		Rpc_client<Irq_session>(session)
+	{ }
 
-		void wait_for_irq() { call<Rpc_wait_for_irq>(); }
-	};
-}
+
+	/*****************
+	 ** Irq_session **
+	 *****************/
+
+	void ack_irq() override;
+
+	void sigh(Signal_context_capability sigh) override { call<Rpc_sigh>(sigh); }
+
+	Info info() override { return call<Rpc_info>(); }
+};
 
 #endif /* _INCLUDE__IRQ_SESSION__CLIENT_H_ */

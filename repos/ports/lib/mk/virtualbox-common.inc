@@ -11,6 +11,8 @@ REQUIRES += installation_of_iasl
 endif
 
 VIRTUALBOX_DIR = $(call select_from_ports,virtualbox)/src/app/virtualbox
+VIRTUALBOX_SDK_DIR = $(call select_from_ports,virtualbox)/src/app/virtualbox_sdk
+
 VBOX_DIR       = $(VIRTUALBOX_DIR)/src/VBox
 
 VBOX_CC_OPT += -DIN_RING3 -DVBOX -DVBOX_OSE \
@@ -30,15 +32,15 @@ VBOX_CC_OPT += -DRT_OS_FREEBSD
 VBOX_CC_OPT += -DVBOX_WITH_REM
 VBOX_CC_OPT += -DVBOX_WITH_HGCM -DVBOX_WITH_HGSMI
 
-VBOX_CC_OPT += -DVBOXBFE_WITHOUT_COM
 VBOX_CC_OPT += -DVBOX_WITHOUT_TESTING_FEATURES
 
-VBOX_CC_OPT += -DUSE_SDL
 VBOX_CC_OPT += -DVBOX_WITH_VIDEOHWACCEL
 
 VBOX_CC_OPT += -DVBOX_WITH_XPCOM
 
 VBOX_CC_OPT += -DRTLOG_REL_ENABLED -DRT_STRICT -DVBOX_STRICT
+
+VBOX_CC_OPT += -DVBOX_WITH_USB -DVBOX_WITH_VUSB
 
 # Enable Intel Network model E1000
 VBOX_CC_OPT += -DVBOX_WITH_E1000
@@ -67,10 +69,16 @@ CC_WARN += -Wno-trigraphs
 
 CC_OPT += $(VBOX_CC_OPT)
 
+# VirtualBox expects wchar_t to be a 16-bit type. yasm does not understand this
+# flag, therefore it gets added to CC_OPT instead of VBOX_CC_OPT.
+CC_OPT += -fshort-wchar
+
 LIBS += libc libm 
 
 INC_DIR += $(REP_DIR)/src/virtualbox/include
+INC_DIR += $(REP_DIR)/src/virtualbox/include/xpcom
 INC_DIR += $(VIRTUALBOX_DIR)/include
+INC_DIR += $(VIRTUALBOX_SDK_DIR)/sdk/bindings/xpcom/include
 INC_DIR += $(VBOX_DIR)/Devices/build
 
 vpath %.cpp $(VBOX_DIR)

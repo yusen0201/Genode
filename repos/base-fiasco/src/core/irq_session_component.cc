@@ -2,12 +2,10 @@
  * \brief  Core implementation of IRQ sessions
  * \author Christian Helmuth
  * \date   2007-09-13
- *
- * FIXME ram quota missing
  */
 
 /*
- * Copyright (C) 2007-2013 Genode Labs GmbH
+ * Copyright (C) 2007-2015 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU General Public License version 2.
@@ -30,8 +28,7 @@ namespace Fiasco {
 
 using namespace Genode;
 
-
-bool Irq_session_component::Irq_control_component::associate_to_irq(unsigned irq_number)
+bool Irq_object::_associate()
 {
 	using namespace Fiasco;
 
@@ -40,7 +37,7 @@ bool Irq_session_component::Irq_control_component::associate_to_irq(unsigned irq
 	l4_umword_t dw0, dw1;
 	l4_msgdope_t result;
 
-	l4_make_taskid_from_irq(irq_number, &irq_tid);
+	l4_make_taskid_from_irq(_irq, &irq_tid);
 
 	/* boost thread to IRQ priority */
 	enum { IRQ_PRIORITY = 0xC0 };
@@ -61,7 +58,7 @@ bool Irq_session_component::Irq_control_component::associate_to_irq(unsigned irq
 }
 
 
-void Irq_session_component::wait_for_irq()
+void Irq_object::_wait_for_irq()
 {
 	using namespace Fiasco;
 
@@ -69,7 +66,7 @@ void Irq_session_component::wait_for_irq()
 	l4_umword_t dw0=0, dw1=0;
 	l4_msgdope_t result;
 
-	l4_make_taskid_from_irq(_irq_number, &irq_tid);
+	l4_make_taskid_from_irq(_irq, &irq_tid);
 
 	do {
 		l4_ipc_call(irq_tid,
@@ -82,41 +79,88 @@ void Irq_session_component::wait_for_irq()
 }
 
 
-Irq_session_component::Irq_session_component(Cap_session     *cap_session,
-                                             Range_allocator *irq_alloc,
+void Irq_object::start()
+{
+	::Thread_base::start();
+	_sync_bootup.lock();
+}
+
+
+void Irq_object::entry()
+{
+	if (!_associate()) {
+		PERR("Could not associate with IRQ 0x%x", _irq);
+		return;
+	}
+
+	/* thread is up and ready */
+	_sync_bootup.unlock();
+
+	/* wait for first ack_irq */
+	_sync_ack.lock();
+
+	while (true) {
+
+		_wait_for_irq();
+
+		if (!_sig_cap.valid())
+			continue;
+
+		Genode::Signal_transmitter(_sig_cap).submit(1);
+
+		_sync_ack.lock();
+	}
+}
+
+
+Irq_object::Irq_object(unsigned irq)
+:
+	Thread<4096>("irq"),
+	_sync_ack(Lock::LOCKED), _sync_bootup(Lock::LOCKED),
+	_irq(irq)
+{ }
+
+
+Irq_session_component::Irq_session_component(Range_allocator *irq_alloc,
                                              const char      *args)
 :
+	_irq_number(Arg_string::find_arg(args, "irq_number").long_value(-1)),
 	_irq_alloc(irq_alloc),
-	_ep(cap_session, STACK_SIZE, "irqctrl"),
-	_control_cap(_ep.manage(&_control_component)),
-	_control_client(_control_cap)
+	_irq_object(_irq_number)
 {
-	bool shared = Arg_string::find_arg(args, "irq_shared").bool_value(false);
-	if (shared) {
-		PWRN("IRQ sharing not supported");
-		throw Root::Invalid_args();
+	long msi = Arg_string::find_arg(args, "device_config_phys").long_value(0);
+	if (msi)
+		throw Root::Unavailable();
+
+	if (!irq_alloc || irq_alloc->alloc_addr(1, _irq_number).is_error()) {
+		PERR("Unavailable IRQ 0x%x requested", _irq_number);
+		throw Root::Unavailable();
 	}
 
-	long irq_number = Arg_string::find_arg(args, "irq_number").long_value(-1);
-	if (irq_number == -1 || !irq_alloc ||
-	    irq_alloc->alloc_addr(1, irq_number).is_error()) {
-		PERR("Unavailable IRQ %lx requested", irq_number);
-		throw Root::Invalid_args();
-	}
-	_irq_number = irq_number;
-
-	if (!_control_client.associate_to_irq(irq_number)) {
-		PWRN("IRQ association failed");
-		throw Root::Invalid_args();
-	}
-
-	/* initialize capability */
-	_irq_cap = Irq_session_capability(_ep.manage(this));
+	_irq_object.start();
 }
 
 
 Irq_session_component::~Irq_session_component()
 {
-	PERR("Implement me, immediately!");
+	PERR("Not yet implemented.");
 }
 
+
+void Irq_session_component::ack_irq()
+{
+	_irq_object.ack_irq();
+}
+
+
+void Irq_session_component::sigh(Genode::Signal_context_capability cap)
+{
+	_irq_object.sigh(cap);
+}
+
+
+Genode::Irq_session::Info Irq_session_component::info()
+{
+	/* no MSI support */
+	return { .type = Genode::Irq_session::Info::Type::INVALID };
+}

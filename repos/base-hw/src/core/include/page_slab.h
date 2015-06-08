@@ -18,6 +18,7 @@
 #include <base/stdint.h>
 #include <util/list.h>
 #include <util/bit_allocator.h>
+#include <util/construct_at.h>
 
 #include <core_mem_alloc.h>
 
@@ -73,8 +74,6 @@ class Genode::Page_slab : public Genode::Allocator
 				indices.free(off / SLAB_SIZE);
 				return true;
 			}
-
-			void * operator new (size_t, void * p) { return p; }
 		};
 
 		Slab_block _initial_sb __attribute__((aligned(1 << ALIGN_LOG2))); /*
@@ -102,10 +101,10 @@ class Genode::Page_slab : public Genode::Allocator
 		/**
 		 * Returns number of used slab blocks
 		 */
-		size_t _slab_blocks_in_use()
+		size_t _slab_blocks_in_use() const
 		{
 			size_t cnt = 0;
-			for (List_element<Slab_block> *le = _b_list.first();
+			for (List_element<Slab_block> const *le = _b_list.first();
 			     le; le = le->next(), cnt++) ;
 			return cnt;
 		}
@@ -148,7 +147,7 @@ class Genode::Page_slab : public Genode::Allocator
 			                                   ALIGN_LOG2).is_ok()) {
 				throw Out_of_memory();
 			}
-			Slab_block *b = new (p) Slab_block();
+			Slab_block *b = Genode::construct_at<Slab_block>(p);
 			_b_list.insert(&b->list_elem);
 			_free_slab_entries += SLABS_PER_BLOCK;
 			_in_alloc = false;
@@ -220,10 +219,10 @@ class Genode::Page_slab : public Genode::Allocator
 		 * Allocator interface **
 		 ************************/
 
-		bool   alloc(size_t, void **addr) { return (*addr = alloc()); }
-		void   free(void *addr, size_t) { free(addr); }
-		size_t consumed() { return SLAB_BLOCK_SIZE * _slab_blocks_in_use(); }
-		size_t overhead(size_t) { return SLAB_BLOCK_SIZE/SLABS_PER_BLOCK; }
+		bool   alloc(size_t, void **addr) override { return (*addr = alloc()); }
+		void   free(void *addr, size_t) override { free(addr); }
+		size_t consumed() const override { return SLAB_BLOCK_SIZE * _slab_blocks_in_use(); }
+		size_t overhead(size_t) const override { return SLAB_BLOCK_SIZE/SLABS_PER_BLOCK; }
 		bool   need_size_for_free() const override { return false; }
 };
 

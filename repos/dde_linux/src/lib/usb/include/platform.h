@@ -19,6 +19,8 @@
 #include <base/printf.h>
 #include <os/config.h>
 #include <util/xml_node.h>
+#include <os/signal_rpc_dispatcher.h>
+#include <irq_session/capability.h>
 
 struct Services
 {
@@ -37,8 +39,12 @@ struct Services
 	 * Screen resolution used by touch devices to convert touchscreen
 	 * absolute coordinates to screen absolute coordinates
 	 */
-	unsigned long screen_width = 0;
+	bool          multitouch    = false;
+	unsigned long screen_width  = 0;
 	unsigned long screen_height = 0;
+
+	/* report generation */
+	bool raw_report_device_list = false;
 
 	Services()
 	{
@@ -49,9 +55,10 @@ struct Services
 			hid = true;
 
 			try {
-				Genode::Xml_node node_screen = node_hid.sub_node("screen");
+				Genode::Xml_node node_screen = node_hid.sub_node("touchscreen");
 				node_screen.attribute("width").value(&screen_width);
 				node_screen.attribute("height").value(&screen_height);
+				multitouch = node_screen.attribute("multitouch").has_value("yes");
 			} catch (...) {
 				screen_width = screen_height = 0;
 				PDBG("Could not read screen resolution in config node");
@@ -75,8 +82,13 @@ struct Services
 		}
 
 		try {
-			config()->xml_node().sub_node("raw");
+			Genode::Xml_node node_raw = config()->xml_node().sub_node("raw");
 			raw = true;
+
+			try {
+				Genode::Xml_node node_report = node_raw.sub_node("report");
+				raw_report_device_list = node_report.attribute("devices").has_value("yes");
+			} catch (...) { }
 		} catch (Xml_node::Nonexistent_sub_node) {
 			PDBG("No <raw> config node found - not starting external USB service");
 		}
@@ -109,5 +121,6 @@ struct Services
 };
 
 void platform_hcd_init(Services *services);
+Genode::Irq_session_capability platform_irq_activate(int irq);
 
 #endif /* _PLATFORM_H_ */

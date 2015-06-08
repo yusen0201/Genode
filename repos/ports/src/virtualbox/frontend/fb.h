@@ -18,7 +18,11 @@
 
 /* VirtualBox includes */
 
-class Genodefb : public Framebuffer
+#include "Global.h"
+#include "VirtualBoxBase.h"
+
+class Genodefb :
+	VBOX_SCRIPTABLE_IMPL(IFramebuffer)
 {
 	private:
 
@@ -48,7 +52,7 @@ class Genodefb : public Framebuffer
 			if (!width)
 				return E_INVALIDARG;
 
-			*width = _width > _fb_mode.width() ? _fb_mode.width() : _width;
+			*width = (int)_width > _fb_mode.width() ? _fb_mode.width() : _width;
 			return S_OK;
 		}
 		
@@ -57,7 +61,7 @@ class Genodefb : public Framebuffer
 			if (!height)
 				return E_INVALIDARG;
 
-			*height = _height > _fb_mode.height() ? _fb_mode.height() : _height;
+			*height = (int)_height > _fb_mode.height() ? _fb_mode.height() : _height;
 			return S_OK;
 		}
 
@@ -158,7 +162,7 @@ class Genodefb : public Framebuffer
 			return S_OK;
 		}
 
-		STDMETHODIMP COMGETTER(WinId) (ULONG64 *winId)
+		STDMETHODIMP COMGETTER(WinId) (PRInt64 *winId)
 		{
 			Assert(!"FixMe");
 			return S_OK;
@@ -166,7 +170,13 @@ class Genodefb : public Framebuffer
 
 		STDMETHODIMP VideoModeSupported(ULONG width, ULONG height, ULONG bpp, BOOL *supported)
 		{
-			Assert(!"FixMe");
+			if (!supported)
+				return E_POINTER;
+
+			*supported = ((width <= (ULONG)_fb_mode.width()) &&
+			              (height <= (ULONG)_fb_mode.height()) &&
+			              (bpp == _fb_mode.bytes_per_pixel() * 8));
+
 			return S_OK;
 		}
 
@@ -186,5 +196,10 @@ class Genodefb : public Framebuffer
 		STDMETHODIMP ProcessVHWACommand(BYTE *pCommand)
 		{
 		    return E_NOTIMPL;
+		}
+
+		STDMETHODIMP Notify3DEvent(PRUint32, PRUint8*)
+		{
+			return E_NOTIMPL;
 		}
 };

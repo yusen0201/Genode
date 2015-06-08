@@ -33,7 +33,7 @@ Platform_env_base::Rm_session_mmap::_dataspace_size(Dataspace_capability ds)
 	if (ds.valid())
 		return Dataspace_client(ds).size();
 
-	return Dataspace_capability::deref(ds)->size();
+	return Local_capability<Dataspace>::deref(ds)->size();
 }
 
 
@@ -78,7 +78,7 @@ Platform_env::Local_parent::session(Service_name const &service_name,
 		Rm_session_mmap *rm = new (env()->heap())
 		                      Rm_session_mmap(true, size);
 
-		return Session_capability::local_cap(rm);
+		return Local_capability<Session>::local_cap(rm);
 	}
 
 	return Expanding_parent_client::session(service_name, args, affinity);
@@ -100,7 +100,7 @@ void Platform_env::Local_parent::close(Session_capability session)
 	 */
 	Capability<Rm_session_mmap> rm = static_cap_cast<Rm_session_mmap>(session);
 
-	destroy(env()->heap(), Capability<Rm_session_mmap>::deref(rm));
+	destroy(env()->heap(), Local_capability<Rm_session_mmap>::deref(rm));
 }
 
 
@@ -152,10 +152,6 @@ Platform_env::Local_parent &Platform_env::_parent()
 	static Local_parent local_parent(obtain_parent_cap(), *this);
 	return local_parent;
 }
-
-
-void Platform_env::reinit(Native_capability::Dst, long) { }
-void Platform_env::reinit_main_thread(Rm_session_capability &) { }
 
 
 Platform_env::Platform_env()

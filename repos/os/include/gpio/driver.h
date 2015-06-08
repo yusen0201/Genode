@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2011-2013 Genode Labs GmbH
+ * Copyright (C) 2011-2015 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU General Public License version 2.
@@ -17,12 +17,11 @@
 /* Genode includes */
 #include <base/signal.h>
 
-namespace Gpio {
-	struct Driver;
-}
+namespace Gpio { struct Driver; }
 
-struct Gpio::Driver {
 
+struct Gpio::Driver
+{
 	/**
 	 * Set direction of GPIO pin, whether it's an input or output one
 	 *
@@ -92,6 +91,13 @@ struct Gpio::Driver {
 	 *\param gpio  corresponding gpio pin number
 	 */
 	virtual void irq_enable(unsigned gpio, bool enable) = 0;
+
+	/**
+	 * Acknowledge IRQ for specified GPIO pin
+	 *
+	 * \param gpio  corresponding gpio pin number
+	 */
+	virtual void ack_irq(unsigned gpio) = 0;
 
 	/**
 	 * Register signal handler for interrupts

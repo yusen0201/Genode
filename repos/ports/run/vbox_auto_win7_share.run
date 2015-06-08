@@ -71,6 +71,9 @@ set vdi_image "${flavor}.vdi"
 set use_ram_fs 0
 set overlay_image "overlay_${flavor}.vdi"
 
+set use_usb 0
+set use_ps2 [have_spec ps2]
+
 #
 # Create .bat file to be executed by Win VM
 #
@@ -99,7 +102,7 @@ catch { exec dd if=/dev/urandom of=bin/test.bin bs=4096 count=8160 }
 # Step 1: prepare and start the actual VM
 #
 set build_components {
-	server/ram_fs
+	server/ram_fs server/report_rom
 	server/tcp_terminal drivers/nic
 	lib/libc_noux
 	noux/minimal
@@ -114,7 +117,7 @@ foreach pkg {bash coreutils} {
 set boot_modules {
 	ram_fs
 	noux libc_noux.lib.so bash.tar coreutils.tar
-	tcp_terminal lwip.lib.so nic_drv
+	tcp_terminal lwip.lib.so nic_drv report_rom
 	test.bin template.bat
 	vm_auto_share.vbox
 }
@@ -186,6 +189,12 @@ set config_of_app {
 		</config>
 	</start>
 
+	<start name="report_rom">
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<config> <rom /> </config>
+	</start>
+
 	<start name="vbox" priority="-2">
 		<binary name="virtualbox" />
 		<resource name="RAM" quantum="1280M"/>
@@ -239,7 +248,7 @@ build_boot_image $boot_modules
 #
 # Step 2: Read out TCP/IP address of tcp_terminal running on Genode target
 #
-run_genode_until {\[init -> tcp_terminal\] listening on port 8888\.\.\.} 20
+run_genode_until {\[init -> tcp_terminal\] .{1,5}got IP address [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+} 20
 set serial_id [output_spawn_id]
 
 regexp {\[init -> tcp_terminal\] .{1,5}got IP address [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+} $output serial_ip_addr

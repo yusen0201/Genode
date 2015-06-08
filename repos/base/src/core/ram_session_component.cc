@@ -181,13 +181,6 @@ Ram_dataspace_capability Ram_session_component::alloc(size_t ds_size, Cache_attr
 		throw Out_of_metadata();
 	}
 
-	/*
-	 * Fill new dataspaces with zeros. For non-cached RAM dataspaces, this
-	 * function must also make sure to flush all cache lines related to the
-	 * address range used by the dataspace.
-	 */
-	_clear_ds(ds);
-
 	/* create native shared memory representation of dataspace */
 	try {
 		_export_ram_ds(ds);
@@ -199,6 +192,13 @@ Ram_dataspace_capability Ram_session_component::alloc(size_t ds_size, Cache_attr
 
 		throw Quota_exceeded();
 	}
+
+	/*
+	 * Fill new dataspaces with zeros. For non-cached RAM dataspaces, this
+	 * function must also make sure to flush all cache lines related to the
+	 * address range used by the dataspace.
+	 */
+	_clear_ds(ds);
 
 	if (verbose)
 		PDBG("ds_size=%zu, used_quota=%zu quota_limit=%zu",
@@ -265,13 +265,13 @@ Ram_session_component::Ram_session_component(Rpc_entrypoint  *ds_ep,
 :
 	_ds_ep(ds_ep), _ram_session_ep(ram_session_ep), _ram_alloc(ram_alloc),
 	_quota_limit(quota_limit), _payload(0),
-	_md_alloc(md_alloc, Arg_string::find_arg(args, "ram_quota").long_value(0)),
+	_md_alloc(md_alloc, Arg_string::find_arg(args, "ram_quota").ulong_value(0)),
 	_ds_slab(&_md_alloc), _ref_account(0),
-	_phys_start(Arg_string::find_arg(args, "phys_start").long_value(0))
+	_phys_start(Arg_string::find_arg(args, "phys_start").ulong_value(0))
 {
 	Arg_string::find_arg(args, "label").string(_label, sizeof(_label), "");
 
-	size_t phys_size = Arg_string::find_arg(args, "phys_size").long_value(0);
+	size_t phys_size = Arg_string::find_arg(args, "phys_size").ulong_value(0);
 	/* sanitize overflow and interpret phys_size==0 as maximum phys address */
 	if (_phys_start + phys_size <= _phys_start)
 		_phys_end = ~0UL;

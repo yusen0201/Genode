@@ -11,6 +11,7 @@ SRC_CC        = main.cc \
                 ram_session_component.cc \
                 ram_session_support.cc \
                 rom_session_component.cc \
+                cap_session_component.cc \
                 cpu_session_component.cc \
                 cpu_session_extension.cc \
                 cpu_session_support.cc \
@@ -22,7 +23,7 @@ SRC_CC        = main.cc \
                 thread_linux.cc \
                 context_area.cc \
                 core_printf.cc \
-                thread.cc
+                thread.cc myself.cc
 
 INC_DIR      += $(REP_DIR)/src/core/include \
                 $(GEN_CORE_DIR)/include \
@@ -49,6 +50,7 @@ include $(GEN_CORE_DIR)/version.inc
 
 vpath main.cc                     $(GEN_CORE_DIR)
 vpath ram_session_component.cc    $(GEN_CORE_DIR)
+vpath cap_session_component.cc    $(GEN_CORE_DIR)
 vpath cpu_session_component.cc    $(GEN_CORE_DIR)
 vpath platform_services.cc        $(GEN_CORE_DIR)
 vpath signal_session_component.cc $(GEN_CORE_DIR)
@@ -56,5 +58,6 @@ vpath signal_source_component.cc  $(GEN_CORE_DIR)
 vpath trace_session_component.cc  $(GEN_CORE_DIR)
 vpath core_printf.cc              $(BASE_DIR)/src/base/console
 vpath thread.cc                   $(BASE_DIR)/src/base/thread
+vpath myself.cc                   $(BASE_DIR)/src/base/thread
 vpath trace.cc                    $(BASE_DIR)/src/base/thread
 vpath %.cc                        $(PRG_DIR)
