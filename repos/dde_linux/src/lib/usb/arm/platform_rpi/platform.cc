@@ -30,6 +30,9 @@
 #include <dwc_otg_dbg.h>
 #undef new
 
+#include <usb_irq.h>
+
+
 using namespace Genode;
 
 
@@ -40,8 +43,6 @@ using namespace Genode;
 enum {
 	DWC_BASE = 0x20980000,
 	DWC_SIZE = 0x20000,
-
-	DWC_IRQ  = 17,
 };
 
 
@@ -57,14 +58,14 @@ static resource _dwc_otg_resource[] =
  ***************************************/
 
 #if VERBOSE_LX_EMUL
-#define TRACE dde_kit_printf("\033[32m%s\033[0m called, not implemented\n", __PRETTY_FUNCTION__)
+#define TRACE lx_printf("\033[32m%s\033[0m called, not implemented\n", __PRETTY_FUNCTION__)
 #else
 #define TRACE
 #endif
 
 #define DUMMY(retval, name) \
 extern "C" long name() { \
-	dde_kit_printf("\033[32m%s\033[0m called, not implemented, stop\n", #name); \
+	lx_printf("\033[32m%s\033[0m called, not implemented, stop\n", #name); \
 	bt(); \
 	for (;;); \
 	return retval; \
@@ -72,7 +73,7 @@ extern "C" long name() { \
 
 #define CHECKED_DUMMY(retval, name) \
 extern "C" long name() { \
-	dde_kit_printf("\033[32m%s\033[0m called, not implemented, ignored\n", #name); \
+	lx_printf("\033[32m%s\033[0m called, not implemented, ignored\n", #name); \
 	bt(); \
 	return retval; \
 }
@@ -97,18 +98,6 @@ int in_irq()
  *******************/
 
 unsigned long loops_per_jiffy = 1;
-
-
-/*********************
- ** linux/jiffies.h **
- *********************/
-
-unsigned int jiffies_to_msecs(const unsigned long j)
-{
-	PDBG("not implemented. stop");
-	return 1;
-}
-
 
 /***********************************
  ** Dummies for unused PCD driver **

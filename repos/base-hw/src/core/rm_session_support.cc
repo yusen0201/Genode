@@ -12,10 +12,8 @@
  * under the terms of the GNU General Public License version 2.
  */
 
-/* Genode includes */
-#include <base/pager.h>
-
 /* core includes */
+#include <pager.h>
 #include <rm_session_component.h>
 #include <platform.h>
 #include <platform_pd.h>
@@ -38,11 +36,11 @@ void Rm_client::unmap(addr_t, addr_t virt_base, size_t size)
 }
 
 
-/***************************
- ** Pager_activation_base **
- ***************************/
+/**********************
+ ** Pager_entrypoint **
+ **********************/
 
-int Pager_activation_base::apply_mapping()
+int Pager_entrypoint::apply_mapping()
 {
 	Page_flags const flags =
 	Page_flags::apply_mapping(_mapping.writable,
@@ -56,16 +54,14 @@ int Pager_activation_base::apply_mapping()
 }
 
 
-void Pager_activation_base::entry()
+void Pager_entrypoint::entry()
 {
-	/* get ready to receive faults */
-	_cap = Thread_base::myself()->tid().cap;
-	_cap_valid.unlock();
 	while (1)
 	{
 		/* receive fault */
-		Signal s = Signal_receiver::wait_for_signal();
-		Pager_object * po = static_cast<Pager_object *>(s.context());
+		if (Kernel::await_signal(_cap.dst())) continue;
+		Pager_object * po =
+			*(Pager_object**)Thread_base::myself()->utcb()->base();
 
 		/*
 		 * Synchronize access and ensure that the object is still managed
@@ -73,11 +69,8 @@ void Pager_activation_base::entry()
 		 * FIXME: The implicit lookup of the oject isn't needed.
 		 */
 		unsigned const pon = po->cap().local_name();
-		Object_pool<Pager_object>::Guard pog(_ep->lookup_and_lock(pon));
+		Object_pool<Pager_object>::Guard pog(lookup_and_lock(pon));
 		if (!pog) continue;
-
-		/* let pager object go to fault state */
-		pog->fault_occured(s);
 
 		/* fetch fault data */
 		Platform_thread * const pt = (Platform_thread *)pog->badge();
@@ -106,6 +99,6 @@ void Pager_activation_base::entry()
 			continue;
 		}
 		/* let pager object go back to no-fault state */
-		pog->fault_resolved();
+		pog->wake_up();
 	}
 }

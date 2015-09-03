@@ -71,6 +71,26 @@ class Vfs::Rom_file_system : public Single_file_system
 		static char const *name() { return "rom"; }
 
 
+		/*********************************
+		 ** Directory-service interface **
+		 ********************************/
+
+		/*
+		 * Overwrite the default open function to update the ROM dataspace
+		 * each time when opening the corresponding file.
+		 */
+		Open_result open(char const *path, unsigned,
+		                 Vfs_handle **out_handle) override
+		{
+			Open_result const result =
+				Single_file_system::open(path, 0, out_handle);
+
+			_rom.update();
+
+			return result;
+		}
+
+
 		/********************************
 		 ** File I/O service interface **
 		 ********************************/
@@ -78,7 +98,10 @@ class Vfs::Rom_file_system : public Single_file_system
 		Stat_result stat(char const *path, Stat &out) override
 		{
 			Stat_result result = Single_file_system::stat(path, out);
-			out.size = (_size.value == 0) ? _rom.size() : _size.value;
+
+			_rom.update();
+			out.size = (_size.value == 0) ? (_rom.is_valid() ? _rom.size() : 0) : _size.value;
+
 			return result;
 		}
 
