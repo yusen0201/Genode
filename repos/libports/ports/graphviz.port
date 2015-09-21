@@ -12,4 +12,15 @@ DIR_CONTENT(include/graphviz) := $(addprefix src/lib/,cgraph/cgraph.h \
                  gvc/gvc.h \
 					  gvc/gvcext.h \
 					  gvc/gvcjob.h \
-					  cdt/cdt.h )
+					  gvc/gvplugin.h \
+					  cdt/cdt.h \
+					  common/types.h \
+					  common/geom.h \
+					  common/textspan.h \
+					  common/usershape.h \
+					  common/memory.h \
+					  common/utils.h \
+					  xdot/xdot.h \
+					  common/globals.h \
+					  pathplan/pathgeom.h \
+					  fdpgen/fdp.h )

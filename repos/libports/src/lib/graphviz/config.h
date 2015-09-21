@@ -372,7 +372,7 @@
 /* #undef HAVE_SHL_LOAD */
 
 /* Define to 1 if you have the `sincos' function. */
-#define HAVE_SINCOS 1
+#undef HAVE_SINCOS
 
 /* Define to 1 if you have the `sqrt' function. */
 /* #undef HAVE_SQRT */
