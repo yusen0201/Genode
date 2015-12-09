@@ -15,6 +15,7 @@ SRC_CC        = main.cc \
                 cpu_session_component.cc \
                 cpu_session_extension.cc \
                 cpu_session_support.cc \
+                dataspace_component.cc \
                 pd_session_component.cc \
                 io_mem_session_component.cc \
                 signal_session_component.cc \
@@ -35,16 +36,6 @@ INC_DIR      += $(REP_DIR)/src/core/include \
                 $(BASE_DIR)/src/base/thread \
 
 HOST_INC_DIR += /usr/include
-
-#
-# core does not use POSIX threads when built for the 'lx_hybrid_x86' platform,
-# so we need to reserve the thread-context area via a segment in the program to
-# prevent clashes with vdso and shared libraries.
-#
-ifeq ($(findstring always_hybrid, $(SPECS)), always_hybrid)
-LD_SCRIPT_STATIC = $(LD_SCRIPT_DEFAULT) \
-                   $(call select_from_repositories,src/platform/context_area.stdlib.ld)
-endif
 
 include $(GEN_CORE_DIR)/version.inc
 

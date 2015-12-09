@@ -87,15 +87,18 @@ Signal_context_capability Signal_session_component::alloc_context(long imprint)
 
 void Signal_session_component::free_context(Signal_context_capability context_cap)
 {
-	Signal_context_component * context =
-		dynamic_cast<Signal_context_component *>(_signal_queue.lookup_and_lock(context_cap.local_name()));
+	Signal_context_component *context;
+	auto lambda = [&] (Signal_context_component *c) {
+		context = c;
+		if (context) _signal_queue.remove(context);
+	};
+	_signal_queue.apply(context_cap, lambda);
+
 	if (!context) {
 		PWRN("%p - specified signal-context capability has wrong type %lx",
-		     this, context_cap.local_name());
+			 this, context_cap.local_name());
 		return;
 	}
-
-	_signal_queue.remove_locked(context);
 	destroy(&_contexts_slab, context);
 
 	Nova::revoke(Nova::Obj_crd(context_cap.local_name(), 0));

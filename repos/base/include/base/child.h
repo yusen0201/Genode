@@ -109,6 +109,7 @@ struct Genode::Child_policy
 	 * transfers.
 	 */
 	virtual Ram_session *ref_ram_session() { return env()->ram_session(); }
+	virtual Ram_session_capability ref_ram_cap() const { return env()->ram_session_cap(); }
 
 	/**
 	 * Return platform-specific PD-session arguments
@@ -223,6 +224,8 @@ class Genode::Child : protected Rpc_object<Parent>
 		 * Close session and revert quota donation associated with it
 		 */
 		void _remove_session(Session *s);
+
+		void _close(Session *s);
 
 		/**
 		 * Return service interface targetting the parent

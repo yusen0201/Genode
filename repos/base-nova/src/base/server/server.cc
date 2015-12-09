@@ -89,7 +89,8 @@ void Rpc_entrypoint::_dissolve(Rpc_object_base *obj)
 	Nova::revoke(Nova::Obj_crd(obj->cap().local_name(), 0), true);
 
 	/* make sure nobody is able to find this object */
-	remove_locked(obj);
+	remove(obj);
+
 
 	/*
 	 * The activation may execute a blocking operation in a dispatch function.
@@ -98,84 +99,6 @@ void Rpc_entrypoint::_dissolve(Rpc_object_base *obj)
 	 * eventually blocking operation and let the activation leave the context
 	 * of the object.
 	 */
-	_leave_server_object(obj);
-
-	/* wait until nobody is inside dispatch */
-	obj->acquire();
-}
-
-void Rpc_entrypoint::_activation_entry()
-{
-	/* retrieve portal id from eax/rdi */
-#ifdef __x86_64__
-	addr_t id_pt; asm volatile ("" : "=D" (id_pt));
-#else
-	addr_t id_pt; asm volatile ("" : "=a" (id_pt));
-#endif
-
-	Rpc_entrypoint *ep = static_cast<Rpc_entrypoint *>(Thread_base::myself());
-
-	/* delay start if requested so */
-	if (ep->_curr_obj) {
-		ep->_delay_start.lock();
-		ep->_delay_start.unlock();
-	}
-
-	/* required to decrease ref count of capability used during last reply */
-	ep->_snd_buf.snd_reset();
-
-	/* prepare ipc server object (copying utcb content to message buffer */
-	int opcode = 0;
-
-	Ipc_server srv(&ep->_snd_buf, &ep->_rcv_buf);
-	srv >> IPC_WAIT >> opcode;
-
-	/* set default return value */
-	srv.ret(Ipc_client::ERR_INVALID_OBJECT);
-
-	/* atomically lookup and lock referenced object */
-	ep->_curr_obj = ep->lookup_and_lock(id_pt);
-	if (!ep->_curr_obj) {
-
-		/*
-		 * Badge is used to suppress error message solely.
-		 * It's non zero during cleanup call of an
-		 * rpc_object_base object, see _leave_server_object.
-		 */
-		if (!srv.badge())
-			PERR("could not look up server object, "
-			     " return from call id_pt=%lx",
-			     id_pt);
-
-	} else {
-
-		/* dispatch request */
-		try { srv.ret(ep->_curr_obj->dispatch(opcode, srv, srv)); }
-		catch (Blocking_canceled) { }
-
-		Rpc_object_base * tmp = ep->_curr_obj;
-		ep->_curr_obj = 0;
-
-		tmp->release();
-	}
-
-	if (!ep->_rcv_buf.prepare_rcv_window((Nova::Utcb *)ep->utcb()))
-		PWRN("out of capability selectors for handling server requests");
-
-	srv << IPC_REPLY;
-}
-
-
-void Rpc_entrypoint::entry()
-{
-	/*
-	 * Thread entry is not used for activations on NOVA
-	 */
-}
-
-
-void Rpc_entrypoint::_leave_server_object(Rpc_object_base *)
-{
 	using namespace Nova;
 
 	Utcb *utcb = reinterpret_cast<Utcb *>(Thread_base::myself()->utcb());
@@ -190,11 +113,79 @@ void Rpc_entrypoint::_leave_server_object(Rpc_object_base *)
 	 */
 	cancel_blocking();
 
+	/* activate entrypoint now - otherwise cleanup call will block forever */
+	_delay_start.unlock();
+
+	/* make a IPC to ensure that cap() identifier is not used anymore */
 	utcb->msg[0] = 0xdead;
 	utcb->set_msg_word(1);
 	if (uint8_t res = call(_cap.local_name()))
 		PERR("%8p - could not clean up entry point of thread 0x%p - res %u",
 		     utcb, this->utcb(), res);
+}
+
+
+void Rpc_entrypoint::_activation_entry()
+{
+	/* retrieve portal id from eax/rdi */
+#ifdef __x86_64__
+	addr_t id_pt; asm volatile ("" : "=D" (id_pt));
+#else
+	addr_t id_pt; asm volatile ("" : "=a" (id_pt));
+#endif
+
+	Rpc_entrypoint *ep = static_cast<Rpc_entrypoint *>(Thread_base::myself());
+
+	/* required to decrease ref count of capability used during last reply */
+	ep->_snd_buf.snd_reset();
+
+	/* prepare ipc server object (copying utcb content to message buffer */
+	int opcode = 0;
+
+	Ipc_server srv(&ep->_snd_buf, &ep->_rcv_buf);
+	srv >> IPC_WAIT >> opcode;
+
+	/* set default return value */
+	srv.ret(Ipc_client::ERR_INVALID_OBJECT);
+
+	/* in case of a portal cleanup call we are done here - just reply */
+	if (ep->_cap.local_name() == id_pt) {
+		if (!ep->_rcv_buf.prepare_rcv_window((Nova::Utcb *)ep->utcb()))
+			PWRN("out of capability selectors for handling server requests");
+		srv << IPC_REPLY;
+	}
+
+	{
+		/* potentially delay start */
+		Lock::Guard lock_guard(ep->_delay_start);
+	}
+
+	/* atomically lookup and lock referenced object */
+	auto lambda = [&] (Rpc_object_base *obj) {
+		if (!obj) {
+			PERR("could not look up server object, return from call id_pt=%lx",
+			     id_pt);
+			return;
+		}
+
+		/* dispatch request */
+		try { srv.ret(obj->dispatch(opcode, srv, srv)); }
+		catch (Blocking_canceled) { }
+	};
+	ep->apply(id_pt, lambda);
+
+	if (!ep->_rcv_buf.prepare_rcv_window((Nova::Utcb *)ep->utcb()))
+		PWRN("out of capability selectors for handling server requests");
+
+	srv << IPC_REPLY;
+}
+
+
+void Rpc_entrypoint::entry()
+{
+	/*
+	 * Thread entry is not used for activations on NOVA
+	 */
 }
 
 
@@ -220,7 +211,6 @@ Rpc_entrypoint::Rpc_entrypoint(Cap_session *cap_session, size_t stack_size,
                                Affinity::Location location)
 :
 	Thread_base(Cpu_session::DEFAULT_WEIGHT, name, stack_size),
-	_curr_obj(start_on_construction ? 0 : (Rpc_object_base *)~0UL),
 	_delay_start(Lock::LOCKED),
 	_cap_session(cap_session)
 {
@@ -260,13 +250,10 @@ Rpc_entrypoint::~Rpc_entrypoint()
 {
 	typedef Object_pool<Rpc_object_base> Pool;
 
-	if (Pool::first()) {
+	Pool::remove_all([&] (Rpc_object_base *obj) {
 		PWRN("Object pool not empty in %s", __func__);
-
-		/* dissolve all objects - objects are not destroyed! */
-		while (Rpc_object_base *obj = Pool::first())
-			_dissolve(obj);
-	}
+		_dissolve(obj);
+	});
 
 	if (!_cap.valid())
 		return;

@@ -30,7 +30,7 @@ using namespace Genode;
 void Platform_thread::_init() { }
 
 
-Weak_ptr<Address_space> Platform_thread::address_space() {
+Weak_ptr<Address_space>& Platform_thread::address_space() {
 	return _address_space; }
 
 
@@ -129,37 +129,31 @@ int Platform_thread::start(void * const ip, void * const sp)
 	if (_main_thread) {
 
 		/* lookup dataspace component for physical address */
-		Rpc_entrypoint * ep = core_env()->entrypoint();
-		Object_pool<Dataspace_component>::Guard dsc(ep->lookup_and_lock(_utcb));
-		if (!dsc) return -1;
+		auto lambda = [&] (Dataspace_component *dsc) {
+			if (!dsc) return -1;
 
-		/* lock the address space */
-		Locked_ptr<Address_space> locked_ptr(_address_space);
-		if (!locked_ptr.is_valid()) {
-			PERR("invalid RM client");
-			return -1;
+			/* lock the address space */
+			Locked_ptr<Address_space> locked_ptr(_address_space);
+			if (!locked_ptr.is_valid()) {
+				PERR("invalid RM client");
+				return -1;
+			};
+			Page_flags const flags = Page_flags::apply_mapping(true, CACHED, false);
+			_utcb_pd_addr           = utcb_main_thread();
+			Hw::Address_space * as = static_cast<Hw::Address_space*>(&*locked_ptr);
+			if (!as->insert_translation((addr_t)_utcb_pd_addr, dsc->phys_addr(),
+			                            sizeof(Native_utcb), flags)) {
+				PERR("failed to attach UTCB");
+				return -1;
+			}
+			return 0;
 		};
-		Page_flags const flags = Page_flags::apply_mapping(true, CACHED, false);
-		_utcb_pd_addr           = utcb_main_thread();
-		Hw::Address_space * as = static_cast<Hw::Address_space*>(&*locked_ptr);
-		if (!as->insert_translation((addr_t)_utcb_pd_addr, dsc->phys_addr(),
-		                            sizeof(Native_utcb), flags)) {
-			PERR("failed to attach UTCB");
-			return -1;
-		}
+		if (core_env()->entrypoint()->apply(_utcb, lambda)) return -1;
 	}
 
 	/* initialize thread registers */
-	typedef Kernel::Thread_reg_id Reg_id;
-	enum { WRITES = 2 };
-	addr_t * write_regs = (addr_t*) Thread_base::myself()->utcb()->base();
-	write_regs[0] = Reg_id::IP;
-	write_regs[1] = Reg_id::SP;
-	addr_t values[] = { (addr_t)ip, (addr_t)sp };
-	if (Kernel::access_thread_regs(kernel_object(), 0, WRITES, values)) {
-		PERR("failed to initialize thread registers");
-		return -1;
-	}
+	kernel_object()->ip = reinterpret_cast<addr_t>(ip);
+	kernel_object()->sp = reinterpret_cast<addr_t>(sp);
 
 	/* start executing new thread */
 	if (!_pd) {
@@ -200,38 +194,15 @@ void Platform_thread::pager(Pager_object * const pager)
 Genode::Pager_object * Platform_thread::pager() { return _pager; }
 
 
-addr_t const * cpu_state_regs();
-
-size_t cpu_state_regs_length();
-
-
 Thread_state Platform_thread::state()
 {
-	static addr_t const * const src = cpu_state_regs();
-	static size_t const length = cpu_state_regs_length();
-	static size_t const size = length * sizeof(src[0]);
-	void  * dst = (void*)Thread_base::myself()->utcb()->base();
-	Genode::memcpy(dst, src, size);
-	Thread_state thread_state;
-	Cpu_state * const cpu_state = static_cast<Cpu_state *>(&thread_state);
-	if (Kernel::access_thread_regs(kernel_object(), length, 0,
-	                               (addr_t *)cpu_state)) {
-		throw Cpu_session::State_access_failed();
-	}
-	return thread_state;
-};
+	Thread_state_base bstate(*kernel_object());
+	return Thread_state(bstate);
+}
 
 
 void Platform_thread::state(Thread_state thread_state)
 {
-	static addr_t const * const src = cpu_state_regs();
-	static size_t const length = cpu_state_regs_length();
-	static size_t const size = length * sizeof(src[0]);
-	void  * dst = (void*)Thread_base::myself()->utcb()->base();
-	Genode::memcpy(dst, src, size);
-	Cpu_state * const cpu_state = static_cast<Cpu_state *>(&thread_state);
-	if (Kernel::access_thread_regs(kernel_object(), 0, length,
-	                               (addr_t *)cpu_state)) {
-		throw Cpu_session::State_access_failed();
-	}
-};
+	Cpu_state * cstate = static_cast<Cpu_state *>(kernel_object());
+	*cstate = static_cast<Cpu_state>(thread_state);
+}
