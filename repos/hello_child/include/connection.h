@@ -14,12 +14,12 @@
 #ifndef _INCLUDE__HELLO_SESSION__CONNECTION_H_
 #define _INCLUDE__HELLO_SESSION__CONNECTION_H_
 
-#include <hello_session/client.h>
+#include <client.h>
 #include <base/connection.h>
 
 namespace Hello {
 
-	struct Connection : Genode::Connection<Hello::Session>, Session_client
+	struct Connection : Genode::Connection<Session>, Session_client
 	{
 		Connection()
 		:

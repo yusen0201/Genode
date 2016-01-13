@@ -13,7 +13,7 @@
 
 #include <base/env.h>
 #include <base/printf.h>
-#include <hello_session/client.h>
+#include <hello_session/red_client.h>
 #include <hello_session/connection.h>
 
 #include <timer_session/connection.h>
@@ -31,7 +31,7 @@ int main(void)
 		h.say_hello();
 
 		int foo = h.add(2, 5);
-		PDBG("Added 2 + 5 = %d", foo);
+		PDBG("red_client added 2 + 5 = %d", foo);
 		timer.msleep(1000);
 	}
 

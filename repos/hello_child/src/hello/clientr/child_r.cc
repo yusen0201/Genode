@@ -13,8 +13,8 @@
 
 #include <base/env.h>
 #include <base/printf.h>
-#include <hello_session/client.h>
-#include <hello_session/connection.h>
+#include <client.h>
+#include <connection.h>
 
 #include <timer_session/connection.h>
 
@@ -22,10 +22,10 @@ using namespace Genode;
 
 int main(void)
 {
+	Hello::Connection h;
+
 	Timer::Connection timer;
 
-	timer.msleep(10000);
-	Hello::Connection h;
 
 	while (1) {
 		h.say_hello();

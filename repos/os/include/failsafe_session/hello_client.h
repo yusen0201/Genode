@@ -27,7 +27,7 @@ namespace Hello {
 
 		void say_hello()
 		{
-			PDBG("Saying Hello.");
+//			PDBG("Saying Hello.");
 			call<Rpc_say_hello>();
 		}
 

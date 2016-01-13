@@ -18,18 +18,16 @@
 #include <root/component.h>
 #include <hello_session/hello_session.h>
 #include <base/rpc_server.h>
-#include <timer_session/connection.h>
 
 namespace Hello {
 
 	struct Session_component : Genode::Rpc_object<Hello::Session>
 	{
 		void say_hello() {
-
-			PDBG("I am here... Hello."); }
+			PDBG("I am red_server"); }
 
 		int add(int a, int b) {
-			return a + b; }
+			return a + b + 1; }
 	};
 
 	class Root_component : public Genode::Root_component<Session_component>
@@ -38,7 +36,7 @@ namespace Hello {
 
 			Hello::Session_component *_create_session(const char *args)
 			{
-				PDBG("creating hello session.");
+				PDBG("creating hello session of redundancy.");
 				return new (md_alloc()) Session_component();
 			}
 
@@ -48,7 +46,7 @@ namespace Hello {
 			               Genode::Allocator *allocator)
 			: Genode::Root_component<Session_component>(ep, allocator)
 			{
-				PDBG("Creating root component.");
+				PDBG("Creating root component of redundancy.");
 			}
 	};
 }
@@ -88,12 +86,6 @@ int main(void)
 	static Hello::Root_component hello_root(&ep, &sliced_heap);
 	env()->parent()->announce(ep.manage(&hello_root));
 
-	/*******************************
-	****** cause a segfault ********
-	*******************************/
-		Timer::Connection timer;
-		timer.msleep(10000);
-		*((int *)0x44) = 0x55;
 	/* We are done with this and only act upon client requests now. */
 	sleep_forever();
 

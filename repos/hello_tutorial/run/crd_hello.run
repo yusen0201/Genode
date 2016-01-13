@@ -35,15 +35,16 @@ install_config {
 	<start name="failsafe">
 		<resource name="RAM" quantum="50M"/>
 		<provides>
-			  <service name="Hello"/>
 			  <service name="Loader"/>
+#			  <service name="Hello"/>
 		</provides>
 		<route>
 			<any-service><parent/><any-child/></any-service>
 		</route>
 	</start>
-	<start name="hello_client">
+	<start name="red_server">
 		<resource name="RAM" quantum="10M"/>
+		<provides><service name="Hello"/></provides>
 	</start>
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
@@ -55,7 +56,7 @@ install_config {
 # Boot image
 #
 
-build_boot_image { core init hello_client hello_server red_server timer failsafe }
+build_boot_image { core init hello_client red_server red_client timer failsafe }
 
 append qemu_args " -nographic "
 

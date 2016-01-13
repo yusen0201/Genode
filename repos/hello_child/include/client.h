@@ -14,16 +14,16 @@
 #ifndef _INCLUDE__HELLO_SESSION_H__CLIENT_H_
 #define _INCLUDE__HELLO_SESSION_H__CLIENT_H_
 
-#include <hello_session/hello_session.h>
+#include <hello_session.h>
 #include <base/rpc_client.h>
 #include <base/printf.h>
 
 namespace Hello {
 
-	struct Session_client : Genode::Rpc_client<Hello::Session>
+	struct Session_client : Genode::Rpc_client<Session>
 	{
-		Session_client(Genode::Capability<Hello::Session> cap)
-		: Genode::Rpc_client<Hello::Session>(cap) { }
+		Session_client(Genode::Capability<Session> cap)
+		: Genode::Rpc_client<Session>(cap) { }
 
 		void say_hello()
 		{

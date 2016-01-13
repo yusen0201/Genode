@@ -2,7 +2,7 @@
 # Build
 #
 
-build { core init hello drivers/timer server/failsafe}
+build { core init hello drivers/timer }
 
 create_boot_directory
 
@@ -16,10 +16,11 @@ install_config {
 		<service name="CAP"/>
 		<service name="LOG"/>
 		<service name="RM"/>
-		<service name="RAM"/>
-		<service name="CPU"/>
-		<service name="PD"/>
 		<service name="SIGNAL"/>
+                <service name="PD"/>
+                <service name="RAM"/>
+                <service name="SIGNAL"/>
+                <service name="CPU"/>
 		<!-- some timer implementations need kernel info pages -->
 		<service name="ROM"/>
 
@@ -32,30 +33,24 @@ install_config {
 		<any-service> <parent/> <any-child/> </any-service>
 	</default-route>
 
-	<start name="failsafe">
-		<resource name="RAM" quantum="50M"/>
-		<provides>
-			  <service name="Hello"/>
-			  <service name="Loader"/>
-		</provides>
+	<start name="hello_child">
+		<resource name="RAM" quantum="10M"/>
+		<provides><service name="Hello"/></provides>
 		<route>
 			<any-service><parent/><any-child/></any-service>
 		</route>
-	</start>
-	<start name="hello_client">
-		<resource name="RAM" quantum="10M"/>
 	</start>
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
 		<provides><service name="Timer"/></provides>
 	</start>
-</config>}
+</config> }
 
 #
 # Boot image
 #
 
-build_boot_image { core init hello_client hello_server red_server timer failsafe }
+build_boot_image { core init hello_child test_hello test_r timer }
 
 append qemu_args " -nographic "
 

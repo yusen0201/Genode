@@ -14,17 +14,18 @@
 #ifndef _INCLUDE__HELLO_SESSION__CONNECTION_H_
 #define _INCLUDE__HELLO_SESSION__CONNECTION_H_
 
-#include <hello_session/client.h>
+#include <failsafe_session/hello_client.h>
 #include <base/connection.h>
 
 namespace Hello {
 
-	struct Connection : Genode::Connection<Hello::Session>, Session_client
+	struct Connection : Genode::Connection<Session>, Session_client
 	{
+
 		Connection()
 		:
 			/* create session */
-			Genode::Connection<Hello::Session>(session("foo, ram_quota=4K")),
+			Genode::Connection<Session>(session("foo, ram_quota=4K")),
 
 			/* initialize RPC interface */
 			Session_client(cap()) { }
