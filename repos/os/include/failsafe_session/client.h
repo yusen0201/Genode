@@ -15,7 +15,7 @@
 #define _INCLUDE__LOADER_SESSION__CLIENT_H_
 
 #include <failsafe_session/loader_session.h>
-#include <failsafe_session/capability.h>
+//#include <failsafe_session/capability.h>
 #include <base/rpc_client.h>
 #include <os/alarm.h>
 
@@ -24,7 +24,7 @@ namespace Loader { struct Session_client; }
 
 struct Loader::Session_client : Genode::Rpc_client<Session>
 {
-	explicit Session_client(Loader::Session_capability session)
+	explicit Session_client(Capability<Session> session)
 	: Rpc_client<Session>(session) { }
 
 	Dataspace_capability alloc_rom_module(Name const &name,

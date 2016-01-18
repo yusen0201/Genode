@@ -60,9 +60,11 @@ Process::Process(Dataspace_capability   elf_data_ds_cap,
                  Parent_capability      parent_cap,
                  char const            *name)
 :
+	elf(elf_data_ds_cap),
 	_pd_session_client(pd_session_cap),
 	_cpu_session_client(cpu_session_cap),
-	_rm_session_client(Rm_session_capability())
+	_rm_session_client(Rm_session_capability()),
+	lx_pd(static_cap_cast<Linux_pd_session>(pd_session_cap))
 {
 	/* check for dynamic program header */
 	if (_check_dynamic_elf(elf_data_ds_cap)) {
@@ -83,12 +85,13 @@ Process::Process(Dataspace_capability   elf_data_ds_cap,
 	 */
 	enum { WEIGHT = Cpu_session::DEFAULT_WEIGHT };
 	_thread0_cap = _cpu_session_client.create_thread(WEIGHT, name);
-
-	Linux_pd_session_client
-		lx_pd(static_cap_cast<Linux_pd_session>(pd_session_cap));
-
 	lx_pd.assign_parent(parent_cap);
-	lx_pd.start(elf_data_ds_cap);
+
+	//Linux_pd_session_client
+	//	lx_pd(static_cap_cast<Linux_pd_session>(pd_session_cap));
+	if (strcmp(name, "redundancy")){
+		lx_pd.start(elf_data_ds_cap);
+	}
 }
 
 

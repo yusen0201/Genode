@@ -272,7 +272,7 @@ class Genode::Child : protected Rpc_object<Parent>
 		      Cpu_session_capability  cpu,
 		      Rm_session_capability   rm,
 		      Rpc_entrypoint         *entrypoint,
-		      Child_policy           *policy,
+		      Child_policy           *policy, 
 		      Service                &pd_service  = *_parent_service(),
 		      Service                &ram_service = *_parent_service(),
 		      Service                &cpu_service = *_parent_service(),
@@ -323,6 +323,13 @@ class Genode::Child : protected Rpc_object<Parent>
 		 */
 		void notify_resource_avail() const;
 
+		/*
+		* start redundancy's thread
+		*/
+		void red_start()
+		{
+			_process.red_start();
+		}
 
 		/**********************
 		 ** Parent interface **

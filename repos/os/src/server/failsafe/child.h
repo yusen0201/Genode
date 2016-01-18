@@ -159,11 +159,13 @@ namespace Loader {
 				_pd_args_policy. filter_session_args(service, args, args_len);
 			}
 
+			Genode::Lock hello_session_barrier { Genode::Lock::LOCKED };
+
 			Service *resolve_session_request(const char *name,
 			                                 const char *args)
 			{
 				Service *service = 0;
-
+				
 				if ((service = _binary_policy.resolve_session_request(name, args)))
 					return service;
 
@@ -175,8 +177,13 @@ namespace Loader {
 				/* populate session-local parent service registry on demand */
 				service = _parent_services.find(name);
 				if (!service) {
+					if (!strcmp(name, "Hello")) 
+						//if(hello_session_barrier.initial == 0)
+							hello_session_barrier.lock();
+					
 					service = new (env()->heap()) Parent_service(name);
 					_parent_services.insert(service);
+					
 				}
 				return service;
 			}
@@ -215,6 +222,10 @@ namespace Loader {
 				hello_root_barrier.lock();
 			}
 			
+			void red_start()
+			{
+				_child.red_start();
+			}
 	};
 }
 

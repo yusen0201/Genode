@@ -26,7 +26,7 @@ namespace Hello {
 	{
 		void say_hello() {
 
-			PDBG("I am here... Hello."); }
+			PDBG("I am original... Hello."); }
 
 		int add(int a, int b) {
 			return a + b; }
@@ -38,7 +38,7 @@ namespace Hello {
 
 			Hello::Session_component *_create_session(const char *args)
 			{
-				PDBG("creating hello session.");
+				PDBG("creating hello session of original");
 				return new (md_alloc()) Session_component();
 			}
 
@@ -48,7 +48,7 @@ namespace Hello {
 			               Genode::Allocator *allocator)
 			: Genode::Root_component<Session_component>(ep, allocator)
 			{
-				PDBG("Creating root component.");
+				PDBG("Creating root component of original");
 			}
 	};
 }
@@ -92,7 +92,7 @@ int main(void)
 	****** cause a segfault ********
 	*******************************/
 		Timer::Connection timer;
-		timer.msleep(10000);
+		timer.msleep(21111);
 		*((int *)0x44) = 0x55;
 	/* We are done with this and only act upon client requests now. */
 	sleep_forever();

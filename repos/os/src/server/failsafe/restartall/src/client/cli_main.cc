@@ -34,6 +34,7 @@
 #include <hello_session/hello_session.h>
 #include <failsafe_session/hello_client.h>
 #include <timer_session/connection.h>
+#include <failsafe_session/connection.h>
 
 namespace Loader {
 
@@ -113,7 +114,7 @@ class Loader::Session_component : public Rpc_object<Session>
 				/* fall back to parent_rom_service */
 				return _parent_rom_service.session(args, affinity);
 			}
-			
+
 			void close(Session_capability session)
 			{
 				Lock::Guard guard(_lock);
@@ -132,6 +133,7 @@ class Loader::Session_component : public Rpc_object<Session>
 
 				_parent_rom_service.close(session);
 			}
+
 
 			void upgrade(Session_capability session, const char *) { }
 		};
@@ -353,24 +355,16 @@ class Loader::Session_component : public Rpc_object<Session>
 			_nitpicker_service.view_ready_sigh = sigh;
 		}
 
+
+
+		/* transmit signal to client*/
+		
+		Signal_transmitter cli_sig;
+			
 		void fault_sigh(Signal_context_capability sigh) override
 		{
-			/*
-			 * CPU exception handler for CPU sessions originating from the
-			 * subsystem.
-			 */
-			_cpu_service.fault_sigh = sigh;
-
-			/*
-			 * RM fault handler for RM sessions originating from the
-			 * subsystem.
-			 */
-			_rm_service.fault_sigh = sigh;
-
-			/*
-			 * CPU exception and RM fault handler for the immediate child.
-			 */
-			_fault_sigh = sigh;
+			cli_sig.context(sigh);
+			
 		}
 
 		void start(Name const &binary_name, Name const &label,
@@ -406,7 +400,16 @@ class Loader::Session_component : public Rpc_object<Session>
 		{
 			return _virtual_nitpicker_session().loader_view_size();
 		}
+
+		/***************************************
+		*	get child's root cap
+		***************************************/
+		Root_capability hello_root_cap()
+		{
+			return _child->get_root_cap();
+		}
 		
+
 		/***************************************
 		*	for child's cap
 		***************************************/
@@ -432,12 +435,35 @@ class Loader::Session_component : public Rpc_object<Session>
 		{
 			_child->block_for_hello_announcement();
 		}
-		
+
 		void red_start()
 		{
 			_child->red_start();
 		}
-	
+		/************************************************
+		***************** set signal handler ************
+		************************************************/
+		void child_fault_sigh(Signal_context_capability sigh) 
+		{
+			/*
+			 * CPU exception handler for CPU sessions originating from the
+			 * subsystem.
+			 */
+			_cpu_service.fault_sigh = sigh;
+
+			/*
+			 * RM fault handler for RM sessions originating from the
+			 * subsystem.
+			 */
+			_rm_service.fault_sigh = sigh;
+
+			/*
+			 * CPU exception and RM fault handler for the immediate child.
+			 */
+			_fault_sigh = sigh;
+		}
+
+		
 };
 
 class Loader::Hello_component : public Rpc_object<Hello::Session>
@@ -511,15 +537,21 @@ class Loader::Root : public Root_component<Session_component>
 
 		Ram_session &_ram;
 		Cap_session &_cap;
+		Session_component* _root;
+		Genode::Lock loader_cap_barrier { Genode::Lock::LOCKED };
 
 	protected:
 
 		Session_component *_create_session(const char *args)
 		{
+        		PDBG("Creating loader session of Loader.");
 			size_t quota =
 				Arg_string::find_arg(args, "ram_quota").ulong_value(0);
 
-			return new (md_alloc()) Session_component(quota, _ram, _cap);
+			_root = new (md_alloc()) Session_component(quota, _ram, _cap);
+
+			loader_cap_barrier.unlock();
+			return _root;
 		}
 
 	public:
@@ -539,6 +571,13 @@ class Loader::Root : public Root_component<Session_component>
 		{ 
         		PDBG("Creating root component of Loader.");
 		}
+		
+
+		Session_component* get_component()
+		{
+			loader_cap_barrier.lock();
+			return _root;	
+		}
 };
 
 
@@ -551,28 +590,25 @@ int main()
 	enum { STACK_SIZE = 8*1024 };
 	static Cap_connection cap;
 	static Rpc_entrypoint ep(&cap, STACK_SIZE, "loader_ep");
-	//static Rpc_entrypoint ep_loader(&cap, STACK_SIZE, "loader_ep_loader");
+
 	static Signal_receiver sig_rec;
 	Signal_context sig_ctx;
+	Signal_context sig_ctx_srv;
+
+	static Loader::Connection srv_monitor(1024*1024);
+	srv_monitor.fault_sigh(sig_rec.manage(&sig_ctx_srv));
 
 	static Loader::Session_component red_load(size, *env()->ram_session(), cap);
 	static Loader::Session_component load(size, *env()->ram_session(), cap);
 
-	load.fault_sigh(sig_rec.manage(&sig_ctx));
-        PDBG("going to start red_server");
-	red_load.start("red_server", "redundancy", Native_pd_args());
+	load.child_fault_sigh(sig_rec.manage(&sig_ctx));
+	load.start("hello_client", "", Native_pd_args());
+	red_load.start("red_client", "redundancy", Native_pd_args());
 
+	//load_component->child_fault_sigh(sig_rec.manage(&sig_ctx));
 
-        PDBG("going to start hello_server");
-	load.start("hello_server", "helloser", Native_pd_args());
-        //PDBG("going to start red_server");
-	//red_load.start("red_server", "redundancy", Native_pd_args());
-
-
-	//static Loader::Root root(ep, *env()->heap(), *env()->ram_session(), cap);
-	load.block_for_announcement();
-	static Loader::Hello_root hello_root(ep, *env()->heap(), load.hello_session());
-	env()->parent()->announce(ep.manage(&hello_root));
+	//load.block_for_announcement();
+	//env()->parent()->announce("Hello", load.hello_root_cap());
 	
 
 	/*****************************************************
@@ -580,24 +616,25 @@ int main()
 	*****************************************************/
 	
 
+
 	Genode::Signal s = sig_rec.wait_for_signal();
 	
 	if (s.num() && s.context() == &sig_ctx) {
-		PLOG("got exception for child");
-		Loader::Hello_component* hi;
+		PLOG("got exception for child in client monitor");
 		red_load.red_start();
-		red_load.block_for_announcement();
-		hi = hello_root.get_component();
-		hi->update_cap(red_load.hello_session());
-
-	} else {
+		//sig_rec.dissolve(&sig_ctx);
+	} 
+	else if (s.num() && s.context() == &sig_ctx_srv) {
+		PLOG("got signal from server monitor");
+		red_load.red_start();	
+		PLOG("redundancy started");
+		//sig_rec.dissolve(&sig_ctx_srv);
+	} 
+	else {
 		PERR("got unexpected signal while waiting for child");
 		class Unexpected_signal { };
 		throw Unexpected_signal();
 	}
-
-        sig_rec.dissolve(&sig_ctx);
-
 	sleep_forever();
 	return 0;
 }

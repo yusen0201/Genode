@@ -83,6 +83,7 @@ class Loader::Session_component : public Rpc_object<Session>
 				Lock::Guard guard(_lock);
 
 				while (_rom_sessions.first()) {
+					_ep.remove(_rom_sessions.first());
 					_close(_rom_sessions.first()); }
 			}
 
@@ -118,10 +119,12 @@ class Loader::Session_component : public Rpc_object<Session>
 			{
 				Lock::Guard guard(_lock);
 
-				Rpc_object_base *rom = _ep.lookup_and_lock(session);
+				Rom_session_component *component;
 
-				Rom_session_component *component =
-					dynamic_cast<Rom_session_component *>(rom);
+				_ep.apply(session, [&] (Rom_session_component *rsc) {
+					component = rsc;
+					if (component) _ep.remove(component);
+				});
 
 				if (component) {
 					_close(component);
@@ -130,6 +133,7 @@ class Loader::Session_component : public Rpc_object<Session>
 
 				_parent_rom_service.close(session);
 			}
+
 
 			void upgrade(Session_capability session, const char *) { }
 		};
@@ -374,25 +378,25 @@ class Loader::Session_component : public Rpc_object<Session>
 		void start(Name const &binary_name, Name const &label,
 		           Genode::Native_pd_args const &pd_args) override
 		{
-			if (_child) {
-				PWRN("cannot start subsystem twice");
-				return;
-			}
+			//if (_child) {
+			//	PWRN("cannot start subsystem twice");
+			//	return;
+			//}
 
-			size_t const ram_quota = (_subsystem_ram_quota_limit > 0) ?
-			                         min(_subsystem_ram_quota_limit, _ram_session_client.avail()) :
-			                         _ram_session_client.avail();
+			//size_t const ram_quota = (_subsystem_ram_quota_limit > 0) ?
+			//                         min(_subsystem_ram_quota_limit, _ram_session_client.avail()) :
+			//                         _ram_session_client.avail();
 
-		//	try {
-		//		_child = new (&_md_alloc)
-		//			Child(binary_name.string(), label.string(),
-		//			      pd_args, _ep, _ram_session_client,
-		//			      ram_quota, _parent_services, _rom_service,
-		//			      _cpu_service, _rm_service, _nitpicker_service,
-		//			      _fault_sigh);
-		//	}
-		//	catch (Genode::Parent::Service_denied) {
-		//		throw Rom_module_does_not_exist(); }
+			//try {
+			//	_child = new (&_md_alloc)
+			//		Child(binary_name.string(), label.string(),
+			//		      pd_args, _ep, _ram_session_client,
+			//		      ram_quota, _parent_services, _rom_service,
+			//		      _cpu_service, _rm_service, _nitpicker_service,
+			//		      _fault_sigh);
+			//}
+			//catch (Genode::Parent::Service_denied) {
+			//	throw Rom_module_does_not_exist(); }
 		}
 		
 		
@@ -458,20 +462,20 @@ class Loader::Session_component : public Rpc_object<Session>
 		}
 
 		/************************************************
-		***************** realloc ram *******************
-		************************************************/
-
-		void ram_realloc()
+		*	start redundancy thread	
+		*************************************************/
+		
+		void red_start()
 		{
-			size_t const ram_quota = (_subsystem_ram_quota_limit > 0) ?
-			                         min(_subsystem_ram_quota_limit, _ram_session_client.avail()) :
-			                         _ram_session_client.avail();
-			//_child->_resources.ram.free();
-			_child->_resources.ram.ref_account(_ram_session_client);
-                        _ram_session_client.transfer_quota(_child->_resources.ram.cap(), ram_quota);
-
+			_child->red_start();
 		}
-};
+
+		void exit()
+		{
+			_child->exit();
+		}
+
+	};
 
 
 class Loader::Root : public Root_component<Session_component>
@@ -527,51 +531,28 @@ int main()
 	static Loader::Session_component red_load(size, *env()->ram_session(), cap);
 	static Loader::Session_component load(size, *env()->ram_session(), cap);
 
-	//load.fault_sigh(sig_rec.manage(&sig_ctx));
-
-	//load.start("hello_client", "", Native_pd_args());
-	//red_load.start("red_client", "", Native_pd_args());
-
-
-	//static Loader::Root root(ep, *env()->heap(), *env()->ram_session(), cap);
-	//load.block_for_announcement();
-		PLOG("1");
-	//Capability<Hello::Session> h_cap = 
-	//	env()->parent()->session<Hello::Session>("foo, ram_quota=4K");
-
-	PLOG("2");
 	static Loader::Hello_root hello_root(ep, *env()->heap());
-	//env()->parent()->announce(ep.manage(&hello_root));
 
-	PLOG("333");
-	load.crd_start("hello_client", "", Native_pd_args(), hello_root);
-	red_load.crd_start("red_client", "", Native_pd_args(), hello_root);
+	load.crd_start("hello_client", "hello", Native_pd_args(), hello_root);
+	//red_load.crd_start("red_client", "red", Native_pd_args(), hello_root);
+	red_load.crd_start("red_client", "redundancy", Native_pd_args(), hello_root);
+	red_load.red_start();
+
 	/*****************************************************
 	***** update capability when original server down*****
 	*****************************************************/
 	
-	timer.msleep(10000);
+	timer.msleep(20000);
+	//load.exit();
 	hello_root.recount();
-	//here should be sigh and sig_receiver
-
-	//env()->parent()->announce(ep.manage(&root));
-	//env()->parent()->announce(ep.manage(&hello_root));
+	//red_load.red_start();
 
 	Genode::Signal s = sig_rec.wait_for_signal();
 	
 	if (s.num() && s.context() == &sig_ctx) {
 		PLOG("got exception for child");
-		//static Loader::Hello_component* hi;
-		//hi = hello_root.get_component();
+		hello_root.recount();
 
-		//Capability<Hello::Session> h_cap = 
-		//	env()->parent()->session<Hello::Session>("foo, ram_quota=4K");
-		//hi->update_cap(h_cap);
-
-	/********************************************************
-	******************* realloc ram *************************
-	********************************************************/
-		//load.ram_realloc();
 	} else {
 		PERR("got unexpected signal while waiting for child");
 		class Unexpected_signal { };

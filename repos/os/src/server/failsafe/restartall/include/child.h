@@ -17,7 +17,6 @@
 
 /* Genode includes */
 #include <base/child.h>
-#include <base/env.h>
 #include <util/arg_string.h>
 #include <init/child_policy.h>
 #include <ram_session/connection.h>
@@ -29,75 +28,9 @@
 #include <base/rpc_client.h>
 #include <root/client.h>
 
-#include <hello_session/hello_session.h>
-#include <failsafe_session/hello_connection.h>
-#include <failsafe_session/hello_client.h>
-
 namespace Loader {
 
 	using namespace Genode;
-
-class Hello_component : public Rpc_object<Hello::Session>
-{
-	public:
-		 Hello::Connection con;
-	
- 		 void say_hello()
-                 {
-                         PDBG("This is failsafe say()");
-			 con.say_hello();
-                 }
- 
-                 int add(int a, int b)
-                 {
-			return con.add(a, b);
-			//return a + b;
-                 }
-		
-
-};
-
-class Hello_root : public Root_component<Hello_component>
-{
-	private:
-	
-		int count;
-		Genode::Lock session_barrier { Genode::Lock::LOCKED };
-		
-	protected:	
-
-		Hello_component *_create_session(const char *args)
-     		{
-        		PDBG("creating hello session to failsafe.");
-			/*this only garenties that one client starts the session at a time,
-			  hello_client or red_client is not determined*/
-			
-			if(count==0){
-				++count; 
-        			return new (md_alloc()) Hello_component();
-			}
-			else{
-				session_barrier.lock();
-        			return new (md_alloc()) Hello_component();
-			}
-      		}
-
-    	public:
-
-      		Hello_root(Genode::Rpc_entrypoint &ep,
-                     	   Genode::Allocator      &allocator)
-      		: Genode::Root_component<Hello_component>(&ep, &allocator), count(0)
-      		{
-        		PDBG("Creating root component of failsafe.");
-      		}
-		
-		void recount(){ 
-			PDBG("recount");
-			count = 0; 
-			session_barrier.unlock();
-		}
-		
-};
 
 	class Child : public Child_policy
 	{
@@ -148,14 +81,10 @@ class Hello_root : public Root_component<Hello_component>
 
 
 			Service_registry &_parent_services;
-			Genode::Local_service  _hello_service;
 			Service &_local_nitpicker_service;
 			Service &_local_rom_service;
 			Service &_local_cpu_service;
 			Service &_local_rm_service;
-
-			/* add hello service*/
-			//Local_service _hello_service;
 
 			Rom_session_client _binary_rom_session;
 
@@ -190,15 +119,13 @@ class Hello_root : public Root_component<Hello_component>
 			      Service                   &local_cpu_service,
 			      Service                   &local_rm_service,
 			      Service                   &local_nitpicker_service,
-			      Signal_context_capability fault_sigh,
-			      Loader::Hello_root &hello_root)
+			      Signal_context_capability fault_sigh)
 			:
 				_label(label),
 				_pd_args(pd_args),
 				_ep(ep),
 				_resources(_label.string, ram_session_client, ram_quota, fault_sigh),
 				_parent_services(parent_services),
-				_hello_service("Hello", &hello_root),
 				_local_nitpicker_service(local_nitpicker_service),
 				_local_rom_service(local_rom_service),
 				_local_cpu_service(local_cpu_service),
@@ -214,6 +141,7 @@ class Hello_root : public Root_component<Hello_component>
 
 			~Child()
 			{
+				PDBG("child killed");
 				_local_rom_service.close(_binary_rom_session);
 			}
 
@@ -243,7 +171,6 @@ class Hello_root : public Root_component<Hello_component>
 				if (!strcmp(name, "ROM"))       return &_local_rom_service;
 				if (!strcmp(name, "CPU"))       return &_local_cpu_service;
 				if (!strcmp(name, "RM"))        return &_local_rm_service;
-				if (!strcmp(name, "Hello"))        return &_hello_service;
 
 				/* populate session-local parent service registry on demand */
 				service = _parent_services.find(name);
@@ -287,15 +214,11 @@ class Hello_root : public Root_component<Hello_component>
 			{
 				hello_root_barrier.lock();
 			}
+			
 			void red_start()
 			{
 				_child.red_start();
 			}
-			void exit()
-			{
-				_child.exit(0);
-			}
-			
 	};
 }
 

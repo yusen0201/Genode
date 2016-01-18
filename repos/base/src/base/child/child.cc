@@ -501,7 +501,7 @@ Child::Child(Dataspace_capability    elf_ds,
 	_policy(policy),
 	_server(ram),
 	_process(elf_ds, pd, ram, cpu, rm, _parent_cap, policy->name())
-{ }
+{}
 
 
 Child::~Child()

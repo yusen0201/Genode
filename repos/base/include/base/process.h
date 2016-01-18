@@ -19,6 +19,7 @@
 #include <pd_session/client.h>
 #include <cpu_session/client.h>
 #include <parent/capability.h>
+#include <linux_pd_session/client.h>
 
 namespace Genode { class Process; }
 
@@ -27,13 +28,15 @@ class Genode::Process
 {
 	private:
 
+		Dataspace_capability elf;
 		Pd_session_client  _pd_session_client;
 		Thread_capability  _thread0_cap;
 		Cpu_session_client _cpu_session_client;
 		Rm_session_client  _rm_session_client;
 
 		static Dataspace_capability _dynamic_linker_cap;
-
+		Linux_pd_session_client lx_pd;
+		
 	public:
 
 		/**
@@ -75,6 +78,11 @@ class Genode::Process
 		}
 
 		Thread_capability main_thread_cap() const { return _thread0_cap; }
+		
+		void red_start()
+		{
+			lx_pd.start(elf);
+		}
 };
 
 #endif /* _INCLUDE__BASE__PROCESS_H_ */
