@@ -2,7 +2,7 @@
 *.orig
 *.swp
 *.rej
-/build
+/build*
 /contrib
 /repos/base-codezero/contrib
 /repos/base-fiasco/contrib
