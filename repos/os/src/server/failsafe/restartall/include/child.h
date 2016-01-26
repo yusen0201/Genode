@@ -16,7 +16,7 @@
 #define _CHILD_H_
 
 /* Genode includes */
-#include <base/child.h>
+#include <base/linux_child.h>
 #include <util/arg_string.h>
 #include <init/child_policy.h>
 #include <ram_session/connection.h>

@@ -543,7 +543,7 @@ int main()
 	*****************************************************/
 	
 	timer.msleep(20000);
-	//load.exit();
+	load.exit();
 	hello_root.recount();
 	//red_load.red_start();
 

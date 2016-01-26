@@ -16,7 +16,7 @@
 
 #include <base/rpc_server.h>
 #include <base/heap.h>
-#include <base/process.h>
+#include <base/linux_process.h>
 #include <base/service.h>
 #include <base/lock.h>
 #include <util/arg_string.h>
@@ -322,6 +322,14 @@ class Genode::Child : protected Rpc_object<Parent>
 		 * Notify the child about newly available resources
 		 */
 		void notify_resource_avail() const;
+
+		/*
+		* start redundancy's thread
+		*/
+		void red_start()
+		{
+			_process.red_start();
+		}
 
 		/**********************
 		 ** Parent interface **

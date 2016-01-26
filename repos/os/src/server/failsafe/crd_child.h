@@ -16,7 +16,7 @@
 #define _CHILD_H_
 
 /* Genode includes */
-#include <base/child.h>
+#include <base/linux_child.h>
 #include <base/env.h>
 #include <util/arg_string.h>
 #include <init/child_policy.h>
@@ -293,6 +293,7 @@ class Hello_root : public Root_component<Hello_component>
 			}
 			void exit()
 			{
+				_local_rom_service.close(_binary_rom_session);
 				_child.exit(0);
 			}
 			

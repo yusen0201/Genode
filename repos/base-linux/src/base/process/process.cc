@@ -14,7 +14,7 @@
 /* Genode includes */
 #include <base/elf.h>
 #include <base/env.h>
-#include <base/process.h>
+#include <base/linux_process.h>
 #include <base/printf.h>
 #include <linux_pd_session/client.h>
 
