@@ -16,7 +16,6 @@
 
 #include <hello_session/hello_session.h>
 #include <base/rpc_client.h>
-#include <base/printf.h>
 
 namespace Hello {
 
@@ -27,7 +26,7 @@ namespace Hello {
 
 		void say_hello()
 		{
-//			PDBG("Saying Hello.");
+			//PDBG("pseudo client Saying Hello.");
 			call<Rpc_say_hello>();
 		}
 

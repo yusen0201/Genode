@@ -12,26 +12,19 @@
  * under the terms of the GNU General Public License version 2.
  */
 
-#ifndef _CHILD_H_
-#define _CHILD_H_
+#ifndef _CRD_CHILD_H_
+#define _CRD_CHILD_H_
 
 /* Genode includes */
 #include <base/linux_child.h>
-#include <base/env.h>
-#include <util/arg_string.h>
-#include <init/child_policy.h>
+#include <child_policy.h>
 #include <ram_session/connection.h>
 #include <rm_session/connection.h>
 #include <cpu_session/connection.h>
 #include <pd_session/connection.h>
-#include <os/attached_ram_dataspace.h>
-
-#include <base/rpc_client.h>
-#include <root/client.h>
 
 #include <hello_session/hello_session.h>
 #include <failsafe_session/hello_connection.h>
-#include <failsafe_session/hello_client.h>
 
 namespace Loader {
 
@@ -44,14 +37,13 @@ class Hello_component : public Rpc_object<Hello::Session>
 	
  		 void say_hello()
                  {
-                         PDBG("This is failsafe say()");
+                         PDBG("pseudo say()");
 			 con.say_hello();
                  }
  
                  int add(int a, int b)
                  {
 			return con.add(a, b);
-			//return a + b;
                  }
 		
 
@@ -101,8 +93,7 @@ class Hello_root : public Root_component<Hello_component>
 
 	class Child : public Child_policy
 	{
-		//private:
-		public:
+		private:
 			struct Label {
 				char string[Session::Name::MAX_SIZE];
 				Label(char const *l) { strncpy(string, l, sizeof(string)); }
@@ -148,14 +139,12 @@ class Hello_root : public Root_component<Hello_component>
 
 
 			Service_registry &_parent_services;
+			/* add hello service*/
 			Genode::Local_service  _hello_service;
-			Service &_local_nitpicker_service;
 			Service &_local_rom_service;
 			Service &_local_cpu_service;
 			Service &_local_rm_service;
 
-			/* add hello service*/
-			//Local_service _hello_service;
 
 			Rom_session_client _binary_rom_session;
 
@@ -189,7 +178,6 @@ class Hello_root : public Root_component<Hello_component>
 			      Service                   &local_rom_service,
 			      Service                   &local_cpu_service,
 			      Service                   &local_rm_service,
-			      Service                   &local_nitpicker_service,
 			      Signal_context_capability fault_sigh,
 			      Loader::Hello_root &hello_root)
 			:
@@ -199,7 +187,6 @@ class Hello_root : public Root_component<Hello_component>
 				_resources(_label.string, ram_session_client, ram_quota, fault_sigh),
 				_parent_services(parent_services),
 				_hello_service("Hello", &hello_root),
-				_local_nitpicker_service(local_nitpicker_service),
 				_local_rom_service(local_rom_service),
 				_local_cpu_service(local_cpu_service),
 				_local_rm_service(local_rm_service),
@@ -239,7 +226,6 @@ class Hello_root : public Root_component<Hello_component>
 				if ((service = _binary_policy.resolve_session_request(name, args)))
 					return service;
 
-				if (!strcmp(name, "Nitpicker")) return &_local_nitpicker_service;
 				if (!strcmp(name, "ROM"))       return &_local_rom_service;
 				if (!strcmp(name, "CPU"))       return &_local_cpu_service;
 				if (!strcmp(name, "RM"))        return &_local_rm_service;
@@ -300,4 +286,4 @@ class Hello_root : public Root_component<Hello_component>
 	};
 }
 
-#endif /* _CHILD_H_ */
+#endif /* _CRD_CHILD_H_ */

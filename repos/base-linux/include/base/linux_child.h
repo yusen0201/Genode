@@ -11,8 +11,8 @@
  * under the terms of the GNU General Public License version 2.
  */
 
-#ifndef _INCLUDE__BASE__CHILD_H_
-#define _INCLUDE__BASE__CHILD_H_
+#ifndef _INCLUDE__BASE__LINUX_CHILD_H_
+#define _INCLUDE__BASE__LINUX_CHILD_H_
 
 #include <base/rpc_server.h>
 #include <base/heap.h>
@@ -349,4 +349,4 @@ class Genode::Child : protected Rpc_object<Parent>
 		void yield_response() override;
 };
 
-#endif /* _INCLUDE__BASE__CHILD_H_ */
+#endif /* _INCLUDE__BASE__LINUX_CHILD_H_ */

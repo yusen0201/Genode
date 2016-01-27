@@ -6,4 +6,4 @@ Redundancy of Client:
 	Forwarded: crd_main.cc (with headerfile crd_child.h)
 	Direct:    cdr_main.cc
 
-Redundancy of both: in directory /restartall
+Redundancy of both: in directory /restartall (headerfiles copied to /restartall/include)

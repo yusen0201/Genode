@@ -15,24 +15,17 @@
 #include <base/env.h>
 #include <base/heap.h>
 #include <base/rpc_server.h>
-#include <base/rpc_client.h>
-#include <base/signal.h>
 #include <base/sleep.h>
 #include <failsafe_session/loader_session.h>
 #include <cap_session/connection.h>
 #include <root/component.h>
 
-#include <root/client.h>
 
 /* local includes */
 #include <child.h>
-#include <nitpicker.h>
 #include <ram_session_client_guard.h>
 #include <rom.h>
 
-/* hello interface*/
-#include <hello_session/hello_session.h>
-#include <failsafe_session/hello_client.h>
 #include <timer_session/connection.h>
 
 namespace Loader {
@@ -40,9 +33,6 @@ namespace Loader {
 	using namespace Genode;
 
 	class Session_component;
-	class Hello_component;
-	class Root;
-	class Hello_root;
 }
 
 
@@ -192,68 +182,7 @@ class Loader::Session_component : public Rpc_object<Session>
 			}
 		};
 
-		struct Local_nitpicker_service : Service
-		{
-			Rpc_entrypoint &_ep;
-			Ram_session    &_ram;
-			Allocator      &_md_alloc;
-
-			Area                       _max_size;
-			Nitpicker::View_capability _parent_view;
-
-			Signal_context_capability view_ready_sigh;
-
-			Nitpicker::Session_component *open_session;
-
-			Local_nitpicker_service(Rpc_entrypoint &ep, Ram_session &ram,
-			                        Allocator &md_alloc)
-			:
-				Service("virtual_nitpicker"),
-				_ep(ep),
-				_ram(ram),
-				_md_alloc(md_alloc),
-				open_session(0)
-			{ }
-
-			~Local_nitpicker_service()
-			{
-				if (!open_session)
-					return;
-
-				_ep.dissolve(open_session);
-				destroy(&_md_alloc, open_session);
-			}
-
-			void constrain_geometry(Area size)
-			{
-				_max_size = size;
-			}
-
-			void parent_view(Nitpicker::View_capability view)
-			{
-				_parent_view = view;
-			}
-
-			Genode::Session_capability session(char     const *args,
-			                                   Affinity const &)
-			{
-				if (open_session)
-					throw Unavailable();
-
-				open_session = new (&_md_alloc)
-					Nitpicker::Session_component(_ep,
-					                             _ram,
-					                             _max_size,
-					                             _parent_view,
-					                             view_ready_sigh,
-					                             args);
-
-				return _ep.manage(open_session);
-			}
-
-			void upgrade(Genode::Session_capability session, const char *) { }
-		};
-
+		
 		enum { STACK_SIZE = 2*4096 };
 
 		size_t                    _ram_quota;
@@ -266,21 +195,10 @@ class Loader::Session_component : public Rpc_object<Session>
 		Local_rom_service         _rom_service;
 		Local_cpu_service         _cpu_service;
 		Local_rm_service          _rm_service;
-		Local_nitpicker_service   _nitpicker_service;
 		Signal_context_capability _fault_sigh;
 		Child                    *_child;
 
-		/**
-		 * Return virtual nitpicker session component
-		 */
-		Nitpicker::Session_component &_virtual_nitpicker_session() const
-		{
-			if (!_nitpicker_service.open_session)
-				throw View_does_not_exist();
-
-			return *_nitpicker_service.open_session;
-		}
-
+		
 	public:
 
 		/**
@@ -295,7 +213,6 @@ class Loader::Session_component : public Rpc_object<Session>
 			_ep(&cap, STACK_SIZE, "session_ep"),
 			_rom_modules(_ram_session_client, _md_alloc),
 			_rom_service(_ep, _md_alloc, _rom_modules),
-			_nitpicker_service(_ep, _ram_session_client, _md_alloc),
 			_child(0)
 		{ }
 
@@ -338,31 +255,27 @@ class Loader::Session_component : public Rpc_object<Session>
 			_subsystem_ram_quota_limit = quantum;
 		}
 
-		void constrain_geometry(Area size) override
-		{
-			_nitpicker_service.constrain_geometry(size);
-		}
-
-		void parent_view(Nitpicker::View_capability view) override
-		{
-			_nitpicker_service.parent_view(view);
-		}
-
-		void view_ready_sigh(Signal_context_capability sigh) override
-		{
-			_nitpicker_service.view_ready_sigh = sigh;
-		}
-
-
-
-		/* transmit signal to client*/
 		
-		Signal_transmitter cli_sig;
 			
 		void fault_sigh(Signal_context_capability sigh) override
 		{
-			cli_sig.context(sigh);
-			
+			/*
+			 * CPU exception handler for CPU sessions originating from the
+			 * subsystem.
+			 */
+			_cpu_service.fault_sigh = sigh;
+
+			/*
+			 * RM fault handler for RM sessions originating from the
+			 * subsystem.
+			 */
+			_rm_service.fault_sigh = sigh;
+
+			/*
+			 * CPU exception and RM fault handler for the immediate child.
+			 */
+			_fault_sigh = sigh;
+	
 		}
 
 		void start(Name const &binary_name, Name const &label,
@@ -382,58 +295,15 @@ class Loader::Session_component : public Rpc_object<Session>
 					Child(binary_name.string(), label.string(),
 					      pd_args, _ep, _ram_session_client,
 					      ram_quota, _parent_services, _rom_service,
-					      _cpu_service, _rm_service, _nitpicker_service,
+					      _cpu_service, _rm_service, 
 					      _fault_sigh);
 			}
 			catch (Genode::Parent::Service_denied) {
 				throw Rom_module_does_not_exist(); }
 		}
 
-		void view_geometry(Rect rect, Point offset) override
-		{
-			_virtual_nitpicker_session().loader_view_geometry(rect, offset);
-		}
-
-		Area view_size() const override
-		{
-			return _virtual_nitpicker_session().loader_view_size();
-		}
-
-		/***************************************
-		*	get child's root cap
-		***************************************/
-		Root_capability hello_root_cap()
-		{
-			return _child->get_root_cap();
-		}
 		
-
-		/***************************************
-		*	for child's cap
-		***************************************/
 		
-	        Genode::Capability<Hello::Session> hello_session()
-		{
-
-			Genode::Session_capability session_cap =
-				Genode::Root_client(_child->get_root_cap()).session("foo, ram_quota=4K", Genode::Affinity());
-
-		/*
-		 * The root interface returns a untyped session capability.
-		 * We return a capability casted to the specific session type.
-		 */
-			return Genode::static_cap_cast<Hello::Session>(session_cap);
-		}
-		
-		/************************************************
-		*	blocked until child announce a service
-		*************************************************/
-
-		void block_for_announcement()
-		{
-			_child->block_for_hello_announcement();
-		}
-
 		/************************************************
 		*	start redundancy thread	
 		*************************************************/
@@ -451,145 +321,10 @@ class Loader::Session_component : public Rpc_object<Session>
 		{
 			_child->hello_session_barrier.unlock();
 		}
-		/************************************************
-		***************** set signal handler ************
-		************************************************/
-		void child_fault_sigh(Signal_context_capability sigh) 
-		{
-			/*
-			 * CPU exception handler for CPU sessions originating from the
-			 * subsystem.
-			 */
-			_cpu_service.fault_sigh = sigh;
-
-			/*
-			 * RM fault handler for RM sessions originating from the
-			 * subsystem.
-			 */
-			_rm_service.fault_sigh = sigh;
-
-			/*
-			 * CPU exception and RM fault handler for the immediate child.
-			 */
-			_fault_sigh = sigh;
-		}
-
+		
 		
 };
 
-class Loader::Hello_component : public Rpc_object<Hello::Session>
-{
-	public:
-		 Hello::Session_client con;
- 	
-		 Hello_component(Genode::Capability<Hello::Session> cap)
-		 : con(cap)
-		 {}
-	
- 		 void say_hello()
-                 {
-                         //PDBG("This is failsafe say()");
-			 con.say_hello();
-                 }
- 
-                 int add(int a, int b)
-                 {
-			return con.add(a, b);
-                 }
-		
-		void update_cap(Genode::Capability<Hello::Session> cp)
-		{
-			static Hello::Session_client _con(cp);
-			con  = _con;
-		}
-
-};
-
-class Loader::Hello_root : public Root_component<Hello_component>
-{
-	private:
-	
-		Genode::Capability<Hello::Session> _cap;
-		Hello_component* _hello;
-		Genode::Lock hello_cap_barrier { Genode::Lock::LOCKED };
-		
-	protected:	
-
-		Hello_component *_create_session(const char *args)
-     		{
-        		PDBG("creating hello session to failsafe.");
-        		_hello = new (md_alloc()) Hello_component(_cap);
-			//PDBG("%x", _hello);	
-			hello_cap_barrier.unlock();
-			return _hello;
-      		}
-
-    	public:
-
-      		Hello_root(Genode::Rpc_entrypoint &ep,
-                     	   Genode::Allocator      &allocator,
-			   Genode::Capability<Hello::Session> cap)
-      		: Genode::Root_component<Hello_component>(&ep, &allocator), _cap(cap)
-      		{
-        		PDBG("Creating root component of failsafe.");
-      		}
-
-		Hello_component* get_component()
-		{
-			hello_cap_barrier.lock();
-			return _hello;
-		}
-		
-};
-
-class Loader::Root : public Root_component<Session_component>
-{
-	private:
-
-		Ram_session &_ram;
-		Cap_session &_cap;
-		Session_component* _root;
-		Genode::Lock loader_cap_barrier { Genode::Lock::LOCKED };
-
-	protected:
-
-		Session_component *_create_session(const char *args)
-		{
-        		PDBG("Creating loader session of Loader.");
-			size_t quota =
-				Arg_string::find_arg(args, "ram_quota").ulong_value(0);
-
-			_root = new (md_alloc()) Session_component(quota, _ram, _cap);
-
-			loader_cap_barrier.unlock();
-			return _root;
-		}
-
-	public:
-
-		/**
-		 * Constructor
-		 *
-		 * \param session_ep  entry point for managing ram session objects
-		 * \param md_alloc    meta-data allocator to be used by root
-		 *                    component
-		 */
-		Root(Rpc_entrypoint &session_ep, Allocator &md_alloc,
-		     Ram_session &ram, Cap_session &cap)
-		:
-			Root_component<Session_component>(&session_ep, &md_alloc),
-			_ram(ram), _cap(cap)
-		{ 
-        		PDBG("Creating root component of Loader.");
-		}
-		
-
-		Session_component* get_component()
-		{
-			loader_cap_barrier.lock();
-			return _root;	
-		}
-};
 
 
 int main()
@@ -607,13 +342,13 @@ int main()
 	static Loader::Session_component red_load(size, *env()->ram_session(), cap);
 	static Loader::Session_component load(size, *env()->ram_session(), cap);
 
-	load.child_fault_sigh(sig_rec.manage(&sig_ctx));
-	load.start("hello_client", "", Native_pd_args());
+	load.fault_sigh(sig_rec.manage(&sig_ctx));
+	load.start("hello_client", "original", Native_pd_args());
 	load.session_unlock();
-	red_load.start("red_client", "redundan", Native_pd_args());
+	red_load.start("red_client", "red", Native_pd_args());
 	
 	/*****************************************************
-	***** update capability when original server down*****
+	*****            start redundancy		 *****
 	*****************************************************/
 	
 	/* just test if session_unlock() works

@@ -11,8 +11,8 @@
  * under the terms of the GNU General Public License version 2.
  */
 
-#ifndef _INCLUDE__BASE__PROCESS_H_
-#define _INCLUDE__BASE__PROCESS_H_
+#ifndef _INCLUDE__BASE__LINUX_PROCESS_H_
+#define _INCLUDE__BASE__LINUX_PROCESS_H_
 
 #include <ram_session/capability.h>
 #include <rm_session/client.h>
@@ -85,4 +85,4 @@ class Genode::Process
 		}
 };
 
-#endif /* _INCLUDE__BASE__PROCESS_H_ */
+#endif /* _INCLUDE__BASE__LINUX_PROCESS_H_ */

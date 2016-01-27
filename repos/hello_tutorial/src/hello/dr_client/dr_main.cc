@@ -12,11 +12,10 @@
  */
 
 #include <base/env.h>
-#include <base/printf.h>
-#include <base/thread.h>
+//#include <base/thread.h>
 #include <hello_session/client.h>
 #include <hello_session/connection.h>
-#include <failsafe_session/connection.h>
+#include <failsafe_session/connection.h> //loader connection
 
 #include <timer_session/connection.h>
 

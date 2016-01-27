@@ -1,0 +1,14 @@
+/client:  
+	original client (without segfault)
+
+/dr_client:
+	original client with capability update method, used for direct solution of server monitoring
+
+/red_client:  
+	redundancy of client
+
+/server:
+	original server with segfault
+
+/red_server:
+	redundancy of server without segfault (except redundancy, it is also used in client monitoring as original server)

@@ -1,0 +1,14 @@
+server monitoring:
+	forwarded: sfw_hello.run
+	directly:  sdr_hello.run
+
+client monitoring:
+	forwarded: cfw_hello.run
+	directly:  cdr_hello.run
+
+monitoring for both client and server:
+	restartall.run (directly)
+
+
+!!
+the target.mk in /failsafe must be modified for the corresponding file (except for restartall)

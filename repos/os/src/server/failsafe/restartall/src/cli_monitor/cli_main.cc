@@ -15,35 +15,25 @@
 #include <base/env.h>
 #include <base/heap.h>
 #include <base/rpc_server.h>
-#include <base/rpc_client.h>
-#include <base/signal.h>
 #include <base/sleep.h>
 #include <failsafe_session/loader_session.h>
 #include <cap_session/connection.h>
 #include <root/component.h>
 
-#include <root/client.h>
 
 /* local includes */
-#include <crd_child.h>
-#include <nitpicker.h>
+#include <child.h>
 #include <ram_session_client_guard.h>
 #include <rom.h>
 
-/* hello interface*/
-#include <hello_session/hello_session.h>
-#include <failsafe_session/hello_client.h>
 #include <timer_session/connection.h>
+#include <failsafe_session/connection.h> //loader connection
 
-//#include <or_hello_root.h>
 namespace Loader {
 
 	using namespace Genode;
 
 	class Session_component;
-	//class Hello_component;
-	class Root;
-	//class Hello_root;
 }
 
 
@@ -194,68 +184,7 @@ class Loader::Session_component : public Rpc_object<Session>
 			}
 		};
 
-		struct Local_nitpicker_service : Service
-		{
-			Rpc_entrypoint &_ep;
-			Ram_session    &_ram;
-			Allocator      &_md_alloc;
-
-			Area                       _max_size;
-			Nitpicker::View_capability _parent_view;
-
-			Signal_context_capability view_ready_sigh;
-
-			Nitpicker::Session_component *open_session;
-
-			Local_nitpicker_service(Rpc_entrypoint &ep, Ram_session &ram,
-			                        Allocator &md_alloc)
-			:
-				Service("virtual_nitpicker"),
-				_ep(ep),
-				_ram(ram),
-				_md_alloc(md_alloc),
-				open_session(0)
-			{ }
-
-			~Local_nitpicker_service()
-			{
-				if (!open_session)
-					return;
-
-				_ep.dissolve(open_session);
-				destroy(&_md_alloc, open_session);
-			}
-
-			void constrain_geometry(Area size)
-			{
-				_max_size = size;
-			}
-
-			void parent_view(Nitpicker::View_capability view)
-			{
-				_parent_view = view;
-			}
-
-			Genode::Session_capability session(char     const *args,
-			                                   Affinity const &)
-			{
-				if (open_session)
-					throw Unavailable();
-
-				open_session = new (&_md_alloc)
-					Nitpicker::Session_component(_ep,
-					                             _ram,
-					                             _max_size,
-					                             _parent_view,
-					                             view_ready_sigh,
-					                             args);
-
-				return _ep.manage(open_session);
-			}
-
-			void upgrade(Genode::Session_capability session, const char *) { }
-		};
-
+		
 		enum { STACK_SIZE = 2*4096 };
 
 		size_t                    _ram_quota;
@@ -268,21 +197,10 @@ class Loader::Session_component : public Rpc_object<Session>
 		Local_rom_service         _rom_service;
 		Local_cpu_service         _cpu_service;
 		Local_rm_service          _rm_service;
-		Local_nitpicker_service   _nitpicker_service;
 		Signal_context_capability _fault_sigh;
 		Child                    *_child;
 
-		/**
-		 * Return virtual nitpicker session component
-		 */
-		Nitpicker::Session_component &_virtual_nitpicker_session() const
-		{
-			if (!_nitpicker_service.open_session)
-				throw View_does_not_exist();
-
-			return *_nitpicker_service.open_session;
-		}
-
+		
 	public:
 
 		/**
@@ -297,7 +215,6 @@ class Loader::Session_component : public Rpc_object<Session>
 			_ep(&cap, STACK_SIZE, "session_ep"),
 			_rom_modules(_ram_session_client, _md_alloc),
 			_rom_service(_ep, _md_alloc, _rom_modules),
-			_nitpicker_service(_ep, _ram_session_client, _md_alloc),
 			_child(0)
 		{ }
 
@@ -340,21 +257,8 @@ class Loader::Session_component : public Rpc_object<Session>
 			_subsystem_ram_quota_limit = quantum;
 		}
 
-		void constrain_geometry(Area size) override
-		{
-			_nitpicker_service.constrain_geometry(size);
-		}
-
-		void parent_view(Nitpicker::View_capability view) override
-		{
-			_nitpicker_service.parent_view(view);
-		}
-
-		void view_ready_sigh(Signal_context_capability sigh) override
-		{
-			_nitpicker_service.view_ready_sigh = sigh;
-		}
-
+		
+			
 		void fault_sigh(Signal_context_capability sigh) override
 		{
 			/*
@@ -373,35 +277,11 @@ class Loader::Session_component : public Rpc_object<Session>
 			 * CPU exception and RM fault handler for the immediate child.
 			 */
 			_fault_sigh = sigh;
+
 		}
 
 		void start(Name const &binary_name, Name const &label,
 		           Genode::Native_pd_args const &pd_args) override
-		{
-			//if (_child) {
-			//	PWRN("cannot start subsystem twice");
-			//	return;
-			//}
-
-			//size_t const ram_quota = (_subsystem_ram_quota_limit > 0) ?
-			//                         min(_subsystem_ram_quota_limit, _ram_session_client.avail()) :
-			//                         _ram_session_client.avail();
-
-			//try {
-			//	_child = new (&_md_alloc)
-			//		Child(binary_name.string(), label.string(),
-			//		      pd_args, _ep, _ram_session_client,
-			//		      ram_quota, _parent_services, _rom_service,
-			//		      _cpu_service, _rm_service, _nitpicker_service,
-			//		      _fault_sigh);
-			//}
-			//catch (Genode::Parent::Service_denied) {
-			//	throw Rom_module_does_not_exist(); }
-		}
-		
-		
-		void crd_start(Name const &binary_name, Name const &label,
-		           Genode::Native_pd_args const &pd_args, Loader::Hello_root &hello_root) 
 		{
 			if (_child) {
 				PWRN("cannot start subsystem twice");
@@ -417,102 +297,25 @@ class Loader::Session_component : public Rpc_object<Session>
 					Child(binary_name.string(), label.string(),
 					      pd_args, _ep, _ram_session_client,
 					      ram_quota, _parent_services, _rom_service,
-					      _cpu_service, _rm_service, _nitpicker_service,
-					      _fault_sigh, hello_root);
+					      _cpu_service, _rm_service, 
+					      _fault_sigh);
 			}
 			catch (Genode::Parent::Service_denied) {
 				throw Rom_module_does_not_exist(); }
 		}
 
 
-		void view_geometry(Rect rect, Point offset) override
-		{
-			_virtual_nitpicker_session().loader_view_geometry(rect, offset);
-		}
-
-		Area view_size() const override
-		{
-			return _virtual_nitpicker_session().loader_view_size();
-		}
-		
-		/***************************************
-		*	for child's cap
-		***************************************/
-		
-	        Genode::Capability<Hello::Session> hello_session()
-		{
-
-			Genode::Session_capability session_cap =
-				Genode::Root_client(_child->get_root_cap()).session("foo, ram_quota=4K", Genode::Affinity());
-
-		/*
-		 * The root interface returns a untyped session capability.
-		 * We return a capability casted to the specific session type.
-		 */
-			return Genode::static_cap_cast<Hello::Session>(session_cap);
-		}
-		
-		/************************************************
-		*	blocked until child announce a service
-		*************************************************/
-
-		void block_for_announcement()
-		{
-			_child->block_for_hello_announcement();
-		}
-
 		/************************************************
 		*	start redundancy thread	
 		*************************************************/
-		
+				
 		void red_start()
 		{
 			_child->red_start();
 		}
-
-		void exit()
-		{
-			_child->exit();
-		}
-
-	};
-
-
-class Loader::Root : public Root_component<Session_component>
-{
-	private:
-
-		Ram_session &_ram;
-		Cap_session &_cap;
-
-	protected:
-
-		Session_component *_create_session(const char *args)
-		{
-			size_t quota =
-				Arg_string::find_arg(args, "ram_quota").ulong_value(0);
-
-			return new (md_alloc()) Session_component(quota, _ram, _cap);
-		}
-
-	public:
-
-		/**
-		 * Constructor
-		 *
-		 * \param session_ep  entry point for managing ram session objects
-		 * \param md_alloc    meta-data allocator to be used by root
-		 *                    component
-		 */
-		Root(Rpc_entrypoint &session_ep, Allocator &md_alloc,
-		     Ram_session &ram, Cap_session &cap)
-		:
-			Root_component<Session_component>(&session_ep, &md_alloc),
-			_ram(ram), _cap(cap)
-		{ 
-        		PDBG("Creating root component of Loader.");
-		}
+		
 };
+
 
 
 int main()
@@ -524,51 +327,51 @@ int main()
 	enum { STACK_SIZE = 8*1024 };
 	static Cap_connection cap;
 	static Rpc_entrypoint ep(&cap, STACK_SIZE, "loader_ep");
-	//static Rpc_entrypoint ep_loader(&cap, STACK_SIZE, "loader_ep_loader");
+
 	static Signal_receiver sig_rec;
 	Signal_context sig_ctx;
+	Signal_context sig_ctx_srv;
+
+	static Loader::Connection srv_monitor(1024*1024);
+	srv_monitor.fault_sigh(sig_rec.manage(&sig_ctx_srv));
 
 	static Loader::Session_component red_load(size, *env()->ram_session(), cap);
 	static Loader::Session_component load(size, *env()->ram_session(), cap);
 
-	static Loader::Hello_root hello_root(ep, *env()->heap());
+	load.fault_sigh(sig_rec.manage(&sig_ctx));
+	load.start("hello_client", "", Native_pd_args());
+	red_load.start("red_client", "redundancy", Native_pd_args());
 
-	load.crd_start("hello_client", "hello", Native_pd_args(), hello_root);
-	//red_load.crd_start("red_client", "red", Native_pd_args(), hello_root);
-	red_load.crd_start("red_client", "redundancy", Native_pd_args(), hello_root);
-	red_load.red_start();
+	//load_component->child_fault_sigh(sig_rec.manage(&sig_ctx));
+
+	//load.block_for_announcement();
+	//env()->parent()->announce("Hello", load.hello_root_cap());
+	
 
 	/*****************************************************
-	***** update capability when original server down*****
+	*****            start redundancy		 *****
 	*****************************************************/
 	
-	timer.msleep(20000);
-	load.exit();
-	hello_root.recount();
-	//red_load.red_start();
+
 
 	Genode::Signal s = sig_rec.wait_for_signal();
 	
 	if (s.num() && s.context() == &sig_ctx) {
-		PLOG("got exception for child");
-		hello_root.recount();
-
-	} else {
+		PLOG("got exception for child in client monitor");
+		red_load.red_start();
+		//sig_rec.dissolve(&sig_ctx);
+	} 
+	else if (s.num() && s.context() == &sig_ctx_srv) {
+		PLOG("got signal from server monitor");
+		red_load.red_start();	
+		PLOG("redundancy started");
+		//sig_rec.dissolve(&sig_ctx_srv);
+	} 
+	else {
 		PERR("got unexpected signal while waiting for child");
 		class Unexpected_signal { };
 		throw Unexpected_signal();
 	}
-
-        sig_rec.dissolve(&sig_ctx);
-
-	//static Loader::Hello_component* hi;
-	//hi = hello_root.get_component();
-	//PDBG("%x", hi);	
-	//timer.msleep(10000);
-	//hi->update_cap(red_load.hello_session());
-	//env()->parent()->announce(ep.manage(&hello_root));
-
-
 	sleep_forever();
 	return 0;
 }

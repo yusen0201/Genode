@@ -1,0 +1,3 @@
+hello_client.h and hello_connection.h used for pseudo client
+
+the others used for monitor (and loader session for signal receiving in direct solution)

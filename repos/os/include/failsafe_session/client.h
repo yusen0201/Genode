@@ -15,7 +15,6 @@
 #define _INCLUDE__LOADER_SESSION__CLIENT_H_
 
 #include <failsafe_session/loader_session.h>
-//#include <failsafe_session/capability.h>
 #include <base/rpc_client.h>
 #include <os/alarm.h>
 
@@ -37,15 +36,7 @@ struct Loader::Session_client : Genode::Rpc_client<Session>
 	void ram_quota(size_t quantum) override {
 		call<Rpc_ram_quota>(quantum); }
 
-	void constrain_geometry(Area size) override {
-		call<Rpc_constrain_geometry>(size); }
-
-	void parent_view(Nitpicker::View_capability view) override {
-		call<Rpc_parent_view>(view); }
-
-	void view_ready_sigh(Signal_context_capability sigh) override {
-		call<Rpc_view_ready_sigh>(sigh); }
-
+	
 	void fault_sigh(Signal_context_capability sigh) override {
 		call<Rpc_fault_sigh>(sigh); }
 
@@ -53,11 +44,6 @@ struct Loader::Session_client : Genode::Rpc_client<Session>
 	           Native_pd_args const &pd_args = Native_pd_args()) override {
 		call<Rpc_start>(binary, label, pd_args); }
 
-	void view_geometry(Rect rect, Point offset) override {
-		call<Rpc_view_geometry>(rect, offset); }
-
-	Area view_size() const override {
-		return call<Rpc_view_size>(); }
 };
 
 #endif /* _INCLUDE__PLUGIN_SESSION__CLIENT_H_ */
