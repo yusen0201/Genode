@@ -22,20 +22,18 @@
 
 
 /* local includes */
-#include <child.h>
+#include <monitor_child.h>
 #include <ram_session_client_guard.h>
 #include <rom.h>
 
-/* hello interface*/
-#include <hello_session/hello_session.h>
 #include <timer_session/connection.h>
+#include <failsafe_session/connection.h> //loader connection
 
 namespace Loader {
 
 	using namespace Genode;
 
 	class Session_component;
-	class Root;
 }
 
 
@@ -106,7 +104,7 @@ class Loader::Session_component : public Rpc_object<Session>
 				/* fall back to parent_rom_service */
 				return _parent_rom_service.session(args, affinity);
 			}
-			
+
 			void close(Session_capability session)
 			{
 				Lock::Guard guard(_lock);
@@ -126,7 +124,7 @@ class Loader::Session_component : public Rpc_object<Session>
 				_parent_rom_service.close(session);
 			}
 
-			
+
 			void upgrade(Session_capability session, const char *) { }
 		};
 
@@ -260,16 +258,26 @@ class Loader::Session_component : public Rpc_object<Session>
 		}
 
 		
-
-
-		/* transmit signal to client*/
-		
-		Signal_transmitter cli_sig;
 			
 		void fault_sigh(Signal_context_capability sigh) override
 		{
-			cli_sig.context(sigh);
-			
+			/*
+			 * CPU exception handler for CPU sessions originating from the
+			 * subsystem.
+			 */
+			_cpu_service.fault_sigh = sigh;
+
+			/*
+			 * RM fault handler for RM sessions originating from the
+			 * subsystem.
+			 */
+			_rm_service.fault_sigh = sigh;
+
+			/*
+			 * CPU exception and RM fault handler for the immediate child.
+			 */
+			_fault_sigh = sigh;
+
 		}
 
 		void start(Name const &binary_name, Name const &label,
@@ -289,123 +297,25 @@ class Loader::Session_component : public Rpc_object<Session>
 					Child(binary_name.string(), label.string(),
 					      pd_args, _ep, _ram_session_client,
 					      ram_quota, _parent_services, _rom_service,
-					      _cpu_service, _rm_service, _fault_sigh);
+					      _cpu_service, _rm_service, 
+					      _fault_sigh);
 			}
 			catch (Genode::Parent::Service_denied) {
 				throw Rom_module_does_not_exist(); }
 		}
 
-		
-		/***************************************
-		*	get child's root cap
-		***************************************/
-		Root_capability hello_root_cap()
-		{
-			return _child->get_root_cap();
-		}
-		
 
-		/***************************************
-		*	for child's cap
-		***************************************/
-		
-	        Genode::Capability<Hello::Session> hello_session()
-		{
-
-			Genode::Session_capability session_cap =
-				Genode::Root_client(_child->get_root_cap()).session("foo, ram_quota=4K", Genode::Affinity());
-
-		/*
-		 * The root interface returns a untyped session capability.
-		 * We return a capability casted to the specific session type.
-		 */
-			return Genode::static_cap_cast<Hello::Session>(session_cap);
-		}
-		
 		/************************************************
-		*	blocked until child announce a service
+		*	start redundancy thread	
 		*************************************************/
-
-		void block_for_announcement()
+				
+		void red_start()
 		{
-			_child->block_for_hello_announcement();
+			_child->red_start();
 		}
-
-		/************************************************
-		***************** set signal handler ************
-		************************************************/
-		void child_fault_sigh(Signal_context_capability sigh) 
-		{
-			/*
-			 * CPU exception handler for CPU sessions originating from the
-			 * subsystem.
-			 */
-			_cpu_service.fault_sigh = sigh;
-
-			/*
-			 * RM fault handler for RM sessions originating from the
-			 * subsystem.
-			 */
-			_rm_service.fault_sigh = sigh;
-
-			/*
-			 * CPU exception and RM fault handler for the immediate child.
-			 */
-			_fault_sigh = sigh;
-		}
-
 		
 };
 
-
-class Loader::Root : public Root_component<Session_component>
-{
-	private:
-
-		Ram_session &_ram;
-		Cap_session &_cap;
-		Session_component* _root;
-		Genode::Lock loader_cap_barrier { Genode::Lock::LOCKED };
-
-	protected:
-
-		Session_component *_create_session(const char *args)
-		{
-        		PDBG("Creating loader session of Loader.");
-			size_t quota =
-				Arg_string::find_arg(args, "ram_quota").ulong_value(0);
-
-			_root = new (md_alloc()) Session_component(quota, _ram, _cap);
-
-			loader_cap_barrier.unlock();
-			return _root;
-		}
-
-	public:
-
-		/**
-		 * Constructor
-		 *
-		 * \param session_ep  entry point for managing ram session objects
-		 * \param md_alloc    meta-data allocator to be used by root
-		 *                    component
-		 */
-		Root(Rpc_entrypoint &session_ep, Allocator &md_alloc,
-		     Ram_session &ram, Cap_session &cap)
-		:
-			Root_component<Session_component>(&session_ep, &md_alloc),
-			_ram(ram), _cap(cap)
-		{ 
-        		PDBG("Creating root component of Loader.");
-		}
-		
-
-		Session_component* get_component()
-		{
-			loader_cap_barrier.lock();
-			return _root;	
-		}
-};
 
 
 int main()
@@ -417,27 +327,29 @@ int main()
 	enum { STACK_SIZE = 8*1024 };
 	static Cap_connection cap;
 	static Rpc_entrypoint ep(&cap, STACK_SIZE, "loader_ep");
+
 	static Signal_receiver sig_rec;
 	Signal_context sig_ctx;
+	Signal_context sig_ctx_srv;
 
-	static Loader::Root root(ep, *env()->heap(), *env()->ram_session(), cap);
-	env()->parent()->announce(ep.manage(&root));
-	static Loader::Session_component* load_component;
-	load_component = root.get_component();
+	static Loader::Connection srv_monitor(1024*1024);
+	srv_monitor.fault_sigh(sig_rec.manage(&sig_ctx_srv));
 
 	static Loader::Session_component red_load(size, *env()->ram_session(), cap);
 	static Loader::Session_component load(size, *env()->ram_session(), cap);
 
-	load.child_fault_sigh(sig_rec.manage(&sig_ctx));
-	load.start("hello_server", "", Native_pd_args());
-	red_load.start("red_server", "", Native_pd_args());
-	load.block_for_announcement();
-	env()->parent()->announce("Hello", load.hello_root_cap());
+	load.fault_sigh(sig_rec.manage(&sig_ctx));
+	load.start("hello_client", "", Native_pd_args());
+	red_load.start("red_client", "redundancy", Native_pd_args());
 
+	//load_component->child_fault_sigh(sig_rec.manage(&sig_ctx));
 
+	//load.block_for_announcement();
+	//env()->parent()->announce("Hello", load.hello_root_cap());
+	
 
 	/*****************************************************
-	***** update capability when original server down*****
+	*****            start redundancy		 *****
 	*****************************************************/
 	
 
@@ -445,20 +357,21 @@ int main()
 	Genode::Signal s = sig_rec.wait_for_signal();
 	
 	if (s.num() && s.context() == &sig_ctx) {
-		PLOG("got exception for child in server monitor");
-	
-		env()->parent()->announce("Hello", red_load.hello_root_cap());
-		
-		load_component->cli_sig.submit();
-		PLOG("signal sent");
-
-	} else {
+		PLOG("got exception for child in client monitor");
+		red_load.red_start();
+		//sig_rec.dissolve(&sig_ctx);
+	} 
+	else if (s.num() && s.context() == &sig_ctx_srv) {
+		PLOG("got signal from server monitor");
+		red_load.red_start();	
+		PLOG("redundancy started");
+		//sig_rec.dissolve(&sig_ctx_srv);
+	} 
+	else {
 		PERR("got unexpected signal while waiting for child");
 		class Unexpected_signal { };
 		throw Unexpected_signal();
 	}
-
-	//sig_rec.dissolve(&sig_ctx);
 	sleep_forever();
 	return 0;
 }

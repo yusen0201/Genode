@@ -20,14 +20,12 @@
 #include <cap_session/connection.h>
 #include <root/component.h>
 
-
 /* local includes */
-#include <child.h>
+#include "cfw_child.h"
 #include <ram_session_client_guard.h>
 #include <rom.h>
 
 #include <timer_session/connection.h>
-#include <failsafe_session/connection.h> //loader connection
 
 namespace Loader {
 
@@ -258,7 +256,6 @@ class Loader::Session_component : public Rpc_object<Session>
 		}
 
 		
-			
 		void fault_sigh(Signal_context_capability sigh) override
 		{
 			/*
@@ -277,11 +274,15 @@ class Loader::Session_component : public Rpc_object<Session>
 			 * CPU exception and RM fault handler for the immediate child.
 			 */
 			_fault_sigh = sigh;
-
 		}
 
 		void start(Name const &binary_name, Name const &label,
 		           Genode::Native_pd_args const &pd_args) override
+		{}
+		
+		
+		void crd_start(Name const &binary_name, Name const &label,
+		           Genode::Native_pd_args const &pd_args, Loader::Hello_root &hello_root) 
 		{
 			if (_child) {
 				PWRN("cannot start subsystem twice");
@@ -298,23 +299,56 @@ class Loader::Session_component : public Rpc_object<Session>
 					      pd_args, _ep, _ram_session_client,
 					      ram_quota, _parent_services, _rom_service,
 					      _cpu_service, _rm_service, 
-					      _fault_sigh);
+					      _fault_sigh, hello_root);
 			}
 			catch (Genode::Parent::Service_denied) {
 				throw Rom_module_does_not_exist(); }
 		}
 
 
+				
+		/***************************************
+		*	for child's cap
+		***************************************/
+		
+	        Genode::Capability<Hello::Session> hello_session()
+		{
+
+			Genode::Session_capability session_cap =
+				Genode::Root_client(_child->get_root_cap()).session("foo, ram_quota=4K", Genode::Affinity());
+
+		/*
+		 * The root interface returns a untyped session capability.
+		 * We return a capability casted to the specific session type.
+		 */
+			return Genode::static_cap_cast<Hello::Session>(session_cap);
+		}
+		
+		/************************************************
+		*	blocked until child announce a service
+		*************************************************/
+
+		void block_for_announcement()
+		{
+			_child->block_for_hello_announcement();
+		}
+
 		/************************************************
 		*	start redundancy thread	
 		*************************************************/
-				
+		
 		void red_start()
 		{
 			_child->red_start();
 		}
-		
-};
+
+		void exit()
+		{
+			_child->exit();
+		}
+
+	};
+
 
 
 
@@ -327,51 +361,44 @@ int main()
 	enum { STACK_SIZE = 8*1024 };
 	static Cap_connection cap;
 	static Rpc_entrypoint ep(&cap, STACK_SIZE, "loader_ep");
-
 	static Signal_receiver sig_rec;
 	Signal_context sig_ctx;
-	Signal_context sig_ctx_srv;
-
-	static Loader::Connection srv_monitor(1024*1024);
-	srv_monitor.fault_sigh(sig_rec.manage(&sig_ctx_srv));
 
 	static Loader::Session_component red_load(size, *env()->ram_session(), cap);
 	static Loader::Session_component load(size, *env()->ram_session(), cap);
 
-	load.fault_sigh(sig_rec.manage(&sig_ctx));
-	load.start("hello_client", "", Native_pd_args());
-	red_load.start("red_client", "redundancy", Native_pd_args());
+	static Loader::Hello_root hello_root(ep, *env()->heap());
 
-	//load_component->child_fault_sigh(sig_rec.manage(&sig_ctx));
-
-	//load.block_for_announcement();
-	//env()->parent()->announce("Hello", load.hello_root_cap());
-	
+	load.crd_start("hello_client", "hello", Native_pd_args(), hello_root);
+	red_load.crd_start("red_client", "redundancy", Native_pd_args(), hello_root);
+	red_load.red_start();
 
 	/*****************************************************
-	*****            start redundancy		 *****
+	*****            start redundancy  		 *****
 	*****************************************************/
 	
+	/* just test if recount() works
+	 because the hello_client also for other usage, it doesn't cause any seg-fault*/
 
+	timer.msleep(20000);
+	load.exit();
+	hello_root.recount();
 
 	Genode::Signal s = sig_rec.wait_for_signal();
 	
 	if (s.num() && s.context() == &sig_ctx) {
-		PLOG("got exception for child in client monitor");
-		red_load.red_start();
-		//sig_rec.dissolve(&sig_ctx);
-	} 
-	else if (s.num() && s.context() == &sig_ctx_srv) {
-		PLOG("got signal from server monitor");
-		red_load.red_start();	
-		PLOG("redundancy started");
-		//sig_rec.dissolve(&sig_ctx_srv);
-	} 
-	else {
+		PLOG("got exception for child");
+		hello_root.recount();
+
+	} else {
 		PERR("got unexpected signal while waiting for child");
 		class Unexpected_signal { };
 		throw Unexpected_signal();
 	}
+
+        sig_rec.dissolve(&sig_ctx);
+
+	
 	sleep_forever();
 	return 0;
 }
