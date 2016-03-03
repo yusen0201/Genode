@@ -1,5 +1,5 @@
 /*
- * \brief  Loader service
+ * \brief  Failsafe service
  * \author Norman Feske
  * \date   2012-04-17
  */
@@ -16,7 +16,7 @@
 #include <base/heap.h>
 #include <base/rpc_server.h>
 #include <base/sleep.h>
-#include <failsafe_session/loader_session.h>
+#include <failsafe_session/failsafe_session.h>
 #include <cap_session/connection.h>
 #include <root/component.h>
 
@@ -29,7 +29,7 @@
 #include <hello_session/hello_session.h>
 #include <timer_session/connection.h>
 
-namespace Loader {
+namespace Failsafe {
 
 	using namespace Genode;
 
@@ -38,7 +38,7 @@ namespace Loader {
 }
 
 
-class Loader::Session_component : public Rpc_object<Session> 
+class Failsafe::Session_component : public Rpc_object<Session> 
 {
 	private:
 
@@ -235,29 +235,11 @@ class Loader::Session_component : public Rpc_object<Session>
 
 
 		/******************************
-		 ** Loader session interface **
+		 ** Failsafe session interface **
 		 ******************************/
 
 
-		Dataspace_capability alloc_rom_module(Name const &name, size_t size) override
-		{
-			return _rom_modules.alloc_rom_module(name.string(), size);
-		}
-
-		void commit_rom_module(Name const &name) override
-		{
-			try {
-				_rom_modules.commit_rom_module(name.string()); }
-			catch (Rom_module_registry::Lookup_failed) {
-				throw Rom_module_does_not_exist(); }
-		}
-
-		void ram_quota(size_t quantum) override
-		{
-			_subsystem_ram_quota_limit = quantum;
-		}
-
-		
+			
 
 
 		/* transmit signal to client*/
@@ -271,7 +253,7 @@ class Loader::Session_component : public Rpc_object<Session>
 		}
 
 		void start(Name const &binary_name, Name const &label,
-		           Genode::Native_pd_args const &pd_args) override
+		           Genode::Native_pd_args const &pd_args) 
 		{
 			if (_child) {
 				PWRN("cannot start subsystem twice");
@@ -357,7 +339,7 @@ class Loader::Session_component : public Rpc_object<Session>
 };
 
 
-class Loader::Root : public Root_component<Session_component>
+class Failsafe::Root : public Root_component<Session_component>
 {
 	private:
 
@@ -370,7 +352,7 @@ class Loader::Root : public Root_component<Session_component>
 
 		Session_component *_create_session(const char *args)
 		{
-        		PDBG("Creating loader session of Loader.");
+        		PDBG("Creating loader session of Failsafe.");
 			size_t quota =
 				Arg_string::find_arg(args, "ram_quota").ulong_value(0);
 
@@ -395,7 +377,7 @@ class Loader::Root : public Root_component<Session_component>
 			Root_component<Session_component>(&session_ep, &md_alloc),
 			_ram(ram), _cap(cap)
 		{ 
-        		PDBG("Creating root component of Loader.");
+        		PDBG("Creating root component of Failsafe.");
 		}
 		
 
@@ -419,10 +401,10 @@ int main()
 	static Signal_receiver sig_rec;
 	Signal_context sig_ctx;
 
-	static Loader::Session_component red_load(size, *env()->ram_session(), cap);
-	static Loader::Session_component load(size, *env()->ram_session(), cap);
+	static Failsafe::Session_component red_load(size, *env()->ram_session(), cap);
+	static Failsafe::Session_component load(size, *env()->ram_session(), cap);
 
-	static Loader::Root root(ep, *env()->heap(), *env()->ram_session(), cap);
+	static Failsafe::Root root(ep, *env()->heap(), *env()->ram_session(), cap);
 	env()->parent()->announce(ep.manage(&root));
 
 	load.child_fault_sigh(sig_rec.manage(&sig_ctx));
@@ -432,7 +414,7 @@ int main()
 	env()->parent()->announce("Hello", load.hello_root_cap());
 
 
-	static Loader::Session_component* load_component;
+	static Failsafe::Session_component* load_component;
 	load_component = root.get_component();
 
 
@@ -450,7 +432,10 @@ int main()
 	
 		env()->parent()->announce("Hello", red_load.hello_root_cap());
 		
+		PLOG("send signal");
+	
 		load_component->cli_sig.submit();
+		PLOG("signal sant");
 
 	} else {
 		PERR("got unexpected signal while waiting for child");

@@ -1,5 +1,5 @@
 /*
- * \brief  Loader child interface
+ * \brief  Failsafe child interface
  * \author Christian Prochaska
  * \author Norman Feske
  * \date   2009-10-05
@@ -23,8 +23,9 @@
 #include <cpu_session/connection.h>
 #include <pd_session/connection.h>
 
+#include <hello_session/hello_session.h>
 
-namespace Loader {
+namespace Failsafe {
 
 	using namespace Genode;
 
@@ -67,7 +68,7 @@ namespace Loader {
 
 					/*
 					 * Install CPU exception and RM fault handler assigned by
-					 * the loader client via 'Loader_session::fault_handler'.
+					 * the failsafe client via 'Failsafe_session::fault_handler'.
 					 */
 					cpu.exception_handler(Thread_capability(), fault_sigh);
 					rm.fault_handler(fault_sigh);
@@ -201,6 +202,7 @@ namespace Loader {
 				return false;
 			}
 			
+		       	
 			Genode::Root_capability get_root_cap()
 			{
 				return hello_root_cap;
@@ -217,6 +219,25 @@ namespace Loader {
 			{
 				_child.red_start();
 			}
+			
+			/**
+ 		 	 * session capability from child 
+		 	 */
+		
+	        	Genode::Capability<Hello::Session> hello_session()
+			{
+
+				//hello_root_barrier.lock();
+				Genode::Session_capability session_cap =
+					Genode::Root_client(hello_root_cap).session("foo, ram_quota=4K", Genode::Affinity());
+
+			/*
+			 * The root interface returns a untyped session capability.
+			 * We return a capability casted to the specific session type.
+			 */
+				return Genode::static_cap_cast<Hello::Session>(session_cap);
+			}
+
 	};
 }
 

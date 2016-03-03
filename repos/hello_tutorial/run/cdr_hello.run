@@ -35,7 +35,7 @@ install_config {
 	<start name="failsafe_client">
 		<resource name="RAM" quantum="50M"/>
 		<provides>
-			  <service name="Loader"/>
+			  <service name="Failsafe"/>
 #			  <service name="Hello"/>
 		</provides>
 		<route>

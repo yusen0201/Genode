@@ -68,8 +68,8 @@ int main(void)
 
 	static Signal_receiver sig_rec;
 	Signal_context sig_ctx;
-	PDBG("create loader session");
-	static Loader::Connection load(1024*1024);
+	PDBG("create notification session");
+	static Failsafe::Connection load(1024*1024);
 	load.fault_sigh(sig_rec.manage(&sig_ctx));
 	PDBG("connect to hello");
 	Capability<Hello::Session> h_cap =
@@ -80,6 +80,7 @@ int main(void)
 	while (1) {
 
 		h.say_hello();
+		PDBG("say_hello finished");
 		int foo = h.add(2, 5);
 		PDBG("Added 2 + 5 = %d", foo);
 		timer.msleep(1000);
@@ -87,11 +88,13 @@ int main(void)
 		Genode::Signal s = sig_rec.wait_for_signal();
 
 		if (s.num() && s.context() == &sig_ctx) {
+			PDBG("signal received");
 			Capability<Hello::Session> p_cap =
     				env()->parent()->session<Hello::Session>("foo, ram_quota=4K");
 
   			Hello::Session_client p(p_cap);
 			h = p;
+			PDBG("cap updated");
 		} 	
 	else {
 		PERR("got unexpected signal while waiting for child");

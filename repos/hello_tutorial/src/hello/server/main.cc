@@ -26,7 +26,10 @@ namespace Hello {
 	{
 		void say_hello() {
 
-			PDBG("I am original... Hello."); }
+			PDBG("I am original... Hello.");
+
+		*((int *)0x44) = 0x55;
+		 }
 
 		int add(int a, int b) {
 			return a + b; }

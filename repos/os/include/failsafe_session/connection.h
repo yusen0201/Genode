@@ -12,16 +12,16 @@
  * under the terms of the GNU General Public License version 2.
  */
 
-#ifndef _INCLUDE__LOADER_SESSION__CONNECTION_H_
-#define _INCLUDE__LOADER_SESSION__CONNECTION_H_
+#ifndef _INCLUDE__FAILSAFE_SESSION__CONNECTION_H_
+#define _INCLUDE__FAILSAFE_SESSION__CONNECTION_H_
 
 #include <failsafe_session/client.h>
 #include <base/connection.h>
 
-namespace Loader { struct Connection; }
+namespace Failsafe { struct Connection; }
 
 
-struct Loader::Connection : Genode::Connection<Session>, Session_client
+struct Failsafe::Connection : Genode::Connection<Session>, Session_client
 {
 	Connection(size_t ram_quota)
 	:
@@ -30,4 +30,4 @@ struct Loader::Connection : Genode::Connection<Session>, Session_client
 	{ }
 };
 
-#endif /* _INCLUDE__LOADER_SESSION__CONNECTION_H_ */
+#endif /* _INCLUDE__FAILSAFE_SESSION__CONNECTION_H_ */

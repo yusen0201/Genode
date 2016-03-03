@@ -1,16 +1,3 @@
-/*
- * \brief  Loader service
- * \author Norman Feske
- * \date   2012-04-17
- */
-
-/*
- * Copyright (C) 2010-2013 Genode Labs GmbH
- *
- * This file is part of the Genode OS framework, which is distributed
- * under the terms of the GNU General Public License version 2.
- */
-
 /* Genode includes */
 #include <base/env.h>
 #include <base/heap.h>
@@ -25,21 +12,20 @@
 #include <child.h>
 #include <ram_session_client_guard.h>
 #include <rom.h>
-//#include <srv_forward.h>
 
 /* hello interface*/
 #include <hello_session/hello_session.h>
-#include <failsafe_session/hello_client.h>
-#include <timer_session/connection.h>
+//#include <failsafe_session/hello_client.h>
+//#include <timer_session/connection.h>
 
 namespace Failsafe {
 
 	using namespace Genode;
 
 	class Session_component;
-	class Hello_component;
+	//class Hello_component;
 	class Root;
-	class Hello_root;
+	//class Hello_root;
 }
 
 
@@ -237,16 +223,12 @@ class Failsafe::Session_component : public Rpc_object<Session>
 				destroy(env()->heap(), service);
 			}
 		}
+	
+		/**
+		 * fault_sigh for subsystem
+		 */
 
-
-		/******************************
-		 ** Failsafe session interface **
-		 ******************************/
-
-
-		
-		
-		void fault_sigh(Signal_context_capability sigh) override
+		void child_fault_sigh(Signal_context_capability sigh) 
 		{
 			/*
 			 * CPU exception handler for CPU sessions originating from the
@@ -265,6 +247,10 @@ class Failsafe::Session_component : public Rpc_object<Session>
 			 */
 			_fault_sigh = sigh;
 		}
+
+		/**
+		 * create child 
+		 */
 
 		void start(Name const &binary_name, Name const &label,
 		           Genode::Native_pd_args const &pd_args) 
@@ -291,109 +277,54 @@ class Failsafe::Session_component : public Rpc_object<Session>
 		}
 
 			
-		/***************************************
-		*	for child's cap
-		***************************************/
+		/**
+		 * session capability from child 
+		 */
 		
 	        Genode::Capability<Hello::Session> hello_session()
 		{
 
-			Genode::Session_capability session_cap =
-				Genode::Root_client(_child->get_root_cap()).session("foo, ram_quota=4K", Genode::Affinity());
+			//Genode::Session_capability session_cap =
+				//Genode::Root_client(_child->get_root_cap()).session("foo, ram_quota=4K", Genode::Affinity());
 
 		/*
 		 * The root interface returns a untyped session capability.
 		 * We return a capability casted to the specific session type.
 		 */
-			return Genode::static_cap_cast<Hello::Session>(session_cap);
+			//return Genode::static_cap_cast<Hello::Session>(session_cap);
+			return _child->hello_session();
 		}
 		
-		/************************************************
-		*	blocked until child announce a service
-		*************************************************/
+		/*
+		 ** blocked until child announce a service
+		 */
 
 		void block_for_announcement()
 		{
 			_child->block_for_hello_announcement();
 		}
 
-		/*****************************************
-		*	start redundancy thread		 *
-		******************************************/	
+		/*
+		 ** start redundancy thread		 
+		 */	
 
 		void red_start()
 		{
 			_child->red_start();
 		}
 	
-};
+		/******************************
+		 ** Failsafe session interface **
+		 ******************************/
 
-class Failsafe::Hello_component : public Rpc_object<Hello::Session>
-{
-	public:
-		 Hello::Session_client con;
- 	
-		 Hello_component(Genode::Capability<Hello::Session> cap)
-		 : con(cap)
-		 {}
-	
- 		 void say_hello()
-                 {
-                         PDBG("pseudo say_hello");
-			 con.say_hello();
-                         PDBG("pseudo say_hello finished");
-                 }
- 
-                 int add(int a, int b)
-                 {
-                        PDBG("pseudo add");
-			return con.add(a, b);
-                 }
+		Signal_transmitter cli_sig;
 		
-		void update_cap(Genode::Capability<Hello::Session> cp)
+		void fault_sigh(Signal_context_capability sigh) override
 		{
-			static Hello::Session_client _con(cp);
-			con  = _con;
+			cli_sig.context(sigh);
 		}
-
 };
 
-class Failsafe::Hello_root : public Root_component<Hello_component>
-{
-	private:
-	
-		Genode::Capability<Hello::Session> _cap;
-		Hello_component* _hello;
-		Genode::Lock hello_cap_barrier { Genode::Lock::LOCKED };
-		
-	protected:	
-
-		Hello_component *_create_session(const char *args)
-     		{
-        		PDBG("creating hello session to failsafe.");
-        		_hello = new (md_alloc()) Hello_component(_cap);
-			//PDBG("%x", _hello);	
-			hello_cap_barrier.unlock();
-			return _hello;
-      		}
-
-    	public:
-
-      		Hello_root(Genode::Rpc_entrypoint &ep,
-                     	   Genode::Allocator      &allocator,
-			   Genode::Capability<Hello::Session> cap)
-      		: Genode::Root_component<Hello_component>(&ep, &allocator), _cap(cap)
-      		{
-        		PDBG("Creating root component of failsafe.");
-      		}
-
-		Hello_component* get_component()
-		{
-			hello_cap_barrier.lock();
-			return _hello;
-		}
-		
-};
 //class Failsafe::Hello_component : public Failsafe::Recovery_component<Hello::Session, Hello::Session_client>
 //{
 //	public:
@@ -448,65 +379,3 @@ class Failsafe::Root : public Root_component<Session_component>
 		}
 };
 
-
-int main()
-{
-	using namespace Genode;
-	
-	Timer::Connection timer;
-	size_t size=1024*1024;
-	enum { STACK_SIZE = 8*1024 };
-	static Cap_connection cap;
-	static Rpc_entrypoint ep(&cap, STACK_SIZE, "loader_ep");
-	static Signal_receiver sig_rec;
-	Signal_context sig_ctx;
-
-	static Failsafe::Session_component red_load(size, *env()->ram_session(), cap);
-	static Failsafe::Session_component load(size, *env()->ram_session(), cap);
-
-	load.fault_sigh(sig_rec.manage(&sig_ctx));
-        PDBG("going to start red_server");
-	red_load.start("red_server", "redundancy", Native_pd_args());
-
-
-        PDBG("going to start hello_server");
-	load.start("hello_server", "helloser", Native_pd_args());
-
-
-	load.block_for_announcement();
-	static Failsafe::Hello_root hello_root(ep, *env()->heap(), load.hello_session());
-	//static Failsafe::Recovery_root<Hello::Session, Failsafe::Hello_component> hello_root(ep, *env()->heap(), load.hello_session());
-	env()->parent()->announce(ep.manage(&hello_root));
-	
-
-	/*****************************************************
-	***** update capability when original server down*****
-	*****************************************************/
-	
-
-	//while(1){
-	Genode::Signal s = sig_rec.wait_for_signal();
-	
-	if (s.num() && s.context() == &sig_ctx) {
-		PLOG("got exception for child");
-		ep.explicit_reply(ep.reply_dst(), 0);
-                PDBG("explicit replied");
-		Failsafe::Hello_component* hi;
-		red_load.red_start();
-		red_load.block_for_announcement();
-		hi = hello_root.get_component();
-		hi->update_cap(red_load.hello_session());
-                PDBG("cap updated");
-
-	} else {
-		PERR("got unexpected signal while waiting for child");
-		class Unexpected_signal { };
-		throw Unexpected_signal();
-	}
-	//}
-
-        sig_rec.dissolve(&sig_ctx);
-
-	sleep_forever();
-	return 0;
-}

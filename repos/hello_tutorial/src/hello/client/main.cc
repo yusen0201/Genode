@@ -29,7 +29,9 @@ int main(void)
 
 	while (1) {
 		h.say_hello();
+		PDBG("original client finished say_hello");
 
+		PDBG("original client going to call add()");
 		int foo = h.add(2, 5);
 		PDBG("Added 2 + 5 = %d", foo);
 		timer.msleep(1000);

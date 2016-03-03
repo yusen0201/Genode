@@ -36,7 +36,6 @@ install_config {
 		<resource name="RAM" quantum="50M"/>
 		<provides>
 			  <service name="Hello"/>
-			  <service name="Loader"/>
 		</provides>
 		<route>
 			<any-service><parent/><any-child/></any-service>
