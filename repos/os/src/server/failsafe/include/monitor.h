@@ -1,3 +1,6 @@
+#ifndef _MONITOR_H_
+#define _MONITOR_H_
+
 /* Genode includes */
 #include <base/env.h>
 #include <base/heap.h>
@@ -9,30 +12,23 @@
 
 
 /* local includes */
-#include <child.h>
+#include <m_child.h>
 #include <ram_session_client_guard.h>
 #include <rom.h>
 
-/* hello interface*/
-#include <hello_session/hello_session.h>
-//#include <failsafe_session/hello_client.h>
-//#include <timer_session/connection.h>
 
 namespace Failsafe {
 
 	using namespace Genode;
-
+	
 	class Session_component;
-	//class Hello_component;
 	class Root;
-	//class Hello_root;
 }
 
 
 class Failsafe::Session_component : public Rpc_object<Session> 
 {
-	private:
-
+	protected:
 		struct Local_rom_service : Service
 		{
 			Rpc_entrypoint             &_ep;
@@ -189,7 +185,7 @@ class Failsafe::Session_component : public Rpc_object<Session>
 		Local_cpu_service         _cpu_service;
 		Local_rm_service          _rm_service;
 		Signal_context_capability _fault_sigh;
-		Child                    *_child;
+		Child                     *_child;
 
 		
 	public:
@@ -276,32 +272,31 @@ class Failsafe::Session_component : public Rpc_object<Session>
 				throw Rom_module_does_not_exist(); }
 		}
 
-			
-		/**
-		 * session capability from child 
-		 */
-		
-	        Genode::Capability<Hello::Session> hello_session()
-		{
-
-			//Genode::Session_capability session_cap =
-				//Genode::Root_client(_child->get_root_cap()).session("foo, ram_quota=4K", Genode::Affinity());
-
 		/*
-		 * The root interface returns a untyped session capability.
-		 * We return a capability casted to the specific session type.
+		 **	get child's root cap
 		 */
-			//return Genode::static_cap_cast<Hello::Session>(session_cap);
-			return _child->hello_session();
+		Root_capability child_root_cap()
+		{
+			return _child->get_root_cap();
 		}
 		
+			
 		/*
 		 ** blocked until child announce a service
 		 */
 
 		void block_for_announcement()
 		{
-			_child->block_for_hello_announcement();
+			_child->block_for_child_announcement();
+		}
+
+		/*
+		 ** unlock session_resolve_request 
+		 */
+
+		void session_request_unlock()
+		{
+			_child->session_request_unlock();
 		}
 
 		/*
@@ -325,39 +320,27 @@ class Failsafe::Session_component : public Rpc_object<Session>
 		}
 };
 
-//class Failsafe::Hello_component : public Failsafe::Recovery_component<Hello::Session, Hello::Session_client>
-//{
-//	public:
-//		
-//		void say_hello()
-//                 {
-//                         PDBG("pseudo say_hello");
-//			 con.say_hello();
-//                 }
-// 
-//                 int add(int a, int b)
-//                 {
-//                        PDBG("pseudo add");
-//			return con.add(a, b);
-//                 }
-//
-//};
-
 class Failsafe::Root : public Root_component<Session_component>
 {
 	private:
 
 		Ram_session &_ram;
 		Cap_session &_cap;
+		Session_component* _root;
+		Genode::Lock loader_cap_barrier { Genode::Lock::LOCKED };
 
 	protected:
 
 		Session_component *_create_session(const char *args)
 		{
+        		PDBG("Creating loader session of Failsafe.");
 			size_t quota =
 				Arg_string::find_arg(args, "ram_quota").ulong_value(0);
 
-			return new (md_alloc()) Session_component(quota, _ram, _cap);
+			_root = new (md_alloc()) Session_component(quota, _ram, _cap);
+
+			loader_cap_barrier.unlock();
+			return _root;
 		}
 
 	public:
@@ -377,5 +360,33 @@ class Failsafe::Root : public Root_component<Session_component>
 		{ 
         		PDBG("Creating root component of Failsafe.");
 		}
+		
+
+		Session_component* get_component()
+		{
+			loader_cap_barrier.lock();
+			return _root;	
+		}
 };
 
+
+/*********************************************************************
+ **************           Fault detection            *****************
+ ********************************************************************/
+
+bool child_fault_detection(Genode::Signal_receiver &sig_rec,
+                           Genode::Signal_context const &sig_ctx)
+{
+	Genode::Signal s = sig_rec.wait_for_signal();
+
+	if (s.num() && s.context() == &sig_ctx) {
+		PLOG("got exception for child");
+		return true;
+	} else {
+		PERR("got unexpected signal while waiting for child");
+		class Unexpected_signal { };
+		throw Unexpected_signal();
+	}
+}
+
+#endif /* _MONITOR_H_ */

@@ -42,12 +42,10 @@ struct Failsafe::Session : Genode::Session
 	 * Exception types
 	 */
 	struct Exception : Genode::Exception { };
-	struct View_does_not_exist       : Exception { };
 	struct Rom_module_does_not_exist : Exception { };
 
 
 	typedef Genode::Rpc_in_buffer<64>  Name;
-	typedef Genode::Rpc_in_buffer<128> Path;
 
 	static const char *service_name() {return "Failsafe";}
 

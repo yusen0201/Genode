@@ -1,6 +1,5 @@
 #include <root/component.h>
 #include <base/rpc_server.h>
-#include <base/heap.h>
 
 namespace Failsafe {
 
@@ -36,7 +35,7 @@ class Recovery_root : public Genode::Root_component<Recovery_comp>
 		Recovery_comp *_create_session(const char *args)
 		{
 			PDBG("creating session to failsafe.");
-        		_recovery = new (md_alloc()) Recovery_comp(_cap);
+        		_recovery = new (this->md_alloc()) Recovery_comp(_cap);
 			cap_barrier.unlock();
 			return _recovery;
 		}
