@@ -178,7 +178,8 @@ Process::Process(Dataspace_capability    elf_ds_cap,
                  char const             *name)
 : _pd_session_client(pd_session_cap),
   _cpu_session_client(cpu_session_cap),
-  _rm_session_client(rm_session_cap)
+  _rm_session_client(rm_session_cap),
+  _entry(0)
 {
 	if (!pd_session_cap.valid())
 		return;
@@ -230,6 +231,7 @@ Process::Process(Dataspace_capability    elf_ds_cap,
 		addr_t entry = 0;
 		if (elf_ds_cap.valid()) {
 			entry = _setup_elf(parent_cap, elf_ds_cap, ram, _rm_session_client);
+			_entry = entry;
 			if (!entry) {
 				PERR("Setup ELF failed");
 				throw ELF_FAIL;
@@ -280,6 +282,8 @@ Process::Process(Dataspace_capability    elf_ds_cap,
 			}
 		}
 	}
+	
+
 	catch (Local_exception cause) {
 
 		switch (cause) {

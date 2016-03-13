@@ -35,6 +35,7 @@ class Genode::Process
 
 		static Dataspace_capability _dynamic_linker_cap;		
 
+		addr_t _entry;
 	public:
 
 		/**
@@ -76,6 +77,15 @@ class Genode::Process
 		}
 
 		Thread_capability main_thread_cap() const { return _thread0_cap; }
+		
+		void fast_restart()
+		{
+			//Pager_capability pager;
+			//	pager = _rm_session_client.add_client(_thread0_cap);
+			//_cpu_session_client.set_pager(_thread0_cap, pager);
+			_cpu_session_client.start(_thread0_cap, _entry, 0);	
+			//_cpu_session_client.resume(_thread0_cap);	
+		}
 		
 };
 

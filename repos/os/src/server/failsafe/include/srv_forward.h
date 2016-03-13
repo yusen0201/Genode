@@ -1,23 +1,29 @@
 #include <root/component.h>
 #include <base/rpc_server.h>
+#include <util/volatile_object.h>
 
 namespace Failsafe {
 
+using Genode::Lazy_volatile_object;
 
 template <typename Interface, typename Client>
 class Recovery_component : public Genode::Rpc_object<Interface>
 {
 	protected:
-		Client con;
+		Lazy_volatile_object<Client> con;
+		bool constructed;
+		Genode::Semaphore construct_barrier;
 	public:
-		Recovery_component(Genode::Capability<Interface> cap)
-		: con(cap)
-		{}
 		
-		void update_cap(Genode::Capability<Interface> cp)
+		Recovery_component()
+		: constructed(false) 
+		{}
+
+		void construct(Genode::Capability<Interface> cp)
 		{
-			static Client _con(cp);
-			con = _con;
+			con.construct(cp);
+			construct_barrier.up();
+			constructed = true;
 		}
 };
 
@@ -28,30 +34,29 @@ class Recovery_root : public Genode::Root_component<Recovery_comp>
 		
 		Genode::Capability<Interface> _cap;
 		Recovery_comp* _recovery;
-		Genode::Lock cap_barrier { Genode::Lock::LOCKED };
+		Genode::Semaphore comp_barrier;
 
 	protected:
 		
 		Recovery_comp *_create_session(const char *args)
 		{
 			PDBG("creating session to failsafe.");
-        		_recovery = new (this->md_alloc()) Recovery_comp(_cap);
-			cap_barrier.unlock();
+        		_recovery = new (this->md_alloc()) Recovery_comp;
+			comp_barrier.up();
 			return _recovery;
 		}
+
 	public:
 
-      		Recovery_root(Genode::Rpc_entrypoint &ep,
-                     	      Genode::Allocator      &allocator,
-			      Genode::Capability<Interface> cap)
-      		: Genode::Root_component<Recovery_comp>(&ep, &allocator), _cap(cap)
+		Recovery_root(Genode::Rpc_entrypoint &ep,
+                     	      Genode::Allocator      &allocator)
+      		: Genode::Root_component<Recovery_comp>(&ep, &allocator)
       		{
         		PDBG("Creating root component of failsafe.");
       		}
-
 		Recovery_comp* get_component()
 		{
-			cap_barrier.lock();
+			comp_barrier.down();
 			return _recovery;
 		}
 };

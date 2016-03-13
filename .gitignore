@@ -4,6 +4,7 @@
 *.rej
 /build
 /build.hello
+/build.nova
 /contrib
 /repos/base-codezero/contrib
 /repos/base-fiasco/contrib

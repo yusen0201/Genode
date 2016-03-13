@@ -16,7 +16,8 @@
 
 /* Genode includes */
 #include <base/service.h>
-#include <base/linux_child.h>
+//#include <base/linux_child.h>
+#include <base/child.h>
 #include <base/rpc_server.h>
 #include <util/arg_string.h>
 #include <rom_session/connection.h>

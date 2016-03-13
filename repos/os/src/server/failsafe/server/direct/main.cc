@@ -12,7 +12,8 @@
  */
 
 
-#include <srv_monitor.h>
+//#include <srv_monitor.h>
+#include <monitor.h>
 
 #include <hello_session/hello_session.h>
 #include <timer_session/connection.h>
@@ -59,6 +60,7 @@ int main()
 	
 	if (child_fault_detection(sig_rec, sig_ctx)) {
 	
+		comp.child_destroy();
 		env()->parent()->announce("Hello", red_comp.child_root_cap());
 		
 		PLOG("send signal");

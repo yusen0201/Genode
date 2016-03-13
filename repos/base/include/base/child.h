@@ -323,6 +323,12 @@ class Genode::Child : protected Rpc_object<Parent>
 		 */
 		void notify_resource_avail() const;
 
+		void red_start();
+		
+		void fast_restart()
+		{
+			_process.fast_restart();
+		}
 		/**********************
 		 ** Parent interface **
 		 **********************/

@@ -271,6 +271,15 @@ class Failsafe::Session_component : public Rpc_object<Session>
 			catch (Genode::Parent::Service_denied) {
 				throw Rom_module_does_not_exist(); }
 		}
+		
+		void child_destroy()
+		{
+			destroy(&_md_alloc, _child);
+			while (Service *service = _parent_services.find_by_server(0)) {
+				_parent_services.remove(service);
+				destroy(env()->heap(), service);
+			}
+		}
 
 		/*
 		 **	get child's root cap
@@ -307,6 +316,11 @@ class Failsafe::Session_component : public Rpc_object<Session>
 		{
 			_child->red_start();
 		}
+		
+		void fast_restart()
+		{
+			_child->fast_restart();
+		}
 	
 		/******************************
 		 ** Failsafe session interface **
@@ -317,6 +331,11 @@ class Failsafe::Session_component : public Rpc_object<Session>
 		void fault_sigh(Signal_context_capability sigh) override
 		{
 			cli_sig.context(sigh);
+		}
+			
+		Child *child()
+		{
+			return _child;
 		}
 };
 

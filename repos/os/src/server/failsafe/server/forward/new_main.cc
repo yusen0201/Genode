@@ -53,20 +53,35 @@ class Failsafe::Hello_component : public Failsafe::Recovery_component<Hello::Ses
 {
 	public:
 		
-		Hello_component(Genode::Capability<Hello::Session> cap)
-		: Recovery_component<Hello::Session, Hello::Session_client>(cap)
-		{}
 
 		void say_hello()
                  {
-                         PDBG("pseudo say_hello");
-			 con.say_hello();
+                        PDBG("pseudo say_hello");
+			try {
+				if(!constructed)
+					construct_barrier.down();
+				con->say_hello();
+				} 
+			catch(Genode::Ipc_error) {
+                        PDBG("say_hello exception");
+				construct_barrier.down();
+			 	con->say_hello();
+				}
                  }
  
                  int add(int a, int b)
                  {
                         PDBG("pseudo add");
-			return con.add(a, b);
+			try { 
+				if(!constructed)
+					construct_barrier.down();
+				return con->add(a, b); 
+				}
+			catch(Genode::Ipc_error) { 
+                        PDBG("add exception");
+				construct_barrier.down();
+				return con->add(a, b); 
+				}
                  }
 
 };
@@ -83,45 +98,81 @@ int main()
 	static Cap_connection cap;
 	static Rpc_entrypoint ep(&cap, STACK_SIZE, "failsafe_ep");
 	static Signal_receiver sig_rec;
+	static Signal_receiver red_sig_rec;
 	Signal_context sig_ctx;
+	Signal_context red_sig_ctx;
 
 	static Failsafe::Hello_sfw_monitor red_comp(size, *env()->ram_session(), cap);
 	static Failsafe::Hello_sfw_monitor comp(size, *env()->ram_session(), cap);
+	
+	static Failsafe::Recovery_root<Hello::Session, Failsafe::Hello_component> 
+			hello_root(ep, *env()->heap());
+	env()->parent()->announce(ep.manage(&hello_root));
+
+	Failsafe::Hello_component* hi;
+	hi = hello_root.get_component();
+
 
 	comp.child_fault_sigh(sig_rec.manage(&sig_ctx));
+	red_comp.child_fault_sigh(red_sig_rec.manage(&red_sig_ctx));
 
         PDBG("going to start hello_server");
 	comp.start("hello_server", "helloser", Native_pd_args());
 
         PDBG("going to start red_server");
-	red_comp.start("red_server", "redundancy", Native_pd_args());
+	red_comp.start("red_server", "redundanc", Native_pd_args());
 
 	comp.block_for_announcement();
+	hi->construct(comp.child_session());
 
-	static Failsafe::Recovery_root<Hello::Session, Failsafe::Hello_component> 
-			hello_root(ep, *env()->heap(), comp.child_session());
-
-	env()->parent()->announce(ep.manage(&hello_root));
 	
-
 	/*****************************************************
 	***** update capability when original server down*****
 	*****************************************************/
+	Failsafe::Child *childa, *childb;
+	childa = comp.child();
+	childb = red_comp.child();
+	PDBG("a %x", childa);
+	PDBG("b %x", childb);
 	
-
+	int tag = 0;
+	
 	while(1){
-	//Genode::Signal s = sig_rec.wait_for_signal();
 	
+	switch(tag) {
+	case 0:
 	if (child_fault_detection(sig_rec, sig_ctx)) {
-		ep.explicit_reply(ep.reply_dst(), 1);
-		Failsafe::Hello_component* hi;
-		red_comp.red_start();
+        	sig_rec.dissolve(&sig_ctx);
+		comp.child_destroy();	
+		//Failsafe::Hello_component* hi;
+		//red_comp.red_start();
 		red_comp.block_for_announcement();
-		hi = hello_root.get_component();
-		hi->update_cap(red_comp.child_session());
+		//hi = hello_root.get_component();
+		hi->construct(red_comp.child_session());
+        	tag++;
+		//comp.start("red_server", "srv_recreate", Native_pd_args());
+		//PDBG("fault, recreate hello_server");
+		}
+	break;
 
-		} 
+	case 1:
+	if (child_fault_detection(red_sig_rec, red_sig_ctx)) {
+			PDBG("red fault");
+			//red_comp.child_destroy();
+			//comp.block_for_announcement();
+			//hi->construct(comp.child_session());
+			//tag--;
+			red_comp.fast_restart();	
+		//Failsafe::Hello_component* hi;
+		//hi = hello_root.get_component();
+		//hi->update_cap(red_comp.child_session());
+			PDBG("restarted");
+        	//sig_rec.dissolve(&red_sig_ctx);
+		}
+	break;
 	}
+	}
+	
 
         sig_rec.dissolve(&sig_ctx);
 

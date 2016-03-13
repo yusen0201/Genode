@@ -16,7 +16,8 @@
 #define _CHILD_H_
 
 /* Genode includes */
-#include <base/linux_child.h>
+//#include <base/linux_child.h>
+#include <base/child.h>
 #include <child_policy.h>
 #include <ram_session/connection.h>
 #include <rm_session/connection.h>
@@ -221,6 +222,11 @@ namespace Failsafe {
 			void session_request_unlock()
 			{
 				child_request_barrier.up();	
+			}
+			
+			void fast_restart()
+			{
+				_child.fast_restart();	
 			}
 
 	};
