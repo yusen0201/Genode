@@ -179,7 +179,7 @@ Process::Process(Dataspace_capability    elf_ds_cap,
 : _pd_session_client(pd_session_cap),
   _cpu_session_client(cpu_session_cap),
   _rm_session_client(rm_session_cap),
-  _entry(0)
+  _entry(0), _name(name)
 {
 	if (!pd_session_cap.valid())
 		return;
@@ -313,6 +313,7 @@ Process::~Process()
 	 * Try to kill thread0, which was created in the process constructor. If
 	 * this fails, do nothing.
 	 */
+	PDBG("destructor process");
 	try { _cpu_session_client.kill_thread(_thread0_cap); }
-	catch (Genode::Ipc_error) { }
+	catch (Genode::Ipc_error) {PDBG("kill thread failed"); }
 }

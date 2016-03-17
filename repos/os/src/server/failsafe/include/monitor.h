@@ -337,6 +337,10 @@ class Failsafe::Session_component : public Rpc_object<Session>
 		{
 			return _child;
 		}
+		void reset_child()
+		{
+			_child = 0;
+		}
 };
 
 class Failsafe::Root : public Root_component<Session_component>

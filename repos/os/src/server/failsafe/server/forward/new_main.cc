@@ -93,7 +93,7 @@ int main()
 	using namespace Genode;
 	
 	Timer::Connection timer;
-	size_t size=1024*1024;
+	size_t size=10*1024*1024;
 	enum { STACK_SIZE = 8*1024 };
 	static Cap_connection cap;
 	static Rpc_entrypoint ep(&cap, STACK_SIZE, "failsafe_ep");
@@ -144,13 +144,17 @@ int main()
 	if (child_fault_detection(sig_rec, sig_ctx)) {
         	sig_rec.dissolve(&sig_ctx);
 		comp.child_destroy();	
+		comp.reset_child();
+		childa = comp.child();
+		PDBG("a after fault %x", childa);
 		//Failsafe::Hello_component* hi;
 		//red_comp.red_start();
 		red_comp.block_for_announcement();
 		//hi = hello_root.get_component();
 		hi->construct(red_comp.child_session());
         	tag++;
-		//comp.start("red_server", "srv_recreate", Native_pd_args());
+		comp.fast_restart();
+		//comp.start("hello_server", "srv_recreate", Native_pd_args());
 		//PDBG("fault, recreate hello_server");
 		}
 	break;
@@ -161,7 +165,7 @@ int main()
 			//red_comp.child_destroy();
 			//comp.block_for_announcement();
 			//hi->construct(comp.child_session());
-			//tag--;
+			tag--;
 			red_comp.fast_restart();	
 		//Failsafe::Hello_component* hi;
 		//hi = hello_root.get_component();
