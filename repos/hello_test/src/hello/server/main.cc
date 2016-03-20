@@ -24,15 +24,16 @@ namespace Hello {
 
 	struct Session_component : Genode::Rpc_object<Hello::Session>
 	{
+		int a = 0;
 		void say_hello() {
-
-			PDBG("I am test Hello.");
+			a++;
+			PDBG("I am test Hello. %d", a);
 
 		//*((int *)0x44) = 0x55;
 		 }
 
 		int add(int a, int b) {
-		*((int *)0x44) = 0x55;
+		//*((int *)0x44) = 0x55;
 			return a + b + 2; }
 	};
 
@@ -62,6 +63,7 @@ using namespace Genode;
 
 int main(void)
 {
+	PDBG("main of server");
 	/*
 	 * Get a session for the parent's capability service, so that we
 	 * are able to create capabilities.
@@ -95,9 +97,11 @@ int main(void)
 	/*******************************
 	****** cause a segfault ********
 	*******************************/
-		//Timer::Connection timer;
-		//timer.msleep(21111);
+		Timer::Connection timer;
+		timer.msleep(5111);
 		//*((int *)0x44) = 0x55;
+		int n = 5/0;
+		PDBG("%d", n);
 	/* We are done with this and only act upon client requests now. */
 	sleep_forever();
 

@@ -179,7 +179,7 @@ Process::Process(Dataspace_capability    elf_ds_cap,
 : _pd_session_client(pd_session_cap),
   _cpu_session_client(cpu_session_cap),
   _rm_session_client(rm_session_cap),
-  _entry(0), _name(name)
+  _entry(0), _name(name), _parent(parent_cap), _elf_ds_cap(elf_ds_cap)
 {
 	if (!pd_session_cap.valid())
 		return;
@@ -255,6 +255,7 @@ Process::Process(Dataspace_capability    elf_ds_cap,
 		Pager_capability pager;
 		try {
 			pager = _rm_session_client.add_client(_thread0_cap);
+			_pager = pager;
 		} catch (...) {
 			PERR("Pager setup failed (%d)", err);
 			throw THREAD_ADD_FAIL;

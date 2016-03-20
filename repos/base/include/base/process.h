@@ -37,6 +37,9 @@ class Genode::Process
 
 		addr_t _entry;
 		const char *_name;
+			Pager_capability _pager;
+		Dataspace_capability _elf_ds_cap;
+		        Parent_capability       _parent;
 	public:
 
 		/**
@@ -78,6 +81,47 @@ class Genode::Process
 		}
 
 		Thread_capability main_thread_cap() const { return _thread0_cap; }
+
+		void fast_restart1()
+		{
+			enum Local_exception
+			{
+				THREAD_FAIL, ELF_FAIL, ASSIGN_PARENT_FAIL, THREAD_ADD_FAIL,
+				THREAD_BIND_FAIL, THREAD_PAGER_FAIL, THREAD_START_FAIL,
+			};
+
+			try { 
+				PDBG("0");
+				_cpu_session_client.kill_thread(_thread0_cap);
+				PDBG("old thread killed"); }
+			catch (Genode::Ipc_error) {PDBG("kill thread failed"); }
+	
+			try {
+				PDBG("2");
+				enum { WEIGHT = Cpu_session::DEFAULT_WEIGHT };
+					_thread0_cap = _cpu_session_client.create_thread(WEIGHT, _name);
+				PDBG("2");
+			} catch (Cpu_session::Thread_creation_failed) {
+						PERR("Creation of thread0 failed");
+						throw THREAD_FAIL;
+				}
+
+
+
+			PDBG("0");
+			//_rm_session_client.remove_client(_pager);
+			Pager_capability pager;
+			PDBG("0");
+				pager = _rm_session_client.add_client(_thread0_cap);
+			PDBG("1");
+			//_cpu_session_client.set_pager(_thread0_cap, pager);
+			//_cpu_session_client.pause(_thread0_cap);
+			PDBG("to restart");
+			_cpu_session_client.start(_thread0_cap, _entry, 0);	
+			PDBG("fastrestart finished");
+			//_cpu_session_client.resume(_thread0_cap);
+			
+		}
 		
 		void fast_restart()
 		{
@@ -91,7 +135,7 @@ class Genode::Process
 			//return;
 			try { 
 				PDBG("0");
-				//_cpu_session_client.kill_thread(_thread0_cap);
+				_cpu_session_client.kill_thread(_thread0_cap);
 				PDBG("old thread killed"); }
 			catch (Genode::Ipc_error) {PDBG("kill thread failed"); }
 
@@ -128,24 +172,24 @@ class Genode::Process
 				 * thread (as a forked process does not start its execution at the ELF
 				 * entrypoint).
 				 */
-				bool const forked = !elf.valid();
+				bool const forked = !_elf_ds_cap.valid();
 
-				///* check for dynamic program header */
-				//if (!forked && _check_dynamic_elf(elf_ds_cap)) {
+				/* check for dynamic program header */
+				//if (!forked && _check_dynamic_elf(_elf_ds_cap)) {
 				//	if (!_dynamic_linker_cap.valid()) {
 				//		PERR("Dynamically linked file found, but no dynamic linker binary present");
 				//		throw ELF_FAIL;
 				//	}
-				//	elf_ds_cap = _dynamic_linker_cap;
+				//	_elf_ds_cap = _dynamic_linker_cap;
 				//}
 
-				///* init temporary allocator object */
+				/* init temporary allocator object */
 				//Ram_session_client ram(ram_session_cap);
 
 				/* parse ELF binary and setup segment dataspaces */
 				//addr_t entry = 0;
 				//if (elf_ds_cap.valid()) {
-				//	entry = _setup_elf(parent_cap, elf_ds_cap, ram, _rm_session_client);
+				//	entry = _setup_elf(parent_cap, _elf_ds_cap, ram, _rm_session_client);
 				//	_entry = entry;
 				//	if (!entry) {
 				//		PERR("Setup ELF failed");
@@ -153,8 +197,8 @@ class Genode::Process
 				//	}
 				//}
 
-				///* register parent interface for new protection domain */
-				//if (_pd_session_client.assign_parent(parent_cap)) {
+				/* register parent interface for new protection domain */
+				//if (_pd_session_client.assign_parent(_parent)) {
 				//	PERR("Could not assign parent interface to new PD");
 				//	throw ASSIGN_PARENT_FAIL;
 				//}
@@ -170,6 +214,7 @@ class Genode::Process
 				/* register thread0 at region manager session */
 				Pager_capability pager;
 				try {
+					_rm_session_client.remove_client(_pager);
 				PDBG("4");
 					pager = _rm_session_client.add_client(_thread0_cap);
 				PDBG("4");
@@ -192,7 +237,7 @@ class Genode::Process
 				 * from another. In this case, the main thread will get manually
 				 * started after constructing the 'Process'.
 				 */
-				//if (!forked) {
+				if (!forked) {
 
 					/* start main thread */
 					PDBG("going to new cpu.start");
@@ -202,7 +247,7 @@ class Genode::Process
 						PERR("Thread0 startup failed");
 						throw THREAD_START_FAIL;
 					}
-				//}
+				}
 			}
 			
 

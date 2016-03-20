@@ -142,18 +142,23 @@ int main()
 	switch(tag) {
 	case 0:
 	if (child_fault_detection(sig_rec, sig_ctx)) {
-        	sig_rec.dissolve(&sig_ctx);
-		comp.child_destroy();	
-		comp.reset_child();
+        	//sig_rec.dissolve(&sig_ctx);
+		//comp.child_destroy();	
+		//comp.reset_child();
 		childa = comp.child();
 		PDBG("a after fault %x", childa);
 		//Failsafe::Hello_component* hi;
 		//red_comp.red_start();
-		red_comp.block_for_announcement();
+		//red_comp.block_for_announcement();
 		//hi = hello_root.get_component();
-		hi->construct(red_comp.child_session());
-        	tag++;
+		//hi->construct(red_comp.child_session());
+        	//tag++;
 		comp.fast_restart();
+		PDBG("11");
+		comp.block_for_announcement();
+		PDBG("11");
+		
+		hi->construct(comp.child_session());
 		//comp.start("hello_server", "srv_recreate", Native_pd_args());
 		//PDBG("fault, recreate hello_server");
 		}

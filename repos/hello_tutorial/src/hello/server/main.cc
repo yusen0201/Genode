@@ -26,8 +26,8 @@ namespace Hello {
 	{
 		void say_hello() {
 
-			PDBG("I am original... Hello.");
-
+			PDBG("I am original... Hello. %d", a);
+		
 		*((int *)0x44) = 0x55;
 		 }
 
@@ -95,7 +95,7 @@ int main(void)
 	****** cause a segfault ********
 	*******************************/
 		Timer::Connection timer;
-		timer.msleep(21111);
+		timer.msleep(5111);
 		*((int *)0x44) = 0x55;
 	/* We are done with this and only act upon client requests now. */
 	sleep_forever();
