@@ -32,9 +32,11 @@ namespace Hello {
 		void say_hello()
 		{
 			a = Trace::timestamp();
-			printf("original client start say hello %lld \n", a);
+			printf("original client start say hello %u \n", a);
 			PDBG("Saying Hello.");
 			call<Rpc_say_hello>();
+			a = Trace::timestamp();
+			printf("original client finish say hello %u \n", a);
 		}
 
 		int add(int a, int b)

@@ -90,6 +90,16 @@ int main(void)
 			h = p;
 			h.say_hello();
 		}
+		catch (Genode::Blocking_canceled) {
+			PDBG("blk error catched by dr_client");
+			Capability<Hello::Session> p_cap =
+    				env()->parent()->session<Hello::Session>("foo, ram_quota=4K");
+
+  			Hello::Session_client p(p_cap);
+			h = p;
+			h.say_hello();
+		}
+
 
 
 		int foo = h.add(2, 5);
