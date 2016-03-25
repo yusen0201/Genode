@@ -18,15 +18,21 @@
 #include <base/rpc_client.h>
 #include <base/printf.h>
 
+#include <trace/timestamp.h>
+#include <base/env.h>
 namespace Hello {
-
+	using namespace Genode;
 	struct Session_client : Genode::Rpc_client<Hello::Session>
 	{
 		Session_client(Genode::Capability<Hello::Session> cap)
 		: Genode::Rpc_client<Hello::Session>(cap) { }
+		
+		Trace::Timestamp a = Trace::timestamp();
 
 		void say_hello()
 		{
+			a = Trace::timestamp();
+			printf("original client start say hello %lld \n", a);
 			PDBG("Saying Hello.");
 			call<Rpc_say_hello>();
 		}

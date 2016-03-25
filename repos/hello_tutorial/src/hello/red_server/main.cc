@@ -19,11 +19,15 @@
 #include <hello_session/hello_session.h>
 #include <base/rpc_server.h>
 
+#include <trace/timestamp.h>
 namespace Hello {
-
+	using namespace Genode;
 	struct Session_component : Genode::Rpc_object<Hello::Session>
 	{
+		Trace::Timestamp a;
 		void say_hello() {
+			a = Trace::timestamp();
+			printf("redundancy server start to process %lld \n", a);
 			PDBG("I am red_server"); }
 
 		int add(int a, int b) {

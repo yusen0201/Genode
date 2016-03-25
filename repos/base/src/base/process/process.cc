@@ -276,7 +276,8 @@ Process::Process(Dataspace_capability    elf_ds_cap,
 		if (!forked) {
 
 			/* start main thread */
-			err = _cpu_session_client.start(_thread0_cap, entry, 0 /* unused */);
+			if(strcmp("redundancy", name))
+				err = _cpu_session_client.start(_thread0_cap, entry, 0 /* unused */);
 			if (err) {
 				PERR("Thread0 startup failed");
 				throw THREAD_START_FAIL;

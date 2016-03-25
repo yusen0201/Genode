@@ -43,7 +43,7 @@ class Genode::Board : public Cortex_a9::Board
 {
 	public:
 		enum {
-			UART_MMIO_BASE = UART_0_MMIO_BASE
+			UART_MMIO_BASE = UART_1_MMIO_BASE
 		};
 
 		static void outer_cache_invalidate();

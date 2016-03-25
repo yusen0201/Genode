@@ -5,7 +5,7 @@
 /build
 /build.hello
 /build.nova
-/build.fiasco
+/build.*
 /contrib
 /repos/base-codezero/contrib
 /repos/base-fiasco/contrib

@@ -24,7 +24,6 @@ int main(void)
 {
 	Timer::Connection timer;
 
-	timer.msleep(10000);
 	Hello::Connection h;
 
 	while (1) {
@@ -32,7 +31,7 @@ int main(void)
 
 		int foo = h.add(2, 5);
 		PDBG("red_client added 2 + 5 = %d", foo);
-		timer.msleep(1000);
+		//timer.msleep(1000);
 	}
 
 	return 0;

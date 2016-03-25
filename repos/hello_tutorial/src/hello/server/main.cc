@@ -20,13 +20,16 @@
 #include <base/rpc_server.h>
 #include <timer_session/connection.h>
 
+#include <trace/timestamp.h>
 namespace Hello {
-
+	using namespace Genode;
 	struct Session_component : Genode::Rpc_object<Hello::Session>
 	{
+		Trace::Timestamp a;
 		void say_hello() {
-
-			PDBG("I am original... Hello. %d", a);
+			a = Trace::timestamp();
+			printf("original server start to process %lld \n", a);
+			PDBG("I am original... Hello.");
 		
 		*((int *)0x44) = 0x55;
 		 }
@@ -95,7 +98,7 @@ int main(void)
 	****** cause a segfault ********
 	*******************************/
 		Timer::Connection timer;
-		timer.msleep(5111);
+		timer.msleep(15111);
 		*((int *)0x44) = 0x55;
 	/* We are done with this and only act upon client requests now. */
 	sleep_forever();

@@ -78,12 +78,22 @@ int main(void)
   	Hello::Session_client h(h_cap);
 
 	while (1) {
+		
+		try {
+			h.say_hello();}
+		catch (Genode::Ipc_error) {
+			PDBG("ipc error catched by dr_client");
+			Capability<Hello::Session> p_cap =
+    				env()->parent()->session<Hello::Session>("foo, ram_quota=4K");
 
-		h.say_hello();
-		PDBG("say_hello finished");
+  			Hello::Session_client p(p_cap);
+			h = p;
+			h.say_hello();
+		}
+
+
 		int foo = h.add(2, 5);
 		PDBG("Added 2 + 5 = %d", foo);
-		timer.msleep(1000);
 	
 		Genode::Signal s = sig_rec.wait_for_signal();
 

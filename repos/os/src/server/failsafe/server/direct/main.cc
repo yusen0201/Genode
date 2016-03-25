@@ -18,7 +18,8 @@
 #include <hello_session/hello_session.h>
 #include <timer_session/connection.h>
 
-
+#include <base/printf.h>
+#include <trace/timestamp.h>
 
 int main()
 {
@@ -60,6 +61,8 @@ int main()
 	
 	if (child_fault_detection(sig_rec, sig_ctx)) {
 	
+		Trace::Timestamp a = Trace::timestamp();
+		printf("fault detected in monitor %lld \n", a);
 		comp.child_destroy();
 		env()->parent()->announce("Hello", red_comp.child_root_cap());
 		

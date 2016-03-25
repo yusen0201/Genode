@@ -17,14 +17,12 @@
 #include <hello_session/connection.h>
 
 #include <timer_session/connection.h>
-
 using namespace Genode;
 
 int main(void)
 {
 	Timer::Connection timer;
 
-	timer.msleep(10000);
 	Hello::Connection h;
 
 	while (1) {
@@ -34,7 +32,7 @@ int main(void)
 		PDBG("original client going to call add()");
 		int foo = h.add(2, 5);
 		PDBG("Added 2 + 5 = %d", foo);
-		timer.msleep(1000);
+		//*((int *)0x44) = 0x55;	
 	}
 
 	return 0;

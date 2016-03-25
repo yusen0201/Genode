@@ -1,11 +1,12 @@
 /*
  * \brief   Platform implementations specific for base-hw and Zynq
  * \author  Johannes Schlatow
+ * \author  Stefan Kalkowski
  * \date    2014-12-15
  */
 
 /*
- * Copyright (C) 2012-2014 Genode Labs GmbH
+ * Copyright (C) 2014-2016 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU General Public License version 2.
@@ -55,6 +56,7 @@ Native_region * Platform::_core_only_mmio_regions(unsigned const i)
 
 		/* core UART */
 		{ Board::UART_0_MMIO_BASE, Board::UART_SIZE },
+		{ Board::UART_1_MMIO_BASE, Board::UART_SIZE },
 
 		/* L2 cache controller */
 		{ Board::PL310_MMIO_BASE, Board::PL310_MMIO_SIZE }
@@ -63,9 +65,7 @@ Native_region * Platform::_core_only_mmio_regions(unsigned const i)
 }
 
 
-Cpu::User_context::User_context() { cpsr = Psr::init_user(); }
-
-
+Genode::Arm::User_context::User_context() { cpsr = Psr::init_user(); }
 static Genode::Pl310 * l2_cache() {
 	return unmanaged_singleton<Genode::Pl310>(Board::PL310_MMIO_BASE); }
 

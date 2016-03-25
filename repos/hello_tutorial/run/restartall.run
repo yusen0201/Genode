@@ -2,7 +2,7 @@
 # Build
 #
 
-build { core init hello drivers/timer server/failsafe/restartall}
+build { core init hello drivers/timer server/failsafe/restartall server/failsafe/server/direct}
 
 create_boot_directory
 
@@ -32,10 +32,10 @@ install_config {
 		<any-service> <parent/> <any-child/> </any-service>
 	</default-route>
 
-	<start name="srv_failsafe">
+	<start name="failsafe_server">
 		<resource name="RAM" quantum="10M"/>
 		<provides>
-			  <service name="Loader"/>
+			  <service name="Failsafe"/>
 			  <service name="Hello"/>
 		</provides>
 		<route>
@@ -58,7 +58,7 @@ install_config {
 # Boot image
 #
 
-build_boot_image { core init hello_client hello_server red_client red_server timer srv_failsafe cli_failsafe}
+build_boot_image { core init hello_client hello_server red_client red_server timer failsafe_server cli_failsafe}
 
 append qemu_args " -nographic "
 

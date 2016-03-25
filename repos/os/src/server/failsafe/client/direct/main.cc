@@ -14,6 +14,8 @@
 #include <monitor.h>
 #include <timer_session/connection.h>
 
+#include <base/printf.h>
+#include <trace/timestamp.h>
 
 int main()
 {
@@ -30,10 +32,10 @@ int main()
 	static Failsafe::Session_component red_comp(size, *env()->ram_session(), cap);
 	static Failsafe::Session_component comp(size, *env()->ram_session(), cap);
 
-	comp.fault_sigh(sig_rec.manage(&sig_ctx));
+	comp.child_fault_sigh(sig_rec.manage(&sig_ctx));
 	comp.start("hello_client", "original", Native_pd_args());
 	comp.session_request_unlock();
-	red_comp.start("red_client", "red", Native_pd_args());
+	red_comp.start("red_client", "redundancy", Native_pd_args());
 	
 	/*****************************************************
 	*****            start redundancy		 *****
@@ -42,12 +44,14 @@ int main()
 	/* just test if session_unlock() works
 	 because the hello_client also for other usage, it doesn't cause any seg-fault*/
 
-	timer.msleep(20000);
-	//red_comp.red_start();
-	red_comp.session_request_unlock();
+	//timer.msleep(20000);
+	////red_comp.red_start();
+	//red_comp.session_request_unlock();
 
-	
 	if (child_fault_detection(sig_rec, sig_ctx)) {
+		Trace::Timestamp a = Trace::timestamp();
+		printf("fault detected in monitor %lld \n", a);
+		red_comp.red_start();
 		red_comp.session_request_unlock();
 
 	} 
