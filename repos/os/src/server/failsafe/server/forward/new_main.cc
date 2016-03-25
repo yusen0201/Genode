@@ -54,21 +54,33 @@ class Failsafe::Hello_sfw_monitor : public Failsafe::Srv_component<Hello::Sessio
 class Failsafe::Hello_component : public Failsafe::Recovery_component<Hello::Session, Hello::Session_client>
 {
 	public:
-		
+		Trace::Timestamp t;		
 
 		void say_hello()
                  {
+			t = Trace::timestamp();
+			printf("in pseudo server %u \n", t);
                         PDBG("pseudo say_hello");
 			try {
 				if(!constructed)
 					construct_barrier.down();
+			t = Trace::timestamp();
+			printf("pseudo server start say_hello %u \n", t);
 				con->say_hello();
+			t = Trace::timestamp();
+			printf("pseudo server finish say_hello %u \n", t);
 				} 
 			catch(Genode::Ipc_error) {
-                        PDBG("say_hello exception");
+                        PDBG("say_hello ipc exception");
 				construct_barrier.down();
 			 	con->say_hello();
 				}
+			catch(Genode::Blocking_canceled) {
+                        PDBG("say_hello blk exception");
+				construct_barrier.down();
+			 	con->say_hello();
+				}
+
                  }
  
                  int add(int a, int b)
@@ -131,11 +143,6 @@ int main()
 	/*****************************************************
 	***** update capability when original server down*****
 	*****************************************************/
-	//Failsafe::Child *childa, *childb;
-	//childa = comp.child();
-	//childb = red_comp.child();
-	//PDBG("a %x", childa);
-	//PDBG("b %x", childb);
 	
 	int tag = 0;
 	
@@ -145,7 +152,7 @@ int main()
 	case 0:
 	if (child_fault_detection(sig_rec, sig_ctx)) {
 		Trace::Timestamp a = Trace::timestamp();
-		printf("fault detected in monitor %lld \n", a);
+		printf("fault detected in monitor %u \n", a);
         	//sig_rec.dissolve(&sig_ctx);
 		comp.child_destroy();	
 		//comp.reset_child();

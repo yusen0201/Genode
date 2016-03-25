@@ -27,7 +27,7 @@ namespace Hello {
 		Trace::Timestamp a;
 		void say_hello() {
 			a = Trace::timestamp();
-			printf("redundancy server start to process %lld \n", a);
+			printf("redundancy server start to process %u \n", a);
 			PDBG("I am red_server"); }
 
 		int add(int a, int b) {

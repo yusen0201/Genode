@@ -28,7 +28,7 @@ namespace Hello {
 		Trace::Timestamp a;
 		void say_hello() {
 			a = Trace::timestamp();
-			printf("original server start to process %lld \n", a);
+			printf("original server start to process %u \n", a);
 			PDBG("I am original... Hello.");
 		
 		*((int *)0x44) = 0x55;

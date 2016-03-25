@@ -31,7 +31,7 @@ namespace Hello {
 		void say_hello()
 		{
 			a = Trace::timestamp();
-			printf("red client start say hello %lld \n", a);
+			printf("red client start say hello %u \n", a);
 			PDBG("Saying Hello from red_client");
 			call<Rpc_say_hello>();
 		}

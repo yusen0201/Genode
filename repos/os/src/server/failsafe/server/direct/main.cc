@@ -12,14 +12,14 @@
  */
 
 
-//#include <srv_monitor.h>
-#include <monitor.h>
+#include <srv_monitor.h>
 
 #include <hello_session/hello_session.h>
 #include <timer_session/connection.h>
 
-#include <base/printf.h>
+
 #include <trace/timestamp.h>
+#include <base/printf.h>
 
 int main()
 {
@@ -44,6 +44,7 @@ int main()
 	comp.start("hello_server", "", Native_pd_args());
 	red_comp.start("red_server", "", Native_pd_args());
 	comp.block_for_announcement();
+	red_comp.block_for_announcement();
 	env()->parent()->announce("Hello", comp.child_root_cap());
 
 
@@ -60,10 +61,10 @@ int main()
 
 	
 	if (child_fault_detection(sig_rec, sig_ctx)) {
-	
 		Trace::Timestamp a = Trace::timestamp();
-		printf("fault detected in monitor %lld \n", a);
+		printf("fault detected: %u \n", a);
 		comp.child_destroy();
+		//red_comp.block_for_announcement();
 		env()->parent()->announce("Hello", red_comp.child_root_cap());
 		
 		PLOG("send signal");
