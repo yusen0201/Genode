@@ -51,6 +51,7 @@ int main()
 	if (child_fault_detection(sig_rec, sig_ctx)) {
 		Trace::Timestamp a = Trace::timestamp();
 		printf("fault detected in monitor %lld \n", a);
+		comp.child_destroy();
 		red_comp.red_start();
 		red_comp.session_request_unlock();
 
