@@ -32,7 +32,7 @@ install_config {
 		<any-service> <parent/> <any-child/> </any-service>
 	</default-route>
 
-	<start name="failsafe_server">
+	<start name="failsafe_server_direct">
 		<resource name="RAM" quantum="50M"/>
 		<provides>
 			  <service name="Hello"/>
@@ -55,7 +55,7 @@ install_config {
 # Boot image
 #
 
-build_boot_image { core init dr_client hello_server red_server timer failsafe_server }
+build_boot_image { core init dr_client hello_server red_server timer failsafe_server_direct }
 
 append qemu_args " -nographic "
 
