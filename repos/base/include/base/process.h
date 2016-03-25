@@ -38,8 +38,8 @@ class Genode::Process
 		addr_t _entry;
 		const char *_name;
 			Pager_capability _pager;
-		Dataspace_capability _elf_ds_cap;
 		        Parent_capability       _parent;
+		Dataspace_capability _elf_ds_cap;
 	public:
 
 		/**
