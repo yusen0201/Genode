@@ -45,7 +45,6 @@ int main()
 	red_comp.start("red_server", "", Native_pd_args());
 	
 	comp.block_for_announcement();
-
 	red_comp.block_for_announcement();
 	env()->parent()->announce("Hello", comp.child_root_cap());
 
