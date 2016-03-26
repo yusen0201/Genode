@@ -45,7 +45,6 @@ int main()
 	red_comp.start("red_server", "", Native_pd_args());
 	
 	comp.block_for_announcement();
-	red_comp.block_for_announcement();
 	env()->parent()->announce("Hello", comp.child_root_cap());
 
 
@@ -65,7 +64,7 @@ int main()
 		Trace::Timestamp a = Trace::timestamp();
 		printf("fault detected: %u \n", a);
 		comp.child_destroy();
-		//red_comp.block_for_announcement();
+		red_comp.block_for_announcement();
 		env()->parent()->announce("Hello", red_comp.child_root_cap());
 		
 		PLOG("send signal");

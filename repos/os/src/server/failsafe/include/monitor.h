@@ -350,19 +350,19 @@ class Failsafe::Root : public Root_component<Session_component>
 		Ram_session &_ram;
 		Cap_session &_cap;
 		Session_component* _root;
-		Genode::Lock loader_cap_barrier { Genode::Lock::LOCKED };
+		Genode::Semaphore failsafe_cap_barrier;
 
 	protected:
 
 		Session_component *_create_session(const char *args)
 		{
-        		PDBG("Creating loader session of Failsafe.");
+        		PDBG("Creating failsafe session of Failsafe.");
 			size_t quota =
 				Arg_string::find_arg(args, "ram_quota").ulong_value(0);
 
 			_root = new (md_alloc()) Session_component(quota, _ram, _cap);
 
-			loader_cap_barrier.unlock();
+			failsafe_cap_barrier.up();
 			return _root;
 		}
 
@@ -387,7 +387,7 @@ class Failsafe::Root : public Root_component<Session_component>
 
 		Session_component* get_component()
 		{
-			loader_cap_barrier.lock();
+			failsafe_cap_barrier.down();
 			return _root;	
 		}
 };

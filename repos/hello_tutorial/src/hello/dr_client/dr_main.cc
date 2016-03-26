@@ -61,6 +61,21 @@ using namespace Genode;
 //	}
 //};
 
+bool fault_detection(Genode::Signal_receiver &sig_rec,
+                           Genode::Signal_context const &sig_ctx)
+{
+	Genode::Signal s = sig_rec.wait_for_signal();
+
+	if (s.num() && s.context() == &sig_ctx) {
+		PLOG("got exception for server");
+		return true;
+	} else {
+		PERR("got unexpected signal while waiting for child");
+		class Unexpected_signal { };
+		throw Unexpected_signal();
+	}
+}
+
 
 int main(void)
 {
@@ -83,31 +98,34 @@ int main(void)
 			h.say_hello();}
 		catch (Genode::Ipc_error) {
 			PDBG("ipc error catched by dr_client");
+			if(fault_detection(sig_rec, sig_ctx)) {
 			Capability<Hello::Session> p_cap =
     				env()->parent()->session<Hello::Session>("foo, ram_quota=4K");
 
   			Hello::Session_client p(p_cap);
 			h = p;
 			h.say_hello();
+			}
 		}
 		catch (Genode::Blocking_canceled) {
 			PDBG("blk error catched by dr_client");
+			if(fault_detection(sig_rec, sig_ctx)) {
 			Capability<Hello::Session> p_cap =
     				env()->parent()->session<Hello::Session>("foo, ram_quota=4K");
 
   			Hello::Session_client p(p_cap);
 			h = p;
 			h.say_hello();
+			//sig_rec.dissolve(&sig_ctx);
+			}
 		}
-
 
 
 		int foo = h.add(2, 5);
 		PDBG("Added 2 + 5 = %d", foo);
 	
-		Genode::Signal s = sig_rec.wait_for_signal();
 
-		if (s.num() && s.context() == &sig_ctx) {
+		if (fault_detection(sig_rec, sig_ctx)) {
 			PDBG("signal received");
 			Capability<Hello::Session> p_cap =
     				env()->parent()->session<Hello::Session>("foo, ram_quota=4K");
@@ -116,11 +134,6 @@ int main(void)
 			h = p;
 			PDBG("cap updated");
 		} 	
-	else {
-		PERR("got unexpected signal while waiting for child");
-		class Unexpected_signal { };
-		throw Unexpected_signal();
-		}
 	}
 	return 0;
 }

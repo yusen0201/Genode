@@ -178,7 +178,8 @@ namespace Failsafe {
 				}
 				return service;
 			}
-			
+
+					
 			/************************************************
 			**      get root cap of child service     *******
 			************************************************/
@@ -229,6 +230,19 @@ namespace Failsafe {
 				_child.fast_restart();	
 			}
 
+			Genode::Session_capability session(char     const *args,
+			                                   Affinity const &affinity)
+			{
+				PDBG("session 111");
+				Genode::Session_capability session_cap =
+					Genode::Root_client(get_root_cap()).session(args, Genode::Affinity());
+
+			
+				//return Genode::static_cap_cast<Hello::Session>(session_cap);
+				return session_cap;
+	
+
+			}
 	};
 }
 
