@@ -1,0 +1,438 @@
+Genode 15.11-88-gdb695e9 <local changes>
+int main(): --- create local services ---
+int main(): --- start init ---
+int main(): transferred 1017 MB to init
+int main(): --- init created, waiting for exit condition ---
+[init] Could not open ROM session for module "ld.lib.so"
+[init -> dr_client] int main(): create notification session
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): Creating root component of Failsafe.
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): Creating loader session of Failsafe.
+[init -> dr_client] int main(): connect to hello
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of original
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of redundancy.
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of original
+[init -> dr_client] original client start say hello 192355481 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] original server start to process 200634441 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am original... Hello.
+no RM attachment (faulter afe128 with IP 10011c attempts to write to address 44)
+init -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44
+[init -> failsafe_server_direct] got exception for child
+[init -> failsafe_server_direct] fault detected: 227672495 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): child killed
+[init -> failsafe_server_direct] Genode::Process::~Process(): destructor process
+[init -> failsafe_server_direct] send signal
+[init -> failsafe_server_direct] signal sant
+[init -> dr_client] int main(): blk error catched by dr_client
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] original client start say hello 262920831 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 271206949 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 282240875 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+[init -> dr_client] int main(): signal received
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] int main(): cap updated
+[init -> dr_client] original client start say hello 305239354 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 314264759 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 325201650 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+
+
+Genode 15.11-88-gdb695e9 <local changes>
+int main(): --- create local services ---
+int main(): --- start init ---
+int main(): transferred 1017 MB to init
+int main(): --- init created, waiting for exit condition ---
+[init] Could not open ROM session for module "ld.lib.so"
+[init -> dr_client] int main(): create notification session
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): Creating root component of Failsafe.
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): Creating loader session of Failsafe.
+[init -> dr_client] int main(): connect to hello
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of original
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of redundancy.
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of original
+[init -> dr_client] original client start say hello 192495924 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] original server start to process 200779363 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am original... Hello.
+no RM attachment (faulter afe128 with IP 10011c attempts to write to address 44)
+init -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44
+[init -> failsafe_server_direct] got exception for child
+[init -> failsafe_server_direct] fault detected: 227815745 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): child killed
+[init -> failsafe_server_direct] Genode::Process::~Process(): destructor process
+[init -> failsafe_server_direct] send signal
+[init -> failsafe_server_direct] signal sant
+[init -> dr_client] int main(): blk error catched by dr_client
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] original client start say hello 263064426 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 271354607 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 282391017 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+[init -> dr_client] int main(): signal received
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] int main(): cap updated
+[init -> dr_client] original client start say hello 305388358 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 314412032 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 325350617 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+я
+
+Genode 15.11-88-gdb695e9 <local changes>
+int main(): --- create local services ---
+int main(): --- start init ---
+int main(): transferred 1017 MB to init
+int main(): --- init created, waiting for exit condition ---
+[init] Could not open ROM session for module "ld.lib.so"
+[init -> dr_client] int main(): create notification session
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): Creating root component of Failsafe.
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): Creating loader session of Failsafe.
+[init -> dr_client] int main(): connect to hello
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of original
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of redundancy.
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of original
+[init -> dr_client] original client start say hello 192552864 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] original server start to process 200829820 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am original... Hello.
+no RM attachment (faulter afe128 with IP 10011c attempts to write to address 44)
+init -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44
+[init -> failsafe_server_direct] got exception for child
+[init -> failsafe_server_direct] fault detected: 227866985 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): child killed
+[init -> failsafe_server_direct] Genode::Process::~Process(): destructor process
+[init -> failsafe_server_direct] send signal
+[init -> failsafe_server_direct] signal sant
+[init -> dr_client] int main(): blk error catched by dr_client
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] original client start say hello 263108681 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 271399365 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 282436509 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+[init -> dr_client] int main(): signal received
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] int main(): cap updated
+[init -> dr_client] original client start say hello 305434395 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 314458574 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 325397240 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+
+
+Genode 15.11-88-gdb695e9 <local changes>
+int main(): --- create local services ---
+int main(): --- start init ---
+int main(): transferred 1017 MB to init
+int main(): --- init created, waiting for exit condition ---
+[init] Could not open ROM session for module "ld.lib.so"
+[init -> dr_client] int main(): create notification session
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): Creating root component of Failsafe.
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): Creating loader session of Failsafe.
+[init -> dr_client] int main(): connect to hello
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of original
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of redundancy.
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of original
+[init -> dr_client] original client start say hello 192685959 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] original server start to process 200967254 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am original... Hello.
+no RM attachment (faulter afe128 with IP 10011c attempts to write to address 44)
+init -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44
+[init -> failsafe_server_direct] got exception for child
+[init -> failsafe_server_direct] fault detected: 228005343 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): child killed
+[init -> failsafe_server_direct] Genode::Process::~Process(): destructor process
+[init -> failsafe_server_direct] send signal
+[init -> failsafe_server_direct] signal sant
+[init -> dr_client] int main(): blk error catched by dr_client
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] original client start say hello 263256726 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 271549958 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 282586215 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+[init -> dr_client] int main(): signal received
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] int main(): cap updated
+[init -> dr_client] original client start say hello 305583202 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 314607833 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 325546500 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+
+
+Genode 15.11-88-gdb695e9 <local changes>
+int main(): --- create local services ---
+int main(): --- start init ---
+int main(): transferred 1017 MB to init
+int main(): --- init created, waiting for exit condition ---
+[init] Could not open ROM session for module "ld.lib.so"
+[init -> dr_client] int main(): create notification session
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): Creating root component of Failsafe.
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): Creating loader session of Failsafe.
+[init -> dr_client] int main(): connect to hello
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of original
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of redundancy.
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of original
+[init -> dr_client] original client start say hello 192484324 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] original server start to process 200760091 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am original... Hello.
+no RM attachment (faulter afe128 with IP 10011c attempts to write to address 44)
+init -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44
+[init -> failsafe_server_direct] got exception for child
+[init -> failsafe_server_direct] fault detected: 227797599 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): child killed
+[init -> failsafe_server_direct] Genode::Process::~Process(): destructor process
+[init -> failsafe_server_direct] send signal
+[init -> failsafe_server_direct] signal sant
+[init -> dr_client] int main(): blk error catched by dr_client
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] original client start say hello 263037831 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 271326144 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 282363234 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+[init -> dr_client] int main(): signal received
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] int main(): cap updated
+[init -> dr_client] original client start say hello 305360019 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 314383839 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 325322305 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+
+
+Genode 15.11-88-gdb695e9 <local changes>
+int main(): --- create local services ---
+int main(): --- start init ---
+int main(): transferred 1017 MB to init
+int main(): --- init created, waiting for exit condition ---
+[init] Could not open ROM session for module "ld.lib.so"
+[init -> dr_client] int main(): create notification session
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): Creating root component of Failsafe.
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): Creating loader session of Failsafe.
+[init -> dr_client] int main(): connect to hello
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of original
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of redundancy.
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of original
+[init -> dr_client] original client start say hello 192712914 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] original server start to process 200996808 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am original... Hello.
+no RM attachment (faulter afe128 with IP 10011c attempts to write to address 44)
+init -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44
+[init -> failsafe_server_direct] got exception for child
+[init -> failsafe_server_direct] fault detected: 228033330 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): child killed
+[init -> failsafe_server_direct] Genode::Process::~Process(): destructor process
+[init -> failsafe_server_direct] send signal
+[init -> failsafe_server_direct] signal sant
+[init -> dr_client] int main(): blk error catched by dr_client
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] original client start say hello 263281309 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 271572052 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 282609085 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+[init -> dr_client] int main(): signal received
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] int main(): cap updated
+[init -> dr_client] original client start say hello 305605203 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 314629963 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 325568727 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+
+
+Genode 15.11-88-gdb695e9 <local changes>
+int main(): --- create local services ---
+int main(): --- start init ---
+int main(): transferred 1017 MB to init
+int main(): --- init created, waiting for exit condition ---
+[init] Could not open ROM session for module "ld.lib.so"
+[init -> dr_client] int main(): create notification session
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): Creating root component of Failsafe.
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): Creating loader session of Failsafe.
+[init -> dr_client] int main(): connect to hello
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of original
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of redundancy.
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of original
+[init -> dr_client] original client start say hello 192446070 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] original server start to process 200721021 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am original... Hello.
+no RM attachment (faulter afe128 with IP 10011c attempts to write to address 44)
+init -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44
+[init -> failsafe_server_direct] got exception for child
+[init -> failsafe_server_direct] fault detected: 227758167 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): child killed
+[init -> failsafe_server_direct] Genode::Process::~Process(): destructor process
+[init -> failsafe_server_direct] send signal
+[init -> failsafe_server_direct] signal sant
+[init -> dr_client] int main(): blk error catched by dr_client
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] original client start say hello 262997936 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 271290314 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 282326764 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+[init -> dr_client] int main(): signal received
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] int main(): cap updated
+[init -> dr_client] original client start say hello 305324820 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 314349134 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 325287894 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+
+
+Genode 15.11-88-gdb695e9 <local changes>
+int main(): --- create local services ---
+int main(): --- start init ---
+int main(): transferred 1017 MB to init
+int main(): --- init created, waiting for exit condition ---
+[init] Could not open ROM session for module "ld.lib.so"
+[init -> dr_client] int main(): create notification session
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): Creating root component of Failsafe.
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): Creating loader session of Failsafe.
+[init -> dr_client] int main(): connect to hello
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of original
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of redundancy.
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of original
+[init -> dr_client] original client start say hello 192515241 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] original server start to process 200796786 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am original... Hello.
+no RM attachment (faulter afe128 with IP 10011c attempts to write to address 44)
+init -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44
+[init -> failsafe_server_direct] got exception for child
+[init -> failsafe_server_direct] fault detected: 227833047 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): child killed
+[init -> failsafe_server_direct] Genode::Process::~Process(): destructor process
+[init -> failsafe_server_direct] send signal
+[init -> failsafe_server_direct] signal sant
+[init -> dr_client] int main(): blk error catched by dr_client
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] original client start say hello 263087115 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 271377144 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 282413065 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+[init -> dr_client] int main(): signal received
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] int main(): cap updated
+[init -> dr_client] original client start say hello 305410999 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 314435684 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 325375175 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+шь
+
+Genode 15.11-88-gdb695e9 <local changes>
+int main(): --- create local services ---
+int main(): --- start init ---
+int main(): transferred 1017 MB to init
+int main(): --- init created, waiting for exit condition ---
+[init] Could not open ROM session for module "ld.lib.so"
+[init -> dr_client] int main(): create notification session
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): Creating root component of Failsafe.
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): Creating loader session of Failsafe.
+[init -> dr_client] int main(): connect to hello
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of original
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of redundancy.
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of original
+[init -> dr_client] original client start say hello 192404516 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] original server start to process 200688216 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am original... Hello.
+no RM attachment (faulter afe128 with IP 10011c attempts to write to address 44)
+init -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44
+[init -> failsafe_server_direct] got exception for child
+[init -> failsafe_server_direct] fault detected: 227723620 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): child killed
+[init -> failsafe_server_direct] Genode::Process::~Process(): destructor process
+[init -> failsafe_server_direct] send signal
+[init -> failsafe_server_direct] signal sant
+[init -> dr_client] int main(): blk error catched by dr_client
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] original client start say hello 262971416 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 271262564 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 282300785 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+[init -> dr_client] int main(): signal received
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] int main(): cap updated
+[init -> dr_client] original client start say hello 305296710 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 314321704 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 325259760 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+ь
+
+Genode 15.11-88-gdb695e9 <local changes>
+int main(): --- create local services ---
+int main(): --- start init ---
+int main(): transferred 1017 MB to init
+int main(): --- init created, waiting for exit condition ---
+[init] Could not open ROM session for module "ld.lib.so"
+[init -> dr_client] int main(): create notification session
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): Creating root component of Failsafe.
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): Creating loader session of Failsafe.
+[init -> dr_client] int main(): connect to hello
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of original
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): Creating root component of redundancy.
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of original
+[init -> dr_client] original client start say hello 192680625 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] original server start to process 200955753 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am original... Hello.
+no RM attachment (faulter afe128 with IP 10011c attempts to write to address 44)
+init -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44
+[init -> failsafe_server_direct] got exception for child
+[init -> failsafe_server_direct] fault detected: 227992545 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): child killed
+[init -> failsafe_server_direct] Genode::Process::~Process(): destructor process
+[init -> failsafe_server_direct] send signal
+[init -> failsafe_server_direct] signal sant
+[init -> dr_client] int main(): blk error catched by dr_client
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] original client start say hello 263248281 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 271543437 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 282579600 
+[init -> dr_client] int main(): Added 2 + 5 = 8
+[init -> dr_client] int main(): signal received
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): creating hello session of redundancy.
+[init -> dr_client] int main(): cap updated
+[init -> dr_client] original client start say hello 305575894 
+[init -> dr_client] virtual void Hello::Session_client::say_hello(): Saying Hello.
+[init -> failsafe_server_direct] redundancy server start to process 314601437 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): I am red_server
+[init -> dr_client] original client finish say hello 325540089 
+[init -> dr_client] int main(): Added 2 + 5 = 8

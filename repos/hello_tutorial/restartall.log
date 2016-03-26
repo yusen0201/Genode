@@ -1,0 +1,1162 @@
+
+
+U-Boot 2012.10-00003-g792c31c (Jan 03 2014 - 12:24:08)
+
+I2C:   ready
+DRAM:  992 MiB
+WARNING: Caches not enabled
+MMC:   SDHCI: 0
+SF: Detected N25Q128 with page size 64 KiB, total 16 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Net:   zynq_gem
+Hit any key to stop autoboot:  0 
+Configuring PL and Booting Linux...
+Device: SDHCI
+Manufacturer ID: 2
+OEM: 544d
+Name: SA04G 
+Tran Speed: 50000000
+Rd Block Len: 512
+SD version 2.0
+High Capacity: Yes
+Capacity: 3.7 GiB
+Bus Width: 4-bit
+reading parallella.bit.bin
+
+4045568 bytes read
+reading uImage
+
+958584 bytes read
+reading devicetree.dtb
+
+8607 bytes read
+## Booting kernel from Legacy Image at 03000000 ...
+   Image Name:   
+   Image Type:   ARM Linux Kernel Image (gzip compressed)
+   Data Size:    958520 Bytes = 936.1 KiB
+   Load Address: 00100000
+   Entry Point:  00100000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 02a00000
+   Booting using the fdt blob at 0x02a00000
+   Uncompressing Kernel Image ... OK
+   Loading Device Tree to 1fffa000, end 1ffff19e ... OK
+
+Starting kernel ...
+
+kernel initialized
+[32mGenode 15.11-88-gdb695e9 <local changes>[0m
+int main(): [33m--- create local services ---[0m
+int main(): [33m--- start init ---[0m
+int main(): [33mtransferred 1016 MB to init[0m
+int main(): [33m--- init created, waiting for exit condition ---[0m
+[init] [31mCould not open ROM session for module "ld.lib.so"[0m
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): [33mCreating root component of Failsafe.[0m
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): [33mCreating loader session of Failsafe.[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of original[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of redundancy.[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of original[0m
+[init -> cli_failsafe] original client start say hello 236566409 
+[init -> cli_failsafe] virtual void Hello::Session_client::say_hello(): [33mSaying Hello.[0m
+[init -> failsafe_server_direct] original server start to process 245127706 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am original... Hello.[0m
+[31mno RM attachment[0m (faulter ca8128 with IP 10011c attempts to write to address 44)
+[31minit -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44[0m
+[init -> failsafe_server_direct] [33mgot exception for child[0m
+[init -> failsafe_server_direct] fault detected: 272162978 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init -> failsafe_server_direct] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> failsafe_server_direct] [33msend signal[0m
+[init -> failsafe_server_direct] [33msignal sant[0m
+[init -> cli_failsafe] fault detected in monitor: 293099766 
+[init -> cli_failsafe] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init] [34mno session structure found[0m
+[init -> cli_failsafe] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> cli_failsafe] [33mgot signal from server monitor[0m
+[init -> cli_failsafe] [33mredundancy started[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of redundancy.[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 331346895 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 342296896 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 358150170 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 369701908 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 385554165 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 397101763 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 412960227 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 424512043 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 440365237 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 451912000 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 467770943 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 479323103 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 495175835 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 506722433 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 522581568 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 534132033 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 549986718 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 561533068 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 577392022 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 588943462 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 604796843 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 616344543 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 632202682 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 643754873 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 659607733 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 671156653 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe íü
+
+U-Boot 2012.10-00003-g792c31c (Jan 03 2014 - 12:24:08)
+
+I2C:   ready
+DRAM:  992 MiB
+WARNING: Caches not enabled
+MMC:   SDHCI: 0
+SF: Detected N25Q128 with page size 64 KiB, total 16 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Net:   zynq_gem
+Hit any key to stop autoboot:  0 
+Configuring PL and Booting Linux...
+Device: SDHCI
+Manufacturer ID: 2
+OEM: 544d
+Name: SA04G 
+Tran Speed: 50000000
+Rd Block Len: 512
+SD version 2.0
+High Capacity: Yes
+Capacity: 3.7 GiB
+Bus Width: 4-bit
+reading parallella.bit.bin
+
+4045568 bytes read
+reading uImage
+
+958584 bytes read
+reading devicetree.dtb
+
+8607 bytes read
+## Booting kernel from Legacy Image at 03000000 ...
+   Image Name:   
+   Image Type:   ARM Linux Kernel Image (gzip compressed)
+   Data Size:    958520 Bytes = 936.1 KiB
+   Load Address: 00100000
+   Entry Point:  00100000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 02a00000
+   Booting using the fdt blob at 0x02a00000
+   Uncompressing Kernel Image ... OK
+   Loading Device Tree to 1fffa000, end 1ffff19e ... OK
+
+Starting kernel ...
+
+kernel initialized
+[32mGenode 15.11-88-gdb695e9 <local changes>[0m
+int main(): [33m--- create local services ---[0m
+int main(): [33m--- start init ---[0m
+int main(): [33mtransferred 1016 MB to init[0m
+int main(): [33m--- init created, waiting for exit condition ---[0m
+[init] [31mCould not open ROM session for module "ld.lib.so"[0m
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): [33mCreating root component of Failsafe.[0m
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): [33mCreating loader session of Failsafe.[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of original[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of redundancy.[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of original[0m
+[init -> cli_failsafe] original client start say hello 234754388 
+[init -> cli_failsafe] virtual void Hello::Session_client::say_hello(): [33mSaying Hello.[0m
+[init -> failsafe_server_direct] original server start to process 243549746 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am original... Hello.[0m
+[31mno RM attachment[0m (faulter ca8128 with IP 10011c attempts to write to address 44)
+[31minit -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44[0m
+[init -> failsafe_server_direct] [33mgot exception for child[0m
+[init -> failsafe_server_direct] fault detected: 270587500 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init -> failsafe_server_direct] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> failsafe_server_direct] [33msend signal[0m
+[init -> failsafe_server_direct] [33msignal sant[0m
+[init -> cli_failsafe] fault detected in monitor: 291478928 
+[init -> cli_failsafe] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init] [34mno session structure found[0m
+[init -> cli_failsafe] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> cli_failsafe] [33mgot signal from server monitor[0m
+[init -> cli_failsafe] [33mredundancy started[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of redundancy.[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 329571692 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 340318404 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 356172247 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 367722902 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 383577280 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 395124049 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 410982812 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 422532899 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 438388512 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 449934270 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 ÿ
+
+U-Boot 2012.10-00003-g792c31c (Jan 03 2014 - 12:24:08)
+
+I2C:   ready
+DRAM:  992 MiB
+WARNING: Caches not enabled
+MMC:   SDHCI: 0
+SF: Detected N25Q128 with page size 64 KiB, total 16 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Net:   zynq_gem
+Hit any key to stop autoboot:  0 
+Configuring PL and Booting Linux...
+Device: SDHCI
+Manufacturer ID: 2
+OEM: 544d
+Name: SA04G 
+Tran Speed: 50000000
+Rd Block Len: 512
+SD version 2.0
+High Capacity: Yes
+Capacity: 3.7 GiB
+Bus Width: 4-bit
+reading parallella.bit.bin
+
+4045568 bytes read
+reading uImage
+
+958584 bytes read
+reading devicetree.dtb
+
+8607 bytes read
+## Booting kernel from Legacy Image at 03000000 ...
+   Image Name:   
+   Image Type:   ARM Linux Kernel Image (gzip compressed)
+   Data Size:    958520 Bytes = 936.1 KiB
+   Load Address: 00100000
+   Entry Point:  00100000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 02a00000
+   Booting using the fdt blob at 0x02a00000
+   Uncompressing Kernel Image ... OK
+   Loading Device Tree to 1fffa000, end 1ffff19e ... OK
+
+Starting kernel ...
+
+kernel initialized
+[32mGenode 15.11-88-gdb695e9 <local changes>[0m
+int main(): [33m--- create local services ---[0m
+int main(): [33m--- start init ---[0m
+int main(): [33mtransferred 1016 MB to init[0m
+int main(): [33m--- init created, waiting for exit condition ---[0m
+[init] [31mCould not open ROM session for module "ld.lib.so"[0m
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): [33mCreating root component of Failsafe.[0m
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): [33mCreating loader session of Failsafe.[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of original[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of redundancy.[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of original[0m
+[init -> cli_failsafe] original client start say hello 234756595 
+[init -> cli_failsafe] virtual void Hello::Session_client::say_hello(): [33mSaying Hello.[0m
+[init -> failsafe_server_direct] original server start to process 243544461 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am original... Hello.[0m
+[31mno RM attachment[0m (faulter ca8128 with IP 10011c attempts to write to address 44)
+[31minit -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44[0m
+[init -> failsafe_server_direct] [33mgot exception for child[0m
+[init -> failsafe_server_direct] fault detected: 270580609 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init -> failsafe_server_direct] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> failsafe_server_direct] [33msend signal[0m
+[init -> failsafe_server_direct] [33msignal sant[0m
+[init -> cli_failsafe] fault detected in monitor: 291482096 
+[init -> cli_failsafe] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init] [34mno session structure found[0m
+[init -> cli_failsafe] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> cli_failsafe] [33mgot signal from server monitor[0m
+[init -> cli_failsafe] [33mredundancy started[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of redundancy.[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 329593758 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 340334374 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 356188669 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 367740259 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 383593045 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 395141895 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 410999555 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 422549982 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 438404342 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 449949745 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 465809525 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 477360414 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 493215064 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 504761259 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 520620317 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 532171264 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 548025654 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 559571929 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 575431709 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 586981804 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 602835529 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 614383285 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 630241695 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 641791639 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 657646939 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 669194ô
+
+U-Boot 2012.10-00003-g792c31c (Jan 03 2014 - 12:24:08)
+
+I2C:   ready
+DRAM:  992 MiB
+WARNING: Caches not enabled
+MMC:   SDHCI: 0
+SF: Detected N25Q128 with page size 64 KiB, total 16 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Net:   zynq_gem
+Hit any key to stop autoboot:  0 
+Configuring PL and Booting Linux...
+Device: SDHCI
+Manufacturer ID: 2
+OEM: 544d
+Name: SA04G 
+Tran Speed: 50000000
+Rd Block Len: 512
+SD version 2.0
+High Capacity: Yes
+Capacity: 3.7 GiB
+Bus Width: 4-bit
+reading parallella.bit.bin
+
+4045568 bytes read
+reading uImage
+
+958584 bytes read
+reading devicetree.dtb
+
+8607 bytes read
+## Booting kernel from Legacy Image at 03000000 ...
+   Image Name:   
+   Image Type:   ARM Linux Kernel Image (gzip compressed)
+   Data Size:    958520 Bytes = 936.1 KiB
+   Load Address: 00100000
+   Entry Point:  00100000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 02a00000
+   Booting using the fdt blob at 0x02a00000
+   Uncompressing Kernel Image ... OK
+   Loading Device Tree to 1fffa000, end 1ffff19e ... OK
+
+Starting kernel ...
+
+kernel initialized
+[32mGenode 15.11-88-gdb695e9 <local changes>[0m
+int main(): [33m--- create local services ---[0m
+int main(): [33m--- start init ---[0m
+int main(): [33mtransferred 1016 MB to init[0m
+int main(): [33m--- init created, waiting for exit condition ---[0m
+[init] [31mCould not open ROM session for module "ld.lib.so"[0m
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): [33mCreating root component of Failsafe.[0m
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): [33mCreating loader session of Failsafe.[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of original[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of redundancy.[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of original[0m
+[init -> cli_failsafe] original client start say hello 236413968 
+[init -> cli_failsafe] virtual void Hello::Session_client::say_hello(): [33mSaying Hello.[0m
+[init -> failsafe_server_direct] original server start to process 244972656 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am original... Hello.[0m
+[31mno RM attachment[0m (faulter ca8128 with IP 10011c attempts to write to address 44)
+[31minit -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44[0m
+[init -> failsafe_server_direct] [33mgot exception for child[0m
+[init -> failsafe_server_direct] fault detected: 272008689 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init -> failsafe_server_direct] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> failsafe_server_direct] [33msend signal[0m
+[init -> failsafe_server_direct] [33msignal sant[0m
+[init -> cli_failsafe] fault detected in monitor: 292956458 
+[init -> cli_failsafe] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init] [34mno session structure found[0m
+[init -> cli_failsafe] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> cli_failsafe] [33mgot signal from server monitor[0m
+[init -> cli_failsafe] [33mredundancy started[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of redundancy.[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 331151463 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 342107894 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 357960694 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 369514979 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 385365527 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 396912064 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 412771407 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 424322049 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 440176027 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 451722974 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 467581842 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 479132649 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 494986959 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Sessiÿþ
+
+U-Boot 2012.10-00003-g792c31c (Jan 03 2014 - 12:24:08)
+
+I2C:   ready
+DRAM:  992 MiB
+WARNING: Caches not enabled
+MMC:   SDHCI: 0
+SF: Detected N25Q128 with page size 64 KiB, total 16 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Net:   zynq_gem
+Hit any key to stop autoboot:  0 
+Configuring PL and Booting Linux...
+Device: SDHCI
+Manufacturer ID: 2
+OEM: 544d
+Name: SA04G 
+Tran Speed: 50000000
+Rd Block Len: 512
+SD version 2.0
+High Capacity: Yes
+Capacity: 3.7 GiB
+Bus Width: 4-bit
+reading parallella.bit.bin
+
+4045568 bytes read
+reading uImage
+
+958584 bytes read
+reading devicetree.dtb
+
+8607 bytes read
+## Booting kernel from Legacy Image at 03000000 ...
+   Image Name:   
+   Image Type:   ARM Linux Kernel Image (gzip compressed)
+   Data Size:    958520 Bytes = 936.1 KiB
+   Load Address: 00100000
+   Entry Point:  00100000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 02a00000
+   Booting using the fdt blob at 0x02a00000
+   Uncompressing Kernel Image ... OK
+   Loading Device Tree to 1fffa000, end 1ffff19e ... OK
+
+Starting kernel ...
+
+kernel initialized
+[32mGenode 15.11-88-gdb695e9 <local changes>[0m
+int main(): [33m--- create local services ---[0m
+int main(): [33m--- start init ---[0m
+int main(): [33mtransferred 1016 MB to init[0m
+int main(): [33m--- init created, waiting for exit condition ---[0m
+[init] [31mCould not open ROM session for module "ld.lib.so"[0m
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): [33mCreating root component of Failsafe.[0m
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): [33mCreating loader session of Failsafe.[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of original[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of redundancy.[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of original[0m
+[init -> cli_failsafe] original client start say hello 236622174 
+[init -> cli_failsafe] virtual void Hello::Session_client::say_hello(): [33mSaying Hello.[0m
+[init -> failsafe_server_direct] original server start to process 245178668 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am original... Hello.[0m
+[31mno RM attachment[0m (faulter ca8128 with IP 10011c attempts to write to address 44)
+[31minit -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44[0m
+[init -> failsafe_server_direct] [33mgot exception for child[0m
+[init -> failsafe_server_direct] fault detected: 272215663 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init -> failsafe_server_direct] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> failsafe_server_direct] [33msend signal[0m
+[init -> failsafe_server_direct] [33msignal sant[0m
+[init -> cli_failsafe] fault detected in monitor: 293152211 
+[init -> cli_failsafe] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init] [34mno session structure found[0m
+[init -> cli_failsafe] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> cli_failsafe] [33mgot signal from server monitor[0m
+[init -> cli_failsafe] [33mredundancy started[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of redundancy.[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 331361240 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 342313887 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 358166602 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 369717628 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 385571760 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 397117772 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 412976915 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 424528658 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 440381777 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 451930392 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 467787952 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 479338113 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 495192692 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 506739923 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 522599080 
+[init -> cli_failsafe -> redundancy] virtual voiþ
+
+U-Boot 2012.10-00003-g792c31c (Jan 03 2014 - 12:24:08)
+
+I2C:   ready
+DRAM:  992 MiB
+WARNING: Caches not enabled
+MMC:   SDHCI: 0
+SF: Detected N25Q128 with page size 64 KiB, total 16 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Net:   zynq_gem
+Hit any key to stop autoboot:  0 
+Configuring PL and Booting Linux...
+Device: SDHCI
+Manufacturer ID: 2
+OEM: 544d
+Name: SA04G 
+Tran Speed: 50000000
+Rd Block Len: 512
+SD version 2.0
+High Capacity: Yes
+Capacity: 3.7 GiB
+Bus Width: 4-bit
+reading parallella.bit.bin
+
+4045568 bytes read
+reading uImage
+
+958584 bytes read
+reading devicetree.dtb
+
+8607 bytes read
+## Booting kernel from Legacy Image at 03000000 ...
+   Image Name:   
+   Image Type:   ARM Linux Kernel Image (gzip compressed)
+   Data Size:    958520 Bytes = 936.1 KiB
+   Load Address: 00100000
+   Entry Point:  00100000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 02a00000
+   Booting using the fdt blob at 0x02a00000
+   Uncompressing Kernel Image ... OK
+   Loading Device Tree to 1fffa000, end 1ffff19e ... OK
+
+Starting kernel ...
+
+kernel initialized
+[32mGenode 15.11-88-gdb695e9 <local changes>[0m
+int main(): [33m--- create local services ---[0m
+int main(): [33m--- start init ---[0m
+int main(): [33mtransferred 1016 MB to init[0m
+int main(): [33m--- init created, waiting for exit condition ---[0m
+[init] [31mCould not open ROM session for module "ld.lib.so"[0m
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): [33mCreating root component of Failsafe.[0m
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): [33mCreating loader session of Failsafe.[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of original[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of redundancy.[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of original[0m
+[init -> cli_failsafe] original client start say hello 236378756 
+[init -> cli_failsafe] virtual void Hello::Session_client::say_hello(): [33mSaying Hello.[0m
+[init -> failsafe_server_direct] original server start to process 244938585 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am original... Hello.[0m
+[31mno RM attachment[0m (faulter ca8128 with IP 10011c attempts to write to address 44)
+[31minit -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44[0m
+[init -> failsafe_server_direct] [33mgot exception for child[0m
+[init -> failsafe_server_direct] fault detected: 271974107 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init -> failsafe_server_direct] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> failsafe_server_direct] [33msend signal[0m
+[init -> failsafe_server_direct] [33msignal sant[0m
+[init -> cli_failsafe] fault detected in monitor: 292915914 
+[init -> cli_failsafe] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init] [34mno session structure found[0m
+[init -> cli_failsafe] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> cli_failsafe] [33mgot signal from server monitor[0m
+[init -> cli_failsafe] [33mredundancy started[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of redundancy.[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 331113633 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 342073344 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 357926819 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 369478024 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 385331107 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 396879172 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 412737297 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 424287744 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 440142644 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 451688769 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 467547547 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 479098980 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 494952130 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 506500094 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 522358372 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 533909340 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 549763392 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 561310179 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cì
+
+U-Boot 2012.10-00003-g792c31c (Jan 03 2014 - 12:24:08)
+
+I2C:   ready
+DRAM:  992 MiB
+WARNING: Caches not enabled
+MMC:   SDHCI: 0
+SF: Detected N25Q128 with page size 64 KiB, total 16 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Net:   zynq_gem
+Hit any key to stop autoboot:  0 
+Configuring PL and Booting Linux...
+Device: SDHCI
+Manufacturer ID: 2
+OEM: 544d
+Name: SA04G 
+Tran Speed: 50000000
+Rd Block Len: 512
+SD version 2.0
+High Capacity: Yes
+Capacity: 3.7 GiB
+Bus Width: 4-bit
+reading parallella.bit.bin
+
+4045568 bytes read
+reading uImage
+
+958584 bytes read
+reading devicetree.dtb
+
+8607 bytes read
+## Booting kernel from Legacy Image at 03000000 ...
+   Image Name:   
+   Image Type:   ARM Linux Kernel Image (gzip compressed)
+   Data Size:    958520 Bytes = 936.1 KiB
+   Load Address: 00100000
+   Entry Point:  00100000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 02a00000
+   Booting using the fdt blob at 0x02a00000
+   Uncompressing Kernel Image ... OK
+   Loading Device Tree to 1fffa000, end 1ffff19e ... OK
+
+Starting kernel ...
+
+kernel initialized
+[32mGenode 15.11-88-gdb695e9 <local changes>[0m
+int main(): [33m--- create local services ---[0m
+int main(): [33m--- start init ---[0m
+int main(): [33mtransferred 1016 MB to init[0m
+int main(): [33m--- init created, waiting for exit condition ---[0m
+[init] [31mCould not open ROM session for module "ld.lib.so"[0m
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): [33mCreating root component of Failsafe.[0m
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): [33mCreating loader session of Failsafe.[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of original[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of redundancy.[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of original[0m
+[init -> cli_failsafe] original client start say hello 236388808 
+[init -> cli_failsafe] virtual void Hello::Session_client::say_hello(): [33mSaying Hello.[0m
+[init -> failsafe_server_direct] original server start to process 244949611 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am original... Hello.[0m
+[31mno RM attachment[0m (faulter ca8128 with IP 10011c attempts to write to address 44)
+[31minit -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44[0m
+[init -> failsafe_server_direct] [33mgot exception for child[0m
+[init -> failsafe_server_direct] fault detected: 271986027 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init -> failsafe_server_direct] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> failsafe_server_direct] [33msend signal[0m
+[init -> failsafe_server_direct] [33msignal sant[0m
+[init -> cli_failsafe] fault detected in monitor: 292934204 
+[init -> cli_failsafe] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init] [34mno session structure found[0m
+[init -> cli_failsafe] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> cli_failsafe] [33mgot signal from server monitor[0m
+[init -> cli_failsafe] [33mredundancy started[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of redundancy.[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 331135950 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 342096564 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 357949997 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 369501689 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 385353794 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 396900124 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 412760585 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 424311234 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 440164225 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 451711949 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 467570867 
+[init -> cli_failsafe -> redundancy] virtual voi
+
+U-Boot 2012.10-00003-g792c31c (Jan 03 2014 - 12:24:08)
+
+I2C:   ready
+DRAM:  992 MiB
+WARNING: Caches not enabled
+MMC:   SDHCI: 0
+SF: Detected N25Q128 with page size 64 KiB, total 16 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Net:   zynq_gem
+Hit any key to stop autoboot:  0 
+Configuring PL and Booting Linux...
+Device: SDHCI
+Manufacturer ID: 2
+OEM: 544d
+Name: SA04G 
+Tran Speed: 50000000
+Rd Block Len: 512
+SD version 2.0
+High Capacity: Yes
+Capacity: 3.7 GiB
+Bus Width: 4-bit
+reading parallella.bit.bin
+
+4045568 bytes read
+reading uImage
+
+958584 bytes read
+reading devicetree.dtb
+
+8607 bytes read
+## Booting kernel from Legacy Image at 03000000 ...
+   Image Name:   
+   Image Type:   ARM Linux Kernel Image (gzip compressed)
+   Data Size:    958520 Bytes = 936.1 KiB
+   Load Address: 00100000
+   Entry Point:  00100000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 02a00000
+   Booting using the fdt blob at 0x02a00000
+   Uncompressing Kernel Image ... OK
+   Loading Device Tree to 1fffa000, end 1ffff19e ... OK
+
+Starting kernel ...
+
+kernel initialized
+[32mGenode 15.11-88-gdb695e9 <local changes>[0m
+int main(): [33m--- create local services ---[0m
+int main(): [33m--- start init ---[0m
+int main(): [33mtransferred 1016 MB to init[0m
+int main(): [33m--- init created, waiting for exit condition ---[0m
+[init] [31mCould not open ROM session for module "ld.lib.so"[0m
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): [33mCreating root component of Failsafe.[0m
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): [33mCreating loader session of Failsafe.[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of original[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of redundancy.[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of original[0m
+[init -> cli_failsafe] original client start say hello 236367893 
+[init -> cli_failsafe] virtual void Hello::Session_client::say_hello(): [33mSaying Hello.[0m
+[init -> failsafe_server_direct] original server start to process 244932021 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am original... Hello.[0m
+[31mno RM attachment[0m (faulter ca8128 with IP 10011c attempts to write to address 44)
+[31minit -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44[0m
+[init -> failsafe_server_direct] [33mgot exception for child[0m
+[init -> failsafe_server_direct] fault detected: 271968595 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init -> failsafe_server_direct] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> failsafe_server_direct] [33msend signal[0m
+[init -> failsafe_server_direct] [33msignal sant[0m
+[init -> cli_failsafe] fault detected in monitor: 292907814 
+[init -> cli_failsafe] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init] [34mno session structure found[0m
+[init -> cli_failsafe] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> cli_failsafe] [33mgot signal from server monitor[0m
+[init -> cli_failsafe] [33mredundancy started[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of redundancy.[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 331103318 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 342062064 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 357915982 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 369468069 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 385319409 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 396865679 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 412725764 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 424277074 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 440129212 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 451678319 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 467536462 
+[init -> cli_failsafe -> redundancy] vù
+
+U-Boot 2012.10-00003-g792c31c (Jan 03 2014 - 12:24:08)
+
+I2C:   ready
+DRAM:  992 MiB
+WARNING: Caches not enabled
+MMC:   SDHCI: 0
+SF: Detected N25Q128 with page size 64 KiB, total 16 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Net:   zynq_gem
+Hit any key to stop autoboot:  0 
+Configuring PL and Booting Linux...
+Device: SDHCI
+Manufacturer ID: 2
+OEM: 544d
+Name: SA04G 
+Tran Speed: 50000000
+Rd Block Len: 512
+SD version 2.0
+High Capacity: Yes
+Capacity: 3.7 GiB
+Bus Width: 4-bit
+reading parallella.bit.bin
+
+4045568 bytes read
+reading uImage
+
+958584 bytes read
+reading devicetree.dtb
+
+8607 bytes read
+## Booting kernel from Legacy Image at 03000000 ...
+   Image Name:   
+   Image Type:   ARM Linux Kernel Image (gzip compressed)
+   Data Size:    958520 Bytes = 936.1 KiB
+   Load Address: 00100000
+   Entry Point:  00100000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 02a00000
+   Booting using the fdt blob at 0x02a00000
+   Uncompressing Kernel Image ... OK
+   Loading Device Tree to 1fffa000, end 1ffff19e ... OK
+
+Starting kernel ...
+
+kernel initialized
+[32mGenode 15.11-88-gdb695e9 <local changes>[0m
+int main(): [33m--- create local services ---[0m
+int main(): [33m--- start init ---[0m
+int main(): [33mtransferred 1016 MB to init[0m
+int main(): [33m--- init created, waiting for exit condition ---[0m
+[init] [31mCould not open ROM session for module "ld.lib.so"[0m
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): [33mCreating root component of Failsafe.[0m
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): [33mCreating loader session of Failsafe.[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of original[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of redundancy.[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of original[0m
+[init -> cli_failsafe] original client start say hello 236372228 
+[init -> cli_failsafe] virtual void Hello::Session_client::say_hello(): [33mSaying Hello.[0m
+[init -> failsafe_server_direct] original server start to process 244932781 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am original... Hello.[0m
+[31mno RM attachment[0m (faulter ca8128 with IP 10011c attempts to write to address 44)
+[31minit -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44[0m
+[init -> failsafe_server_direct] [33mgot exception for child[0m
+[init -> failsafe_server_direct] fault detected: 271969095 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init -> failsafe_server_direct] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> failsafe_server_direct] [33msend signal[0m
+[init -> failsafe_server_direct] [33msignal sant[0m
+[init -> cli_failsafe] fault detected in monitor: 292915546 
+[init -> cli_failsafe] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init] [34mno session structure found[0m
+[init -> cli_failsafe] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> cli_failsafe] [33mgot signal from server monitor[0m
+[init -> cli_failsafe] [33mredundancy started[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of redundancy.[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 331133903 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 342090534 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 357943712 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 369495724 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 385347592 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 396896509 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 412754537 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 424305194 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 440158512 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 451705974 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 467564342 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init ý
+
+U-Boot 2012.10-00003-g792c31c (Jan 03 2014 - 12:24:08)
+
+I2C:   ready
+DRAM:  992 MiB
+WARNING: Caches not enabled
+MMC:   SDHCI: 0
+SF: Detected N25Q128 with page size 64 KiB, total 16 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Net:   zynq_gem
+Hit any key to stop autoboot:  0 
+Configuring PL and Booting Linux...
+Device: SDHCI
+Manufacturer ID: 2
+OEM: 544d
+Name: SA04G 
+Tran Speed: 50000000
+Rd Block Len: 512
+SD version 2.0
+High Capacity: Yes
+Capacity: 3.7 GiB
+Bus Width: 4-bit
+reading parallella.bit.bin
+
+4045568 bytes read
+reading uImage
+
+958584 bytes read
+reading devicetree.dtb
+
+8607 bytes read
+## Booting kernel from Legacy Image at 03000000 ...
+   Image Name:   
+   Image Type:   ARM Linux Kernel Image (gzip compressed)
+   Data Size:    958520 Bytes = 936.1 KiB
+   Load Address: 00100000
+   Entry Point:  00100000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 02a00000
+   Booting using the fdt blob at 0x02a00000
+   Uncompressing Kernel Image ... OK
+   Loading Device Tree to 1fffa000, end 1ffff19e ... OK
+
+Starting kernel ...
+
+kernel initialized
+[32mGenode 15.11-88-gdb695e9 <local changes>[0m
+int main(): [33m--- create local services ---[0m
+int main(): [33m--- start init ---[0m
+int main(): [33mtransferred 1016 MB to init[0m
+int main(): [33m--- init created, waiting for exit condition ---[0m
+[init] [31mCould not open ROM session for module "ld.lib.so"[0m
+[init -> failsafe_server_direct] Failsafe::Root::Root(Genode::Rpc_entrypoint&, Genode::Allocator&, Genode::Ram_session&, Genode::Cap_session&): [33mCreating root component of Failsafe.[0m
+[init -> failsafe_server_direct] virtual Failsafe::Session_component* Failsafe::Root::_create_session(const char*): [33mCreating loader session of Failsafe.[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of original[0m
+[init -> failsafe_server_direct] Hello::Root_component::Root_component(Genode::Rpc_entrypoint*, Genode::Allocator*): [33mCreating root component of redundancy.[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of original[0m
+[init -> cli_failsafe] original client start say hello 234595648 
+[init -> cli_failsafe] virtual void Hello::Session_client::say_hello(): [33mSaying Hello.[0m
+[init -> failsafe_server_direct] original server start to process 243383056 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am original... Hello.[0m
+[31mno RM attachment[0m (faulter ca8128 with IP 10011c attempts to write to address 44)
+[31minit -> failsafe_server_direct -> hello_ep: unresolved pagefault at ip=10011c sp=e01fee70 fault address=44[0m
+[init -> failsafe_server_direct] [33mgot exception for child[0m
+[init -> failsafe_server_direct] fault detected: 270420672 
+[init -> failsafe_server_direct] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init -> failsafe_server_direct] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> failsafe_server_direct] [33msend signal[0m
+[init -> failsafe_server_direct] [33msignal sant[0m
+[init -> cli_failsafe] fault detected in monitor: 291319011 
+[init -> cli_failsafe] virtual Failsafe::Child::~Child(): [33mchild killed[0m
+[init] [34mno session structure found[0m
+[init -> cli_failsafe] Genode::Process::~Process(): [33mdestructor process[0m
+[init -> cli_failsafe] [33mgot signal from server monitor[0m
+[init -> cli_failsafe] [33mredundancy started[0m
+[init -> failsafe_server_direct] virtual Hello::Session_component* Hello::Root_component::_create_session(const char*): [33mcreating hello session of redundancy.[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 329418958 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 340169324 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 356021989 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 367573139 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 383427700 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 394973974 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 410833434 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 422385994 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 438238490 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 449784822 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 465643759 
+[init -> cli_failsafe -> redundancy] virtual void Hello::Session_client::say_hello(): [33mSaying Hello from red_client[0m
+[init -> failsafe_server_direct] redundancy server start to process 477193949 
+[init -> failsafe_server_direct] virtual void Hello::Session_component::say_hello(): [33mI am red_server[0m
+[init -> cli_failsafe -> redundancy] int main(): [33mred_client added 2 + 5 = 8[0m
+[init -> cli_failsafe -> redundancy] red client start say hello 493049222 
+[init -> cli_failsá

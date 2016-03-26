@@ -64,7 +64,7 @@ int main()
 	} 
 	else if (s.num() && s.context() == &sig_ctx_srv) {
 		Trace::Timestamp a = Trace::timestamp();
-		printf("fault detected in monitor: %lld \n", a);
+		printf("fault detected in monitor: %d \n", a);
 		comp.child_destroy();
 		PLOG("got signal from server monitor");
 		red_comp.red_start();	
