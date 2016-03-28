@@ -71,12 +71,12 @@ class Failsafe::Hello_component : public Failsafe::Recovery_component<Hello::Ses
 			printf("pseudo server finish say_hello %u \n", t);
 				} 
 			catch(Genode::Ipc_error) {
-                        PDBG("say_hello ipc exception");
+                        	PDBG("say_hello ipc exception");
 				construct_barrier.down();
 			 	con->say_hello();
 				}
 			catch(Genode::Blocking_canceled) {
-                        PDBG("say_hello blk exception");
+                        	PDBG("say_hello blk exception");
 				construct_barrier.down();
 			 	con->say_hello();
 				}
@@ -92,7 +92,12 @@ class Failsafe::Hello_component : public Failsafe::Recovery_component<Hello::Ses
 				return con->add(a, b); 
 				}
 			catch(Genode::Ipc_error) { 
-                        PDBG("add exception");
+                        	PDBG("add ipc exception");
+				construct_barrier.down();
+				return con->add(a, b); 
+				}
+			catch(Genode::Blocking_canceled) { 
+                        	PDBG("add blk exception");
 				construct_barrier.down();
 				return con->add(a, b); 
 				}
@@ -156,22 +161,22 @@ int main()
         	//sig_rec.dissolve(&sig_ctx);
 		comp.child_destroy();	
 		//comp.reset_child();
-		//childa = comp.child();
-		//PDBG("a after fault %x", childa);
 		//Failsafe::Hello_component* hi;
 		//red_comp.red_start();
-		red_comp.block_for_announcement();
-		//hi = hello_root.get_component();
-		hi->construct(red_comp.child_session());
-        	tag++;
-		//comp.fast_restart();
-		//PDBG("11");
-		//comp.block_for_announcement();
-		//PDBG("11");
+
+		/* redundancy */
+		//red_comp.block_for_announcement();
+		//hi->construct(red_comp.child_session());
 		
-		//hi->construct(comp.child_session());
-		//comp.start("hello_server", "srv_recreate", Native_pd_args());
-		//PDBG("fault, recreate hello_server");
+		/* recreate a child */
+			
+		static Failsafe::Hello_sfw_monitor re_comp(size, *env()->ram_session(), cap);
+        	PDBG("going to recreate child");
+		re_comp.start("red_server", "rechild", Native_pd_args());
+		re_comp.block_for_announcement();
+		hi->construct(re_comp.child_session());
+        	tag++;
+	
 		}
 	break;
 

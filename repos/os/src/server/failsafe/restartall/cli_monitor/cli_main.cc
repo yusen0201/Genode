@@ -41,7 +41,7 @@ int main()
 	comp.fault_sigh(sig_rec.manage(&sig_ctx));
 	comp.start("hello_client", "", Native_pd_args());
 	comp.session_request_unlock();
-	red_comp.start("red_client", "redundancy", Native_pd_args());
+	red_comp.start("red_client", "redundancy", Native_pd_args()); //block thread
 
 	//comp_component->child_fault_sigh(sig_rec.manage(&sig_ctx));
 
@@ -66,10 +66,19 @@ int main()
 		Trace::Timestamp a = Trace::timestamp();
 		printf("fault detected in monitor: %d \n", a);
 		comp.child_destroy();
-		PLOG("got signal from server monitor");
-		red_comp.red_start();	
-		red_comp.session_request_unlock();
-		PLOG("redundancy started");
+
+		/* redundancy */
+		//PLOG("got signal from server monitor");
+		//red_comp.red_start(); //block thread	
+		//red_comp.session_request_unlock();
+		//PLOG("redundancy started");
+		
+		/* recreate a child */
+		PDBG("going to recreate child");
+		static Failsafe::Session_component comp(size, *env()->ram_session(), cap);
+		comp.start("red_client", "rechild", Native_pd_args());
+		comp.session_request_unlock();
+	
 		//sig_rec.dissolve(&sig_ctx_srv);
 	} 
 	else {
