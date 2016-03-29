@@ -64,11 +64,19 @@ int main()
 		Trace::Timestamp a = Trace::timestamp();
 		printf("fault detected: %u \n", a);
 		comp.child_destroy();
+		
+		/* redundancy */
 		red_comp.block_for_announcement();
 		env()->parent()->announce("Hello", red_comp.child_root_cap());
 		
+		/* recreate a child */
+		//static Failsafe::Session_component re_comp(size, *env()->ram_session(), cap);
+        	//PDBG("going to recreate child");
+		//re_comp.start("red_server", "rechild", Native_pd_args());
+		//re_comp.block_for_announcement();
+		//env()->parent()->announce("Hello", re_comp.child_root_cap());
+
 		PLOG("send signal");
-	
 		comp_component->cli_sig.submit();
 		PLOG("signal sant");
 

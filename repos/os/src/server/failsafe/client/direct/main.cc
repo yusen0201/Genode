@@ -35,7 +35,7 @@ int main()
 	comp.child_fault_sigh(sig_rec.manage(&sig_ctx));
 	comp.start("hello_client", "original", Native_pd_args());
 	comp.session_request_unlock();
-	red_comp.start("red_client", "redundancy", Native_pd_args());
+	red_comp.start("red_client", "red", Native_pd_args()); //block thread
 	
 	/*****************************************************
 	*****            start redundancy		 *****
@@ -50,10 +50,19 @@ int main()
 
 	if (child_fault_detection(sig_rec, sig_ctx)) {
 		Trace::Timestamp a = Trace::timestamp();
-		printf("fault detected in monitor %lld \n", a);
+		printf("fault detected in monitor %u \n", a);
 		comp.child_destroy();
-		red_comp.red_start();
+
+		/* redundancy */
+		//red_comp.red_start(); //block thread
 		red_comp.session_request_unlock();
+
+		/* recreate a child */
+		//PDBG("going to recreate child");
+		//static Failsafe::Session_component re_comp(size, *env()->ram_session(), cap);
+		//re_comp.start("red_client", "rechild", Native_pd_args());
+		//re_comp.session_request_unlock();
+		
 
 	} 
 	sleep_forever();
