@@ -45,8 +45,6 @@ int main()
 
 	//comp_component->child_fault_sigh(sig_rec.manage(&sig_ctx));
 
-	//comp.block_for_announcement();
-	//env()->parent()->announce("Hello", comp.hello_root_cap());
 	
 
 	/*****************************************************
