@@ -1,5 +1,11 @@
-#ifndef _SFW_MONITOR_H_
-#define _SFW_MONITOR_H_
+/*
+ * \brief  Base Monitor class used for server monitor 
+ * \author Yusen Wang
+ * \date   2016-04-07
+ */
+
+#ifndef _SRV_MONITOR_H_
+#define _SRV_MONITOR_H_
 
 #include <monitor.h>
 
@@ -29,4 +35,4 @@ class Failsafe::Srv_component : public Failsafe::Session_component
 	        virtual Genode::Capability<Interface> child_session() = 0;
 };
 
-#endif /* _SFW_MONITOR_H_ */
+#endif /* _SRV_MONITOR_H_ */

@@ -1,3 +1,9 @@
+/*
+ * \brief  Pseudo server and pseudo client in server forwarded solution 
+ * \author Yusen Wang
+ * \date   2016-04-07
+ */
+
 #include <root/component.h>
 #include <base/rpc_server.h>
 #include <util/volatile_object.h>
@@ -32,7 +38,6 @@ class Recovery_root : public Genode::Root_component<Recovery_comp>
 {
 	private:
 		
-		Genode::Capability<Interface> _cap;
 		Recovery_comp* _recovery;
 		Genode::Semaphore comp_barrier;
 

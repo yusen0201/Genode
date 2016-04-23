@@ -1,3 +1,10 @@
+/*
+ * \brief  Base Monitor class  
+ * \author Yusen Wang
+ * \date   2016-04-07
+ */
+
+
 #ifndef _MONITOR_H_
 #define _MONITOR_H_
 
@@ -317,10 +324,6 @@ class Failsafe::Session_component : public Rpc_object<Session>
 			_child->red_start();
 		}
 		
-		void fast_restart()
-		{
-			_child->fast_restart();
-		}
 	
 		/******************************
 		 ** Failsafe session interface **
@@ -332,15 +335,7 @@ class Failsafe::Session_component : public Rpc_object<Session>
 		{
 			cli_sig.context(sigh);
 		}
-			
-		Child *child()
-		{
-			return _child;
-		}
-		void reset_child()
-		{
-			_child = 0;
-		}
+		
 };
 
 class Failsafe::Root : public Root_component<Session_component>

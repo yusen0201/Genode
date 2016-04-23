@@ -1,16 +1,9 @@
 /*
  * \brief  Failsafe child interface
- * \author Christian Prochaska
- * \author Norman Feske
- * \date   2009-10-05
+ * \author Yusen Wang
+ * \date   2016-04-07
  */
 
-/*
- * Copyright (C) 2009-2013 Genode Labs GmbH
- *
- * This file is part of the Genode OS framework, which is distributed
- * under the terms of the GNU General Public License version 2.
- */
 
 #ifndef _CHILD_H_
 #define _CHILD_H_
@@ -230,19 +223,6 @@ namespace Failsafe {
 				_child.fast_restart();	
 			}
 
-			Genode::Session_capability session(char     const *args,
-			                                   Affinity const &affinity)
-			{
-				PDBG("session 111");
-				Genode::Session_capability session_cap =
-					Genode::Root_client(get_root_cap()).session(args, Genode::Affinity());
-
-			
-				//return Genode::static_cap_cast<Hello::Session>(session_cap);
-				return session_cap;
-	
-
-			}
 	};
 }
 

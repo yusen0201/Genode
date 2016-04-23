@@ -1,16 +1,9 @@
 /*
- * \brief  Loader session interface
- * \author Christian Prochaska
- * \author Norman Feske
- * \date   2009-10-05
+ * \brief  failsafe session interface
+ * \author Yusen Wang 
+ * \date   2016-04-07
  */
 
-/*
- * Copyright (C) 2009-2013 Genode Labs GmbH
- *
- * This file is part of the Genode OS framework, which is distributed
- * under the terms of the GNU General Public License version 2.
- */
 
 #ifndef _INCLUDE__FAILSAFE_SESSION__FAILSAFE_SESSION_H_
 #define _INCLUDE__FAILSAFE_SESSION__FAILSAFE_SESSION_H_
